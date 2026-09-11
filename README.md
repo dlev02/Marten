@@ -1,6 +1,6 @@
 # Marten
 
-Marten is a personal finance web app for a family's own use. It combines a React interface, authenticated Convex data, and Plaid bank connections. Each signed-in user owns a separate workspace; a shared family-access model is not implemented.
+Marten is a personal finance web app for a family's own use. It combines a React interface, authenticated Convex data, Plaid bank connections, and an optional Sophtron personal-import pilot. Each signed-in user owns a separate workspace; a shared family-access model is not implemented.
 
 Chase, American Express, and Charles Schwab are the intended institutions. Brokerage and IRA balances belong in net worth; Investments adds available holdings, allocation, cost basis, and activity. Forecast compares retirement ages, annual travel, required savings, and near-term cash balances. Trading and automated financial advice are outside the app’s scope.
 
@@ -16,6 +16,11 @@ Chase, American Express, and Charles Schwab are the intended institutions. Broke
 | [Importing spreadsheets](docs/importing.md)              | Excel/CSV columns, previews, duplicate handling, and account mapping        |
 | [Forecast guide](docs/forecasting.md)                    | Saved scenarios, travel, savings, cash runway, and model limitations        |
 | [Investments](docs/investments.md)                       | Holdings, valuation, cost-basis coverage, and investment sync               |
+| [Agent access](docs/agent-access.md)                     | Browser WebMCP, remote MCP, consent and assistant setup                     |
+| [Reminders](docs/reminders.md)                           | Opt-in browser and email notifications                                      |
+| [Bank-provider options](docs/bank-provider-options.md)   | Plaid connection limits and personal hosting alternatives                   |
+| [Sophtron pilot](docs/sophtron.md)                       | Personal deployment setup, reviewed import and data limits                  |
+| [Brand and category artwork](docs/assets.md)             | Offline logo catalog and illustrated category icons                         |
 | [Recurring schedules](docs/recurring-schedules.md)       | Precise subscription matching and manual statement reminders                |
 | [Forecasting research](docs/forecasting-research.md)     | Competitor evidence, user needs, and model requirements                     |
 | [Credit-score history & research](docs/credit-scores.md) | Provider access, free consumer sources, and practical import options        |

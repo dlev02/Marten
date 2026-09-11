@@ -18,16 +18,17 @@ The current intended development backend is `stoic-narwhal-224.convex.cloud`. Tr
 
 ## Environment and authentication
 
-| Variable                              | Where it belongs                                        | Meaning                                                               |
-| ------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
-| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                         |
-| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                      |
-| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                          |
-| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                     |
-| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables              |
-| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links              |
-| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows |
-| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config    |
+| Variable                              | Where it belongs                                        | Meaning                                                                  |
+| ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                            |
+| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                         |
+| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                             |
+| `AGENT_APP_ORIGIN`                    | Convex deployment environment                           | Optional exact frontend origin for MCP consent; falls back to `SITE_URL` |
+| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                        |
+| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                 |
+| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                 |
+| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows    |
+| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config       |
 
 The installed Convex Auth initializer can configure a new development deployment:
 
@@ -40,6 +41,8 @@ Use the actual frontend origin. For this freshly created workspace, the CLI also
 Email/password authentication normalizes email addresses and requires passwords of at least 12 characters. Password recovery uses an eight-digit email code valid for 15 minutes. Configure `AUTH_BREVO_KEY` and `AUTH_EMAIL_FROM` on the selected Convex deployment; see [authentication and recovery](authentication.md) for limits, sender setup, session behavior, and the recorded live delivery check.
 
 Private values should be entered through the selected deployment's environment settings or another authorized credential mechanism. Do not paste them into issues, documentation, screenshots, browser bundles, or command output shared for debugging.
+
+[AI connections](agent-access.md) require no model API key. The remote MCP URL uses the selected deployment's HTTP origin (`CONVEX_SITE_URL`), and its consent flow needs the matching frontend origin and `/agent-authorize` SPA route. Browser tools and OAuth grants start disabled until a real personal-workspace owner explicitly enables them.
 
 ## Sample data and bank testing
 

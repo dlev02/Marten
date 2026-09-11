@@ -57,5 +57,7 @@ verify the current experience before expanding it.
 - Research competitors and user feedback when extending the product. Retain
   Marten's calm visual style and adopt improvements that solve a concrete need.
 
-AI is a separate future capability. Forecasting must expose assumptions and
-distinguish actual data, expected activity, and modeled outcomes.
+Agent access reuses the same owned business operations as the interface. Keep
+browser access opt-in and remote MCP grants revocable, with read access as the
+default. Forecasting must expose assumptions and distinguish actual data,
+expected activity, and modeled outcomes.

@@ -8,7 +8,7 @@ Review the example ages and financial assumptions before interpreting a new plan
 
 Income and spending estimates use recorded activity in the preceding twelve complete calendar months, with split allocations and transfer exclusions. Sparse coverage is disclosed and the average uses months with observed activity. Complete reading of the selected records does not prove complete bank coverage. Review refunds, missing accounts, and one-time expenses.
 
-- Change retirement age, planning horizon, annual investment return, and inflation.
+- Change retirement age, planning horizon, annual investment return, and inflation. Retirement age, return and inflation pair draggable sliders with exact numeric entry; arrow keys adjust the focused slider. Changes update the model immediately and are persisted with **Save scenario**.
 - Add travel plans with trips per year, cost per trip, an age range, and an annual budget month. Remove any duplicated travel cost from living spending.
 - Enter after-tax income and spending before/after retirement, starting funds, access age, and a desired ending balance.
 - Save a scenario to freeze its inputs and starting date. **Save a copy** creates a comparison. Comparisons require the same starting date and current age.

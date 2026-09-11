@@ -1,6 +1,6 @@
 # Marten requirements and financial contracts
 
-Marten is a personal finance application for Drew's dad. The interface follows the familiar Monarch Money organization while using the Marten name and its own implementation. React renders the web client; Convex owns authenticated application data and business logic. Plaid is the sole external financial data provider.
+Marten is a personal finance application for Drew's dad. The interface follows the familiar Monarch Money organization while using the Marten name and its own implementation. React renders the web client; Convex owns authenticated application data and business logic. Plaid is the primary bank provider. Sophtron is an optional personal-deployment import with explicitly documented coverage limits.
 
 This document defines scope and acceptance criteria. A listed feature is a requirement, not evidence that its UI, backend, and live provider path have all been verified. See [verification.md](verification.md) for validation evidence and external blockers.
 
@@ -30,7 +30,15 @@ This document defines scope and acceptance criteria. A listed feature is a requi
 | Forecast | Saved long-term scenarios, trips, retirement ages, savings solver, yearly export, and short-term cash runway | Monthly money conservation, explicit assumptions, ownership/revision checks, current cash and unpaid schedules |
 | Investments | Cached holdings, allocation, known-basis gain/loss, activity, and account-value history | Complete sync publishes atomically; values do not double count net worth; missing data remains unknown |
 
-Budget, Goals, Advice, live credit-score feeds, and a support service are excluded. A searchable Help & FAQ is included. AI remains a separate future capability. Investments now includes cached account value, holdings, reported cost basis, allocation, and separate investment activity; see [the financial contracts](investments.md). Forecasting exposes assumptions and distinguishes actual data, expected activity, and modeled outcomes.
+Budget, Goals, Advice, live credit-score feeds, and a support service are excluded. A searchable Help & FAQ is included. Agent access uses browser WebMCP and remote MCP with owner consent, read-only defaults, optional edits and revocation. It reuses the financial engines and does not require a model API key in Marten. Investments now includes cached account value, holdings, reported cost basis, allocation, and separate investment activity; see [the financial contracts](investments.md). Forecasting exposes assumptions and distinguishes actual data, expected activity, and modeled outcomes.
+
+## Connected assistant and reminder contracts
+
+- Browser tools register only after the signed-in personal-workspace owner enables access, and use the live authenticated session. Navigation/filter tools change the view; finance writes require the separate edit setting. Unsupported browsers retain the normal interface.
+- Remote MCP uses OAuth with PKCE, short-lived access tokens, rotating refresh tokens and revocable 30-day grants. Tokens are hashed in storage. Grants are user- and resource-bound; read-only calls cannot execute edits. Do not expose credentials, private provider identifiers, receipt URLs or unrelated user records through tool results.
+- Agents use the same annotation, recurring, report and forecast operations as the UI. Reports must be complete or refuse partial totals. Bank payments, trading, account deletion and provider consent are outside the tools.
+- Browser reminders require native permission and run while a Marten tab is open. Email reminders require explicit enablement and verification of the signed-in address; delivery uses the configured email provider. Demo/sample workspaces do not deliver either channel.
+- Sophtron uses one configured personal owner per deployment. The owner reviews account mapping, currency and debt-sign conventions before import. Its documented V2 pilot imports cached balances and posted transactions, skips pending/unknown-status rows and does not claim complete history, removal tracking, holdings or statement minimums. Stopping imports retains cached history; bank consent is revoked with Sophtron.
 
 ## Financial invariants
 
@@ -41,7 +49,7 @@ Budget, Goals, Advice, live credit-score feeds, and a support service are exclud
 - Transfers do not contribute to income or spending. Their account balance effects still contribute to net worth. A credit card payment should not become a second expense after its purchases have already been recorded.
 - Pending and hidden transactions are excluded from posted financial totals. The pending-edit preference controls detail editing before posting; it does not hide pending rows or make them posted income or spending. Hiding a transaction does not change a provider account balance.
 - A posted transaction replacing a pending transaction must preserve intentional user annotations, tags, notes, merchant/category edits, review/visibility choices, attachments, and split intent where valid. Provider changes must not duplicate the pending and posted rows. When the posted amount changes, invalidated allocations move to `splitDraft`, active splits clear, and the transaction requires review. Reports use the authoritative posted amount while the original allocations remain available to reconcile.
-- Provider transaction identity and sync cursors make repeated syncs idempotent. Added, modified, removed, and pending-to-posted updates are handled together with annotation preservation. A cursor advances only after the complete fetched pagination loop has been applied successfully; partial imports replay idempotently from the prior cursor.
+- Plaid transaction identity and sync cursors make repeated syncs idempotent. Added, modified, removed, and pending-to-posted updates are handled together with annotation preservation. A cursor advances only after the complete fetched pagination loop has been applied successfully; partial imports replay idempotently from the prior cursor.
 - Recurrence operates on calendar dates, not elapsed milliseconds. January 31 recurs on February's last day, then returns to March 31. Annual February 29 entries return to February 29 in leap years.
 - All IDs used in relationships are checked against the authenticated user. Public callers cannot supply an authoritative owner ID. Private Plaid tokens never appear in public query results, browser state, or logs.
 - Sample data is fictional and clearly labeled. No private transactions, balances, credentials, screenshots of real finances, or actual bank identities are copied into seeds or committed fixtures.

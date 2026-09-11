@@ -1,6 +1,6 @@
 # Architecture and contributor map
 
-Marten is a React/Vite single-page application with Convex as its only application backend. Convex Auth supplies authenticated sessions; Plaid actions import bank data, including [investment holdings and activity](investments.md). There is no separate REST server or database service.
+Marten is a React/Vite single-page application with Convex as its only application backend. Convex Auth supplies authenticated sessions; Plaid actions import bank data, including [investment holdings and activity](investments.md). An optional Sophtron adapter imports cached personal-provider data. Convex HTTP actions also host the OAuth and MCP endpoints; there is no separate server or database service.
 
 ## Source map
 
@@ -32,6 +32,8 @@ Feature-specific styles stay beside the feature. Shared app styles and theme tok
 A client calls the generated Convex API through `ConvexAuthProvider`. Public business functions use `userQuery`, `userMutation`, or `userAction`, which derive `ctx.userId` from the authenticated session. `owned` validates direct IDs and relationship targets. Each user owns a separate `profiles` record and financial records; knowing an ID does not grant access, and there is no shared household role model.
 
 Queries and mutations read/write Convex data. External requests and file-storage orchestration use actions, which call internal queries/mutations for transactional changes. An internal function may accept a trusted server-derived `userId`; public APIs must not use a caller-provided owner as authorization.
+
+[AI connections](agent-access.md) expose the same finance operations through browser WebMCP and an authenticated remote MCP HTTP endpoint. Shared schemas live in `convex/lib/agentTools.ts`; `agentAccess.ts` derives the owner from the signed-in session or a validated OAuth grant before calling extracted business handlers. Both paths require personal-workspace consent, enforce separate edit access, and redact provider credentials and identifiers at the output boundary. Remote OAuth is handled by `agentHttp.ts` and `convex/lib/agentAuth.ts`.
 
 `DataProvider` loads bounded workspace metadata reactively. Transactions are paginated separately and reports wait until the entire chosen range is loaded. Recurring payment checkmarks also load through pagination; the month view waits for every page before treating an absent checkmark as unpaid or calculating the remaining total. Account balance history has its own bounded query and a `complete` flag. Those completion signals are part of correctness, not just loading presentation.
 
@@ -106,3 +108,11 @@ This version favors understandable, bounded operations for a small personal work
 - Receipts are limited to 20 per transaction, up to 5 MB each, with supported types validated on the server.
 
 If a feature outgrows one of these paths, change the query protocol and its completeness/error handling together. Raising a `.take()` limit alone is not a scaling strategy. Keep externally visible totals and ownership guarantees covered by focused tests.
+
+## Assistant and notification integrations
+
+Browser tools in `WebMCPProvider` feature-detect `document.modelContext`, dynamically load schemas after opt-in, and unregister through an abort signal. Frontend navigation/filter tools accept only known destinations and validated filter fields. `/agent-authorize` presents client identity, callback origin and optional edit consent before the backend issues a code. The [agent guide](agent-access.md) covers OAuth lifetimes, client compatibility, limits and setup; the shared ownership boundary is described above.
+
+[Reminders](reminders.md) separate browser display from email delivery. The browser dispatcher uses a service worker for native notices while the tab runs; it is not background push. The server's 15-minute email sweep respects user timing, verification and payment state, and reserves each attempt to avoid duplicate delivery. Activity records omit message contents.
+
+[The Sophtron pilot](sophtron.md) has a separate provider adapter, explicit owner binding and reviewed account import. It uses deployment credentials and preserves annotations through provider-identified posted imports. Its currency, balance sign, mapping cutover and incomplete-history rules must not be inferred from Plaid's different contract.

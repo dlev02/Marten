@@ -1,12 +1,20 @@
-# Brand artwork
+# Brand and category artwork
 
-Marten bundles the following identification icons in `public/brands/`. They are served from the app itself. Rendering an icon does not send merchant names, account names, or financial data to an image service. No logo service, API key, runtime lookup, or icon package dependency is used.
+Marten bundles the following identification icons in `public/brands/`. They are served from the app itself. Rendering an icon does not send merchant names, account names, or financial data to an image service. No logo service, API key or external runtime lookup is used. The complete Simple Icons development dependency generates an additional catalog before dev/build.
 
-`src/lib/brandLogos.ts` exposes `brandLogo(name): string | null`. It matches only an explicit list of aliases after Unicode normalization, case folding, trimming, and whitespace normalization. It does not infer a brand from a transaction statement or a substring. Unknown names retain the initials fallback.
+`src/lib/brandLogos.ts` exposes `brandLogo(name): string | null`. It matches generated catalog titles and official aliases plus a reviewed list of aliases after Unicode normalization, case folding, trimming, and whitespace normalization. It does not infer a brand from a transaction statement or a substring. Unknown names retain the initials fallback.
 
 The presentation order is an uploaded/provider-supplied logo first, then `brandLogo(name)`, then initials. Local SVGs have a white circular backing and optical padding already included. Render them with `object-fit: contain` and a white avatar background; do not apply the placeholder's colored background or another internal image padding layer.
 
-## Simple Icons
+## Generated catalog
+
+`simple-icons@16.30.0` is pinned in the lockfile. `npm run assets:brands` runs `scripts/generate-brand-catalog.mjs`, which validates the installed metadata and paths, creates 3,459 SVGs in `public/brands/catalog/`, and writes the compact lookup in `src/lib/brandCatalog.json`. The `predev` and `prebuild` hooks run this generator automatically. A clean checkout needs `npm ci` first. Generation uses local dependency files, not an image-service request. Generated images total about 5 MiB and are served individually when needed; they are not loaded together into the page.
+
+The generated directory is ignored by Git and recreated deterministically. Its `sources.json`, `LICENSE.md` and `DISCLAIMER.md` retain upstream provenance. Existing reviewed aliases/artwork take precedence. Ambiguous normalized names are excluded, and raw transaction descriptors are not guessed from substrings. The catalog improves broad coverage but does not cover every merchant or bank. A failed provider/user image now falls back to a known local logo before initials.
+
+A runtime logo API was considered: [Logo.dev](https://www.logo.dev/pricing) offers a free request tier, but self-hosting its returned artwork is a paid-plan feature. Marten instead bundles the open catalog and sends no merchant queries to that service. No account, API key or subscription was created.
+
+## Original curated Simple Icons
 
 The vector paths and listed brand colors are from [Simple Icons](https://github.com/simple-icons/simple-icons), pinned to commit [`5d5d4d1d28cbb00b21770bb69d8112da52211a95`](https://github.com/simple-icons/simple-icons/tree/5d5d4d1d28cbb00b21770bb69d8112da52211a95). Source metadata is the pinned [`data/simple-icons.json`](https://github.com/simple-icons/simple-icons/blob/5d5d4d1d28cbb00b21770bb69d8112da52211a95/data/simple-icons.json). The brand paths are unchanged; each is placed within a white circular SVG canvas and filled with its catalog color.
 
@@ -39,4 +47,15 @@ Artwork identifies merchants and institutions; it does not imply affiliation, sp
 
 Schwab is not mapped in the local fallback catalog: it was absent from this Simple Icons snapshot, and the public asset endpoints checked during this pass did not return usable artwork. A supplied Schwab logo still takes precedence over initials through the normal account-logo path.
 
-Retrieved September 11, 2026 UTC. The 13 self-contained icon files total approximately 262 KiB; no runtime dependency was added.
+## Additional reviewed merchants
+
+- `traderjoes.svg`: the unchanged red wordmark from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Trader_Joes_Logo.svg), whose source is a Trader Joe's flyer. The page labels the text logo public domain, with trademark restrictions retained. The original [SVG](https://upload.wikimedia.org/wikipedia/commons/d/d1/Trader_Joes_Logo.svg) is embedded byte-for-byte on a white canvas (SHA-256 `503e83d3207938d283c565f96f2bdfa09fac55a8184b5624d72d735d205edb6a`).
+- `walgreens.svg`: the unchanged [Walgreens website branding SVG](https://www.walgreens.com/images/adaptive/livestyleguide/v5/icons/Branding.svg), embedded within a white circular canvas. This first-party artwork retains the brand's ownership and is not described as CC0.
+
+## Category illustrations
+
+Twenty-one Microsoft [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) Flat SVGs are bundled unchanged in `public/category-icons/`, pinned to commit `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc`. Their total SVG size is about 40 KiB. The exact source URLs and emoji mapping are retained in `sources.json`; the MIT license is included alongside them. No CDN request or model generation is involved.
+
+`CategoryIcon` displays the illustration for a known emoji and the original system emoji for other values. Variation selectors are normalized for matching, while stored category values remain unchanged. Preferences → Appearance switches between Illustrated and System emoji for this device; the category editor offers the bundled choices and still accepts pasted emoji. This preserves portable exports and custom categories.
+
+Retrieved September 11, 2026 UTC. Artwork is for identification, not an endorsement.

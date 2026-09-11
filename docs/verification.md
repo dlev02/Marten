@@ -4,16 +4,26 @@ Final assembled-app checks were completed on **September 11, 2026** using fictio
 
 ## Final checks
 
-| Check | Observed result |
-| --- | --- |
-| Automated suite | `npm test`: **177 tests across 26 files passed**. |
-| Types and lint | `npm run lint` passed, including the application TypeScript check and ESLint. The backend TypeScript check also passed. |
-| Production build | `npm run build` passed. Routes, spreadsheet parsing, and PDF parsing are split into separate bundles; PDF.js loads only for PDF import. |
-| Development backend | Convex confirmed the assembled schema/functions ready on `stoic-narwhal-224`, including demo restrictions, credit history, recurring matching, investments, and forecasting. |
-| Rendered UI | Actual interactions and opened screenshots covered desktop, landscape/portrait tablet, and 390px phone layouts in both appearances. The final desktop pass used a 1536×1024 fine-pointer browser. |
-| Design comparison | [Fidelity ledger](design/qa/fidelity-ledger.md) compares the original concepts with the implemented application and records approved changes. |
+| Check               | Observed result                                                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Automated suite     | `npm test`: **245 tests across 34 files passed**. Concurrency is capped at four workers while retaining test isolation.                                                                                                                     |
+| Types and lint      | `npm run lint` passed, including the application TypeScript check and ESLint. The backend TypeScript check also passed.                                                                                                                     |
+| Production build    | `npm run build` passed. Routes, spreadsheet parsing, and PDF parsing are split into separate bundles; PDF.js loads only for PDF import.                                                                                                     |
+| Development backend | Convex confirmed the assembled schema/functions ready on `stoic-narwhal-224` at 09:38:51 America/Chicago, including OAuth/MCP, reminders, recurrence detection and the unconfigured Sophtron adapter. Backend type checking passed.         |
+| Rendered UI         | Actual interactions and opened screenshots covered desktop, landscape/portrait tablet, and 390px phone layouts in both appearances. The final desktop pass used a 1536×1024 fine-pointer browser.                                           |
+| Design comparison   | [Fidelity ledger](design/qa/fidelity-ledger.md) compares the original concepts with the implementation. The later [Mobbin review](design/mobbin-review.md) records 26 inspected previews from 19 apps and the concrete refinements adopted. |
 
-The tests cover money conservation, signed cents, refunds, splits, complete-period reporting, date boundaries, ownership, ordered rules, provider retries, recurrence matching, imports, search destinations, authentication helpers, demo isolation, investment calculations, forecast scenarios, and credit-history validation. Mocked provider tests do not establish live bank behavior.
+The tests cover money conservation, signed cents, refunds, splits, complete-period reporting, date boundaries, ownership, ordered rules, provider retries, recurrence matching/detection, imports, search destinations, authentication helpers, demo isolation, investment calculations, forecast scenarios, credit-history validation, reminder consent/deduplication, Sophtron normalization, brand matching, and agent permissions/token lifecycle. Mocked provider tests do not establish live bank behavior. An earlier unconstrained run hit two five-second timeouts under worker contention; the bounded final run passed all tests.
+
+## Later refinement pass
+
+- Sign-in and signup now use direct headings and a compact demo action beneath the form. The final sign-in, grouped command palette, credit-history empty state, and bank score guide were opened and inspected. Search arrow keys moved the active result; Enter on “category icons” opened the exact appearance preference.
+- Rapid viewport changes covered 1512, 1220, 1100, 990, 820, and 780 pixels. After two animation frames, the net-worth curve retained an 8px gap before the rendered right-axis labels at every width. The sidebar collapse button stayed at x=181 and the search shortcut at x=182.1875. This is an observed resize check, not a frame-time benchmark on every device.
+- The settings rail remained at y=88 before and after scrolling with the sticky demo banner. Profile photo actions shared the same top position and 36px height; choosing a preset and restoring initials worked.
+- A forecast slider changed retirement age from 66 to 67 with ArrowRight. A pointer drag changed return to 10.5%; entering 6% afterward, saving and reloading retained both 67 and 6%. Both numeric fields and sliders remain available.
+- Illustrated/system category style persisted after reload; selecting the avocado illustration retained the original emoji value in the category editor. The generated catalog produced 3,459 locally served brand icons, with reviewed Trader Joe's and Walgreens fallbacks.
+- The Last month preset applied to Transactions and appeared in its toolbar. The credit score editor exposed a text field with a numeric keyboard rather than native steppers. The four-bank guide retained separate source/model/date guidance.
+- Forecast, Credit scores, Preferences and AI connections were captured at 820×1180 and 390×844 in both themes with zero outer horizontal overflow. Settled screenshots were inspected, including the palette, profile actions, forecast and narrow settings. Captures are under `output/playwright/marten-final-*`; only fictional data was used.
 
 ## Authentication, profile, and demo
 
@@ -39,7 +49,9 @@ Detailed records: [organization QA](qa-organization.md), [workspace refinement](
 ## Recurring schedules and cash runway
 
 - Recurring calendar/list, manual schedules, detection review, and payment state were exercised with fictional data. Exact amount matching is the default; sign, merchant, optional account/statement text, explicit tolerance, and occurrence timing prevent an Amazon Prime schedule from matching unrelated Amazon purchases. Regression tests cover these distinctions.
-- Credit accounts can store a statement due date, balance, and minimum entered by the user. Recurring labels these **Entered by you**, separately from provider fields. This is an in-app reminder, without autopay or notification delivery.
+- Credit accounts can store a statement due date, balance, and minimum entered by the user. Recurring labels these **Entered by you**, separately from provider fields. Statement **Mark paid / Mark unpaid** controls apply to that due date and suppress eligible reminders without changing transactions or initiating payment.
+- Detection now clusters the same merchant/account/sign by amount and cadence, accepts explicit small variation, and proposes weekly, biweekly, monthly, quarterly and yearly schedules. Coverage dates, occurrence counts and tolerance are visible before review. Suggestions do not create schedules automatically.
+- A final regression confirmed 99 eligible patterns are complete, while 101 patterns return the capped 100 suggestions with `complete: false`. The latter case failed before the fix. The UI and agent tools share the same completeness result.
 - The cash-runway view was inspected at 1180×820, 820×1180, and 390×844 with no outer horizontal overflow. A selected $42,300 account with $25/day variable spending ended at $40,050 after 90 days. At $250/day over 365 days it ended at −$48,950 and first went below zero on February 28, 2027.
 - Ten cash-runway tests cover exact cents, future unpaid activity, selected USD cash accounts, excluded currencies/types, month ends/leap years, 30/90/365-day horizons, daily closing balances, and unsafe input rejection. Card purchase schedules and separate statement reminders are excluded; a card payment must be scheduled explicitly from a cash account.
 
@@ -89,10 +101,19 @@ This is manually maintained history with optional local PDF assistance, not auto
 - Webhook tests verify original-body signatures, ES256, active verification keys, a five-minute time window, modified bodies, expired keys, malformed JWTs, and unsupported algorithms. The `/plaid/webhook` route and six-hour catch-up cron are implemented; live provider delivery has not been observed.
 - Secrets and signing material belong in Convex deployment configuration. `.env.local`, browser-session artifacts, caches, and build output are excluded from source control.
 
+## Reminders, assistants and Sophtron
+
+- Reminder controls were checked in fictional demo workspaces at desktop, tablet and phone widths in both appearances. Native/email delivery remains disabled for demo users. Tests exercised verified-address consent, expiration/replay/rate limits, DST/calendar eligibility, paid/paused/edited schedules, duplicate claims, and safe notification/email payloads. Browser and email calls were mocked; this pass did not send a real reminder or establish closed-tab browser delivery. See [reminders](reminders.md).
+- A new fictional personal QA account completed sign-up, fresh onboarding, OAuth consent and the return through the configured localhost frontend to a local MCP callback. Live development discovery returned HTTP 200, unauthenticated MCP returned 401 with its discovery challenge, SDK initialization negotiated `2025-11-25`, tools/list returned 20 tools, and get_accounts completed with an empty owned result. An edit under read-only consent returned 403. Disconnecting the client in Marten Settings made its token return 401 on subsequent calls.
+- Chrome reported no native WebMCP API. In the Codex in-app browser, a fictional personal workspace registered 16 tools with read access (14 finance reads and two navigation/filter tools). The native bridge read accounts, opened Transactions with the requested search and date range, and returned to AI connections. Turning access off removed the tools; browser editing stayed off throughout.
+- A separately consented local MCP edit grant created a zero-balance fictional forecast, changed annual return from 5% to 6%, restored 5%, and read back revision 3. Refresh returned HTTP 200 with a rotated token. Immediate disconnection made the refreshed access token return 401. No test grant remains active. Automated tests additionally cover ownership, stale revisions, token replay and both supported protocol versions. No real ChatGPT/Claude account or phone client was connected. The development frontend is HTTP localhost; hosted clients still require an authorized HTTPS deployment and configured app origin. See [agent access](agent-access.md).
+- Sophtron setup/import entry points were inspected at 1440, 820 and 390 pixels with light/dark coverage. Unconfigured and demo states kept import disabled and hid the demo owner ID. An isolated browser fixture exercised currency, debt-sign, account-mapping and final-review gates; a phone grid/checkbox layout issue was fixed, then review-dialog client/scroll widths matched at 390 (349/349), 820 (771/771), and 1440 (923/923). Nine backend fixture tests cover identity, balances, supported posted records, retry preservation, cutover, stale writes and account limits. No Sophtron account, credentials, real consent or live import was configured. Provider history completeness remains unverified. See [Sophtron](sophtron.md) and the [provider comparison](bank-provider-options.md).
+
 Still required before a public release or real household onboarding:
 
 1. Have the account holder complete real Plaid consent; validate Chase, American Express, and Charles Schwab account/product coverage, balances, posted/pending transactions, available liabilities, and investment data separately.
 2. Verify refresh/reconnect/disconnect, scheduled sync, and live webhook delivery for those real connections.
 3. Choose the production backend and final HTTPS frontend URL, configure authentication/Plaid origins and redirects, publish the frontend with SPA routing, and exercise routes/authentication on that URL under authorization covering public publication.
+4. If enabling the optional integrations, complete real reminder opt-in/delivery checks, native browser and intended MCP-client connection checks, and Sophtron enrollment/data validation for its explicitly configured personal owner.
 
 The development backend and private source repository do not establish public hosting. No real bank was connected by this QA pass.
