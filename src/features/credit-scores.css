@@ -1,0 +1,231 @@
+.credit-page-intro {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.credit-import-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 26px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.credit-import-note svg {
+  flex-shrink: 0;
+}
+.credit-read-status {
+  color: var(--muted);
+  font-size: 13px;
+}
+.credit-empty-panel {
+  padding: 36px 24px;
+  text-align: center;
+}
+.credit-empty-panel > p {
+  margin: 20px auto 0;
+  max-width: 480px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.credit-history-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.credit-history-selector > .folio-select {
+  width: min(100%, 370px);
+}
+.credit-history-selector > span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.credit-history-panel {
+  padding: 24px;
+  margin-bottom: 22px;
+}
+.credit-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.credit-history-heading p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.credit-current-score {
+  font-size: 52px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  line-height: 1.2;
+  margin: 9px 0;
+}
+.credit-score-change {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+}
+.credit-score-change strong {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 500;
+}
+.credit-score-chart {
+  margin-top: 28px;
+  min-width: 0;
+}
+.credit-chart-empty {
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  margin: 24px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.credit-table-heading {
+  padding: 21px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.credit-table-heading h2 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 600;
+}
+.credit-table-heading span,
+.credit-history-footnote {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.credit-table-scroll {
+  position: relative;
+  overflow-x: auto;
+}
+.credit-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.credit-history-table th,
+.credit-history-table td {
+  text-align: left;
+  padding: 13px 24px;
+  border-top: 1px solid var(--border);
+}
+.credit-history-table th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.credit-history-table td:last-child {
+  text-align: right;
+}
+.credit-table-score {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.credit-history-footnote {
+  margin: 16px 0 0;
+}
+.credit-score-form {
+  display: grid;
+  gap: 17px;
+}
+.credit-score-form .field {
+  margin-bottom: 0;
+}
+.credit-score-form .field .folio-select {
+  width: 100%;
+}
+.credit-score-form .modal-actions {
+  margin-top: 4px;
+}
+.credit-score-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.credit-score-evidence {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+}
+.credit-score-evidence strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.credit-editor-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+.credit-delete-action {
+  margin-right: auto;
+}
+@media (max-width: 760px) {
+  .credit-history-panel {
+    padding: 20px;
+  }
+  .credit-table-heading {
+    padding: 18px 20px;
+  }
+  .credit-history-table th,
+  .credit-history-table td {
+    padding: 12px 16px;
+  }
+  .credit-history-heading {
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .credit-current-score {
+    font-size: 44px;
+  }
+}
+@media (max-width: 460px) {
+  .credit-history-selector {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .credit-history-heading {
+    flex-direction: column;
+  }
+  .credit-score-change {
+    text-align: left;
+  }
+  .credit-score-change strong {
+    justify-content: flex-start;
+  }
+  .credit-score-pair {
+    grid-template-columns: 1fr;
+  }
+  .credit-import-note {
+    align-items: flex-start;
+  }
+  .credit-score-form .modal-actions {
+    flex-wrap: wrap;
+  }
+}

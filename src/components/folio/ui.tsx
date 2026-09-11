@@ -1,0 +1,486 @@
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type ButtonHTMLAttributes,
+} from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as Popover from "@radix-ui/react-popover";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { Button as BaseButton } from "../ui/button";
+import { message } from "../../lib/format";
+import { brandLogo } from "../../lib/brandLogos";
+
+export const Button = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    tone?: "default" | "primary" | "quiet" | "danger";
+    icon?: ReactNode;
+  }
+>(function Button(
+  { children, tone = "default", icon, className = "", ...props },
+  ref,
+) {
+  return (
+    <BaseButton
+      ref={ref}
+      type="button"
+      {...props}
+      className={`f-button ${tone} ${className}`}
+      variant="outline"
+    >
+      {icon}
+      {children}
+    </BaseButton>
+  );
+});
+Button.displayName = "Button";
+
+export const IconButton = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    label: string;
+    children: ReactNode;
+  }
+>(function IconButton({ label, children, ...props }, ref) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <button
+          ref={ref}
+          type="button"
+          {...props}
+          className={`icon-button ${props.className ?? ""}`}
+          aria-label={label}
+        >
+          {children}
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tooltip" sideOffset={7}>
+          {label}
+          <Tooltip.Arrow />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+});
+IconButton.displayName = "IconButton";
+export function Panel({
+  title,
+  action,
+  children,
+  className = "",
+}: {
+  title?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`panel ${className}`}>
+      {title && (
+        <header className="panel-header">
+          <h2>{title}</h2>
+          {action}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide = false,
+  drawer = false,
+  description,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+  drawer?: boolean;
+  description?: string;
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+}) {
+  const returnFocus = useRef<HTMLElement | null>(null);
+  return (
+    <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-overlay" />
+        <Dialog.Content
+          className={drawer ? "drawer" : `modal ${wide ? "wide" : ""}`}
+          {...(!description ? { "aria-describedby": undefined } : {})}
+          onOpenAutoFocus={(event) => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+            if (onOpenAutoFocus) return onOpenAutoFocus(event);
+            // Starting at Close focuses its tooltip, which consumes the first Escape.
+            const content = event.target;
+            if (!(content instanceof HTMLElement)) return;
+            event.preventDefault();
+            const firstInput = Array.from(
+              content.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+                'input:not([type="hidden"]):not([type="file"]):not([disabled]), textarea:not([disabled])',
+              ),
+            ).find((input) => input.getClientRects().length);
+            (firstInput ?? content).focus({ preventScroll: true });
+          }}
+          onCloseAutoFocus={(event) => {
+            if (onCloseAutoFocus) return onCloseAutoFocus(event);
+            event.preventDefault();
+            const target = returnFocus.current;
+            if (target?.isConnected) target.focus({ preventScroll: true });
+          }}
+        >
+          <div className="modal-heading">
+            <Dialog.Title>{title}</Dialog.Title>
+            <Dialog.Close asChild>
+              <IconButton label="Close">
+                <X size={20} />
+              </IconButton>
+            </Dialog.Close>
+          </div>
+          {description && (
+            <Dialog.Description className="muted modal-description">
+              {description}
+            </Dialog.Description>
+          )}
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+export function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label id={id}>{label}</label>
+      <div aria-labelledby={id}>{children}</div>
+      {hint && <small className="muted">{hint}</small>}
+    </div>
+  );
+}
+export function Picker({
+  value,
+  onChange,
+  options,
+  placeholder = "Choose…",
+  label,
+  className = "",
+  disabled = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; icon?: ReactNode; group?: string }[];
+  placeholder?: string;
+  label: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false),
+    [search, setSearch] = useState("");
+  const selected = options.find((o) => o.value === value);
+  const filtered = options.filter((o) =>
+    `${o.label} ${o.group ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  return (
+    <Popover.Root
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        setSearch("");
+      }}
+    >
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className={`picker ${className}`}
+          disabled={disabled}
+          aria-label={label}
+        >
+          {selected?.icon}
+          <span className={selected ? "" : "muted"}>
+            {selected?.label ?? placeholder}
+          </span>
+          <ChevronDown size={15} />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content className="picker-menu" align="start" sideOffset={5}>
+          <div className="picker-search">
+            <Search size={16} />
+            <input
+              aria-label={`Search ${label.toLowerCase()}`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+            />
+          </div>
+          <div className="picker-options">
+            {filtered.map((o, i) => (
+              <div key={o.value}>
+                {o.group && o.group !== filtered[i - 1]?.group && (
+                  <div className="picker-group">{o.group}</div>
+                )}
+                <button
+                  type="button"
+                  className="picker-option"
+                  onClick={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                  }}
+                >
+                  {o.icon}
+                  <span>{o.label}</span>
+                  {value === o.value && <Check size={15} />}
+                </button>
+              </div>
+            ))}
+            {!filtered.length && (
+              <div className="empty-compact muted">No results</div>
+            )}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+export function Tabs({
+  value,
+  onChange,
+  items,
+  pill = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  items: { value: string; label: string; icon?: ReactNode }[];
+  pill?: boolean;
+}) {
+  return (
+    <div className={pill ? "segments" : "tabs"} role="tablist">
+      {items.map((item) => (
+        <button
+          type="button"
+          key={item.value}
+          role="tab"
+          aria-selected={value === item.value}
+          className={value === item.value ? "active" : ""}
+          onClick={() => onChange(item.value)}
+        >
+          {item.icon}
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+export function Loading({
+  text = "Loading your finances…",
+}: {
+  text?: string;
+}) {
+  return (
+    <div className="loading">
+      <Loader2 className="spin" size={22} />
+      <span>{text}</span>
+    </div>
+  );
+}
+export function Empty({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="empty">
+      {icon && <div className="empty-icon">{icon}</div>}
+      <h3>{title}</h3>
+      {description && <p>{description}</p>}
+      {action}
+    </div>
+  );
+}
+export function Avatar({
+  name,
+  logo,
+  color,
+  size = "normal",
+}: {
+  name: string;
+  logo?: string | null;
+  color?: string;
+  size?: "small" | "normal" | "large";
+}) {
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const resolvedLogo = logo || brandLogo(name);
+  const showLogo = resolvedLogo && resolvedLogo !== failedLogo;
+  return (
+    <span
+      className={`avatar ${size} ${showLogo ? "has-logo" : ""}`}
+      style={{
+        background: showLogo ? "#fff" : (color ?? "var(--avatar)"),
+        color: color ? "#fff" : "var(--muted)",
+      }}
+    >
+      {showLogo ? (
+        <img
+          src={resolvedLogo}
+          alt=""
+          onError={() => setFailedLogo(resolvedLogo)}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        name
+          .split(/[\s&]+/)
+          .slice(0, 2)
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+      )}
+    </span>
+  );
+}
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <label className="toggle-row">
+      <div>
+        <strong>{label}</strong>
+        {description && <p>{description}</p>}
+      </div>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="switch" />
+    </label>
+  );
+}
+const ToastContext = createContext<(value: string, error?: boolean) => void>(
+  () => {},
+);
+export const useToast = () => useContext(ToastContext);
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<
+    { id: number; text: string; error: boolean }[]
+  >([]);
+  const toast = useCallback((value: string, error = false) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, text: value, error }]);
+    setTimeout(() => setToasts((t) => t.filter((i) => i.id !== id)), 6500);
+  }, []);
+  return (
+    <ToastContext.Provider value={toast}>
+      {children}
+      <div className="toasts" aria-live="polite">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`toast ${t.error ? "error" : ""}`}
+            role={t.error ? "alert" : "status"}
+          >
+            {t.error ? <X size={17} /> : <Check size={17} />}
+            <span>{t.text}</span>
+            <button
+              aria-label="Dismiss notification"
+              onClick={() => setToasts((s) => s.filter((i) => i.id !== t.id))}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+export function useTask() {
+  const toast = useToast(),
+    [busy, setBusy] = useState(false);
+  const run = async (task: () => Promise<unknown>, success?: string) => {
+    if (busy) return false;
+    setBusy(true);
+    try {
+      await task();
+      if (success) toast(success);
+      return true;
+    } catch (error) {
+      toast(message(error), true);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { busy, run };
+}
+export function SearchBox({
+  value,
+  onChange,
+  placeholder = "Search…",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="search-box">
+      <Search size={17} />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}

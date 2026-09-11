@@ -1,0 +1,221 @@
+.money-flow {
+  container-type: inline-size;
+  min-width: 0;
+  padding: 4px 24px 18px;
+}
+.money-flow-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+.money-flow-desktop {
+  min-width: 0;
+}
+.money-flow-desktop svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.money-flow-ribbon {
+  transition: fill-opacity 140ms ease-out;
+}
+.money-flow-center-bar {
+  fill: var(--muted);
+  opacity: 0.5;
+}
+.money-flow-node-label {
+  min-width: 0;
+  line-height: 15px;
+}
+.money-flow-node-label strong,
+.money-flow-node-label span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.money-flow-node-label strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.money-flow-node-label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.money-flow-center-label {
+  fill: var(--muted);
+  font-size: 10px;
+}
+.money-flow-center-value {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.money-flow-focus {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1.5;
+}
+.money-flow-node {
+  outline: none;
+}
+.money-flow-node:focus-visible .money-flow-focus {
+  stroke: var(--blue);
+  fill: var(--hover);
+}
+.money-flow-insight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 48px;
+  padding: 12px 0;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  line-height: 1.6;
+}
+.money-flow-insight strong,
+.money-flow-insight b {
+  color: var(--text);
+  font-weight: 500;
+}
+.money-flow-insight b {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.money-flow-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 2px;
+}
+.money-flow-details {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  font-size: 12px;
+}
+.money-flow-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  width: fit-content;
+  padding: 2px 0;
+}
+.money-flow-details > summary:hover {
+  color: var(--text);
+}
+.money-flow-details > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  margin-top: 20px;
+}
+.money-flow-list {
+  min-width: 0;
+}
+.money-flow-list h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.money-flow-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.money-flow-list li {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 9px 0;
+  font-size: 12px;
+}
+.money-flow-list li > .money-flow-dot {
+  margin-top: 6px;
+}
+.money-flow-list li strong,
+.money-flow-list li small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.money-flow-list li strong {
+  font-weight: 500;
+}
+.money-flow-list li small {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.money-flow-list li b {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.money-flow-list li i {
+  display: block;
+  height: 3px;
+  margin-top: 7px;
+  border-radius: 3px;
+  opacity: 0.65;
+}
+.money-flow-mobile {
+  display: none;
+}
+.money-flow-mobile-total {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0;
+  margin: 12px 0 18px;
+  border-block: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.money-flow-mobile-total strong {
+  margin-left: auto;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.money-flow-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 50px 24px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+.money-flow-empty strong {
+  color: var(--text);
+}
+@container (max-width: 620px) {
+  .money-flow-desktop,
+  .money-flow-heading {
+    display: none;
+  }
+  .money-flow-mobile {
+    display: block;
+  }
+  .money-flow-details > div {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+@media (max-width: 440px) {
+  .money-flow {
+    padding-inline: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .money-flow-ribbon {
+    transition: none;
+  }
+}

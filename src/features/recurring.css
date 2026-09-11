@@ -1,0 +1,617 @@
+.recurring-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 24px;
+  flex-wrap: wrap;
+}
+.recurring-month {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.recurring-month h2 {
+  font-size: 19px;
+  font-weight: 600;
+  min-width: 184px;
+  text-align: center;
+  letter-spacing: -0.3px;
+}
+.recurring-month > .f-button {
+  margin-left: 10px;
+}
+.recurring-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 24px;
+  padding: 24px 0;
+}
+.recurring-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.recurring-filters .search-box {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+.recurring-filters .folio-select {
+  width: auto;
+  min-width: 135px;
+  max-width: 240px;
+  flex: 1 1 135px;
+}
+.recurring-filter-summary {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.recurring-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 28px;
+}
+.recurring-summary > div + div {
+  border-left: 1px solid var(--border);
+}
+.recurring-summary span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.recurring-summary strong {
+  font-size: 29px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.7px;
+  font-variant-numeric: tabular-nums;
+}
+.recurring-summary small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.recurring-main {
+  overflow: hidden;
+}
+.recurring-date-heading {
+  padding: 15px 23px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.recurring-today-label {
+  color: var(--positive, #187f63);
+  font-size: 11px;
+}
+.recurring-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 23px;
+  border-bottom: 1px solid var(--border);
+}
+.recurring-list > div:last-child .recurring-row {
+  border-bottom: 0;
+}
+.recurring-row-detail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.recurring-row .row-title {
+  flex: 1;
+  min-width: 0;
+}
+.recurring-row .row-title strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.recurring-row .row-title small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.recurring-row .amount {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.recurring-row .amount small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 5px;
+}
+.recurring-row-edit {
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 160ms;
+}
+.recurring-row:hover .recurring-row-edit,
+.recurring-row:focus-within .recurring-row-edit {
+  opacity: 1;
+}
+.recurring-check {
+  height: 22px;
+  width: 22px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.recurring-check.checked {
+  background: var(--positive, #187f63);
+  border-color: var(--positive, #187f63);
+  color: var(--positive-ink);
+}
+.recurring-row.is-paid .row-title,
+.recurring-row.is-paid .amount {
+  opacity: 0.62;
+}
+.recurring-calendar {
+  width: 100%;
+}
+.recurring-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.recurring-calendar-week > [role="columnheader"] {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 15px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.recurring-calendar-day {
+  min-height: 132px;
+  padding: 10px 7px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.recurring-calendar-day:last-child {
+  border-right: 0;
+}
+.recurring-calendar-week:last-child .recurring-calendar-day {
+  border-bottom: 0;
+}
+.recurring-calendar-day.outside {
+  background: var(--canvas, #f6f5f3);
+  opacity: 0.55;
+}
+.recurring-day-number {
+  font-size: 12px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 7px;
+}
+.recurring-calendar-day.today .recurring-day-number {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.recurring-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.recurring-calendar-event {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 5px 6px;
+  border-left: 2px solid var(--accent);
+  background: var(--canvas, #f6f5f3);
+  border-radius: 3px;
+  font-size: 10px;
+  overflow: hidden;
+}
+.recurring-calendar-event > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.recurring-calendar-event > span svg {
+  display: inline;
+}
+.recurring-calendar-event strong {
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.recurring-calendar-event.income {
+  border-left-color: #187f63;
+}
+.recurring-calendar-event.paid {
+  opacity: 0.6;
+  border-left-color: var(--muted);
+}
+.recurring-more {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: left;
+  padding: 3px 5px;
+}
+.recurring-day-mobile,
+.calendar-weekday-short {
+  display: none;
+}
+.recurring-paused {
+  margin-top: 24px;
+}
+.recurring-paused-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 14px 23px;
+  border-top: 1px solid var(--border);
+}
+.recurring-paused-row .row-title {
+  flex: 1;
+}
+.recurring-paused-row strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.recurring-paused-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.recurring-statements {
+  margin-top: 30px;
+}
+.recurring-section-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.recurring-section-title p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.recurring-section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.recurring-section-actions > div {
+  min-width: 0;
+}
+.recurring-section-actions > .f-button {
+  flex-shrink: 0;
+}
+.recurring-statement-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 20px 0 4px;
+}
+.recurring-statement-due .status-chip {
+  margin-left: 8px;
+  font-size: 10px;
+}
+.recurring-statement-footer {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.recurring-match-settings {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.recurring-match-settings summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.recurring-match-settings p,
+.recurring-reminder-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.recurring-match-settings p {
+  margin: 12px 0;
+}
+.recurring-match-settings .recurring-form-pair {
+  margin-bottom: 10px;
+}
+.transaction-recurring-label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+@media (max-width: 760px) {
+  .recurring-section-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.recurring-statement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.recurring-statement {
+  padding: 20px;
+}
+.recurring-statement-heading {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.recurring-statement-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.recurring-statement-heading strong {
+  font-size: 13px;
+  font-weight: 500;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recurring-statement-heading small {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  margin-top: 3px;
+}
+.recurring-statement-due {
+  font-size: 17px;
+  font-weight: 500;
+  margin: 22px 0 16px;
+}
+.recurring-statement dl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+}
+.recurring-statement dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.recurring-statement dt {
+  color: var(--muted);
+}
+.recurring-statement dd {
+  font-variant-numeric: tabular-nums;
+}
+.recurring-statement-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+  margin-top: 18px;
+  align-items: center;
+}
+.recurring-statement-footer small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.recurring-statement-footer .text-link {
+  font-size: 11px;
+}
+.recurring-footnote {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+.recurring-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 8px;
+}
+.recurring-form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.recurring-form .f-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--panel, #fff);
+  color: var(--text, #22201d);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 41px;
+}
+.recurring-form textarea.f-input {
+  resize: vertical;
+}
+.recurring-editor-actions {
+  display: flex;
+  gap: 9px;
+}
+.recurring-editor-actions > span {
+  flex: 1;
+}
+.recurring-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.recurring-suggestion:last-child {
+  border-bottom: 0;
+}
+.recurring-suggestion .row-title {
+  flex: 1;
+}
+.recurring-suggestion strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.recurring-suggestion small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0 7px;
+}
+.recurring-suggestion .amount {
+  font-size: 13px;
+}
+.recurring-calendar-event:hover,
+.recurring-row-detail:hover {
+  filter: brightness(0.96);
+}
+@media (max-width: 1120px) {
+  .recurring-statement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .calendar-weekday-long {
+    display: none;
+  }
+  .calendar-weekday-short {
+    display: inline;
+  }
+  .recurring-summary > div {
+    padding: 0 20px;
+  }
+  .recurring-summary strong {
+    font-size: 25px;
+  }
+}
+@media (min-width: 761px) and (max-width: 950px) {
+  .recurring-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .recurring-filters .search-box,
+  .recurring-filters .folio-select {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+  }
+}
+@media (max-width: 650px) {
+  .recurring-summary {
+    padding: 20px 0;
+  }
+  .recurring-summary > div {
+    padding: 0 12px;
+    gap: 7px;
+  }
+  .recurring-summary span {
+    font-size: 11px;
+  }
+  .recurring-summary strong {
+    font-size: 21px;
+  }
+  .recurring-summary small {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .recurring-month h2 {
+    min-width: 155px;
+    font-size: 17px;
+  }
+  .recurring-toolbar {
+    gap: 16px;
+  }
+  .recurring-month > .f-button {
+    margin-left: 3px;
+  }
+  .recurring-row {
+    gap: 12px;
+    padding: 16px 14px;
+  }
+  .recurring-row-detail {
+    gap: 11px;
+  }
+  .recurring-row-edit {
+    display: none;
+  }
+  .recurring-row .row-title small {
+    max-width: 155px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .recurring-calendar-day {
+    min-height: 80px;
+    padding: 8px 4px;
+  }
+  .recurring-day-events {
+    display: none;
+  }
+  .recurring-day-mobile {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 8px auto;
+    font-size: 11px;
+  }
+  .recurring-day-mobile span {
+    height: 5px;
+    width: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .recurring-day-number {
+    margin: 0 auto;
+  }
+  .recurring-calendar-week > [role="columnheader"] {
+    padding: 12px 3px;
+    font-size: 10px;
+  }
+  .recurring-statement-grid {
+    grid-template-columns: 1fr;
+  }
+  .recurring-date-heading {
+    padding-left: 14px;
+  }
+  .recurring-form-pair {
+    gap: 12px;
+  }
+  .recurring-editor-actions {
+    flex-wrap: wrap;
+  }
+  .recurring-editor-actions > span {
+    min-width: 0;
+  }
+}
+@media (pointer: coarse) {
+  .recurring-day-number {
+    width: min(44px, 100%);
+    height: 44px;
+  }
+  .recurring-calendar-event,
+  .recurring-more {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recurring-row-edit {
+    transition: none;
+  }
+}

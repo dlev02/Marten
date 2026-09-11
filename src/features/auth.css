@@ -1,0 +1,53 @@
+.auth-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.auth-password input {
+  width: 100%;
+  padding-right: 43px;
+}
+.auth-password button {
+  position: absolute;
+  right: 5px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.auth-password button:hover {
+  background: var(--hover);
+}
+.auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 24px;
+  font-size: 13px;
+}
+.auth-forgot {
+  text-align: right;
+  margin-top: -3px;
+  font-size: 13px;
+}
+.auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 8%, transparent);
+  line-height: 1.5;
+}
+.auth-code {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 4px;
+}
+.auth-code::placeholder {
+  letter-spacing: normal;
+}

@@ -1,0 +1,33 @@
+import { v } from "convex/values";
+
+export const forecastInputs = v.object({
+  schemaVersion: v.literal(1),
+  asOfDate: v.string(),
+  currentAge: v.number(),
+  retirementAge: v.number(),
+  endAge: v.number(),
+  cashCents: v.number(),
+  investmentCents: v.number(),
+  retirementCents: v.number(),
+  retirementAccessAge: v.number(),
+  monthlyIncomeCents: v.number(),
+  monthlySpendingCents: v.number(),
+  retirementMonthlyIncomeCents: v.number(),
+  retirementMonthlySpendingCents: v.number(),
+  extraMonthlySavingsCents: v.number(),
+  annualReturnPct: v.number(),
+  inflationPct: v.number(),
+  incomeGrowthPct: v.number(),
+  legacyTargetCents: v.number(),
+  travelPlans: v.array(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      tripsPerYear: v.number(),
+      costPerTripCents: v.number(),
+      startAge: v.number(),
+      endAge: v.number(),
+      month: v.number(),
+    }),
+  ),
+});

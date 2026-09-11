@@ -1,0 +1,24 @@
+.global-results > button:focus-visible {
+  outline-offset: -2px;
+  background: var(--hover);
+}
+.global-results > button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.global-results small {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.settings-content [id] {
+  scroll-margin-top: 28px;
+}
+.settings-content [id]:target {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+@media (max-width: 760px) {
+  .settings-content [id] {
+    scroll-margin-top: 80px;
+  }
+}

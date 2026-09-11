@@ -1,0 +1,117 @@
+.folio-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 38px;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px #00000004;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+.folio-select > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.folio-select svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.folio-select:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--hover);
+}
+.folio-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.folio-select:disabled {
+  opacity: 0.5;
+}
+.folio-select-menu {
+  min-width: var(--radix-select-trigger-width);
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: min(340px, var(--radix-select-content-available-height));
+  z-index: 120;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 8px 30px #18150f1f,
+    0 2px 6px #18150f0a;
+  transform-origin: var(--radix-select-content-transform-origin);
+  animation: select-enter 120ms ease-out;
+}
+.folio-select-options {
+  padding: 5px;
+}
+.folio-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  position: relative;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.folio-select-option[data-highlighted] {
+  background: var(--hover);
+}
+.folio-select-option[data-state="checked"] {
+  color: var(--text);
+  font-weight: 600;
+}
+.folio-select-option[data-disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+.folio-select-option > span:first-child {
+  overflow-wrap: anywhere;
+}
+.folio-select-option svg {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+.folio-select-scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  background: var(--surface);
+  color: var(--muted);
+}
+@keyframes select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .folio-select-menu {
+    animation: none;
+  }
+  .folio-select {
+    transition: none;
+  }
+}

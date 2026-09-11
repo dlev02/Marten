@@ -1,0 +1,933 @@
+.accounts-networth {
+  margin-bottom: 26px;
+  padding: 24px 24px 14px;
+}
+.accounts-networth-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.account-primary-total {
+  font-size: 34px !important;
+  line-height: 1.25;
+  letter-spacing: -1.25px;
+  margin: 5px 0 7px !important;
+  font-weight: 600;
+}
+.account-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.account-change.positive {
+  color: #187f63;
+}
+.account-change.negative {
+  color: #b8664d;
+}
+.account-change strong {
+  font-weight: 500;
+}
+.account-change > span {
+  color: var(--muted);
+  margin-left: 3px;
+}
+.period-control {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.period-control button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+.period-control button.active {
+  color: var(--text);
+  background: var(--hover);
+}
+.accounts-networth .networth-chart {
+  height: 235px;
+  margin-top: 12px;
+}
+.accounts-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.accounts-chart-footer > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-dot {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #00a3bd;
+}
+.accounts-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  gap: 24px;
+}
+.accounts-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 13px;
+  gap: 12px;
+}
+.accounts-section-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.accounts-section-heading h2 > span,
+.account-group-count {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--hover);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+.accounts-section-heading .text-button {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 11px;
+}
+.account-group {
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.account-group-title {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.account-group-title > svg:first-child {
+  color: var(--muted);
+}
+.account-group-title h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.account-group-title > strong {
+  margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.account-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  padding: 17px 18px;
+  gap: 12px;
+  text-align: left;
+  transition: background 160ms;
+}
+.account-row:last-child {
+  border-bottom: 0;
+}
+.account-row:hover {
+  background: var(--hover);
+}
+.account-row > .avatar {
+  flex-shrink: 0;
+  width: 35px;
+  height: 35px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.account-row-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 5px;
+}
+.account-row-name > strong {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-row-name > span {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-row-spark {
+  width: 85px;
+  height: 30px;
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+.account-row-spark .sparkline {
+  height: 30px;
+  width: 85px;
+}
+.account-row-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 100px;
+}
+.account-row-value > strong {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.account-row-value > small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.account-row > svg {
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 13px;
+}
+.account-row-muted {
+  opacity: 0.65;
+}
+.account-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  width: 100%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 17px;
+}
+.account-add-row:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.accounts-summary {
+  padding-top: 33px;
+}
+.accounts-summary .panel {
+  padding: 0 18px 18px;
+}
+.accounts-summary .panel-header {
+  padding: 18px 0 16px;
+  border: 0;
+}
+.accounts-summary .panel-header h2 {
+  font-size: 14px;
+}
+.balance-sheet-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  gap: 5px;
+}
+.balance-sheet-total > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.balance-sheet-total > strong {
+  font-weight: 500;
+}
+.balance-sheet-dot {
+  height: 7px;
+  width: 7px;
+  display: inline-block;
+  border-radius: 50%;
+}
+.balance-sheet-dot.assets {
+  background: #00a3bd;
+}
+.balance-sheet-dot.debt {
+  background: #e89d7c;
+}
+.balance-sheet-bar {
+  background: #e89d7c;
+  height: 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 11px 0 15px;
+}
+.balance-sheet-bar > span {
+  display: block;
+  background: #00a3bd;
+  height: 100%;
+}
+.balance-sheet-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 11px 0;
+}
+.balance-sheet-line > strong {
+  font-weight: 400;
+  color: var(--text);
+}
+.balance-sheet-total.liabilities {
+  margin-top: 23px;
+}
+.balance-sheet-net {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+}
+.balance-sheet-net > strong {
+  font-weight: 600;
+}
+.account-side-note {
+  display: flex;
+  gap: 9px;
+  color: var(--muted);
+  margin: 17px 10px;
+}
+.account-side-note > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.account-side-note p {
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0;
+}
+.connect-account {
+  padding-top: 24px;
+}
+.connect-hero {
+  text-align: center;
+  max-width: 340px;
+  margin: 0 auto 22px;
+}
+.connect-symbol {
+  height: 62px;
+  width: 62px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hover);
+  color: var(--text);
+}
+.connect-hero h2 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  margin: 17px 0 8px;
+  font-weight: 600;
+}
+.connect-hero p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+.connection-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.connection-choices > button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 17px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+.connection-choices > button.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  color: var(--accent);
+}
+.connection-choices > button > span {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 5px;
+}
+.connection-choices strong {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.connection-choices small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.connection-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 20px 0;
+}
+.connect-continue {
+  width: 100%;
+  margin-top: 14px;
+}
+.connect-continue > svg:last-child {
+  margin-left: auto;
+}
+.connect-account > .text-button {
+  display: block;
+  margin: 15px auto 0;
+  font-size: 12px;
+}
+.account-notice {
+  padding: 12px 14px;
+  background: var(--hover);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 12px 0;
+}
+.account-form {
+  padding-top: 17px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.account-form > p {
+  font-size: 13px;
+  margin: 0 0 4px;
+  line-height: 1.6;
+}
+.account-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.account-form .field {
+  margin: 0;
+}
+.account-form input:not([type="checkbox"]) {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  min-width: 0;
+}
+.account-form input:disabled {
+  background: var(--hover);
+  color: var(--muted);
+}
+.account-form .picker {
+  width: 100%;
+  min-width: 0;
+}
+.money-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 0 11px;
+  gap: 6px;
+  color: var(--muted);
+}
+.money-input input {
+  border: 0 !important;
+  padding: 10px 0 !important;
+  outline: none;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.money-input small {
+  font-size: 10px;
+}
+.account-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+.account-preferences {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.account-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 25px 0 12px;
+}
+.account-detail-heading > .avatar {
+  border-radius: 11px;
+}
+.account-detail-heading > div {
+  flex: 1;
+}
+.account-detail-heading h2 {
+  font-size: 27px;
+  letter-spacing: -0.7px;
+  margin: 5px 0 0;
+  font-weight: 600;
+}
+.account-detail-heading .eyebrow {
+  font-size: 10px;
+}
+.account-detail-heading .f-button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.account-detail-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 23px;
+}
+.account-detail-status > span:last-child {
+  margin-left: auto;
+}
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #67a68c;
+}
+.account-detail-content {
+  padding-top: 18px;
+}
+.drawer:has(> .account-detail-heading) {
+  --account-drawer-inset: 24px;
+}
+.drawer:has(> .account-detail-heading) > .modal-description {
+  margin: 12px var(--account-drawer-inset) 0;
+}
+.drawer > .account-detail-heading,
+.drawer > .account-detail-status,
+.drawer:has(> .account-detail-heading) > .tabs {
+  margin-inline: var(--account-drawer-inset);
+}
+.drawer > .account-detail-content {
+  padding: 18px var(--account-drawer-inset) 24px;
+}
+@media (max-width: 760px) {
+  .drawer:has(> .account-detail-heading) {
+    --account-drawer-inset: 20px;
+  }
+}
+.account-detail-chart .networth-chart {
+  height: 180px;
+}
+.account-facts {
+  margin: 20px 0;
+}
+.account-facts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.account-facts dt {
+  color: var(--muted);
+}
+.account-facts dd {
+  margin: 0;
+  text-transform: capitalize;
+}
+.account-transactions-link {
+  width: 100%;
+  margin-top: 8px;
+}
+.utilization {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  margin-top: 15px;
+}
+.utilization > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.utilization strong {
+  font-weight: 500;
+}
+.utilization-track {
+  height: 5px;
+  background: var(--hover);
+  border-radius: 4px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.utilization-track > span {
+  display: block;
+  height: 100%;
+  background: #e89d7c;
+}
+.utilization > small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.account-history-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+.account-detail-content > p {
+  font-size: 12px;
+}
+.account-history-list > div,
+.balance-preview > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.account-history-list strong,
+.balance-preview strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.account-history-list > div > span {
+  color: var(--muted);
+}
+.balance-import {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding-top: 10px;
+}
+.balance-import > p {
+  line-height: 1.7;
+  font-size: 13px;
+  margin: 0;
+}
+.balance-import .account-notice {
+  margin: 0;
+}
+.balance-preview {
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.balance-preview > div:last-child {
+  border: 0;
+}
+@media (min-width: 1450px) {
+  .accounts-layout {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+  .account-row-spark {
+    width: 110px;
+    margin: 0 28px;
+  }
+  .account-row-spark .sparkline {
+    width: 110px;
+  }
+}
+@media (max-width: 1100px) {
+  .accounts-layout {
+    grid-template-columns: minmax(0, 1fr) 245px;
+    gap: 18px;
+  }
+  .account-row-spark {
+    display: none;
+  }
+  .accounts-networth-top {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 950px) {
+  .accounts-layout {
+    grid-template-columns: 1fr;
+  }
+  .accounts-summary {
+    padding-top: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .account-side-note {
+    margin-top: 20px;
+  }
+  .account-row-spark {
+    display: block;
+  }
+}
+@media (max-width: 600px) {
+  .accounts-networth {
+    padding: 18px 14px 12px;
+  }
+  .account-primary-total {
+    font-size: 31px !important;
+  }
+  .accounts-networth-top {
+    gap: 15px;
+  }
+  .period-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .period-control button {
+    flex: 1;
+    padding: 6px;
+  }
+  .accounts-networth .networth-chart {
+    height: 195px;
+  }
+  .accounts-chart-footer > span:first-child {
+    max-width: 70%;
+    line-height: 1.5;
+  }
+  .accounts-summary {
+    grid-template-columns: 1fr;
+  }
+  .account-side-note {
+    margin: 0 8px;
+  }
+  .account-row {
+    padding: 15px 12px;
+    gap: 9px;
+  }
+  .account-row-spark {
+    display: none;
+  }
+  .account-row-value {
+    min-width: 80px;
+  }
+  .account-row-value > strong {
+    font-size: 12px;
+  }
+  .account-row-name > strong {
+    font-size: 12px;
+  }
+  .account-row-name > span {
+    font-size: 10px;
+  }
+  .account-group-title {
+    padding: 14px 12px;
+  }
+  .account-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-detail-heading h2 {
+    font-size: 23px;
+  }
+  .accounts-section-heading {
+    align-items: flex-start;
+  }
+  .accounts-section-heading .text-button {
+    max-width: 150px;
+    text-align: right;
+  }
+}
+.institutions-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.institutions-heading h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin: 0 0 7px;
+}
+.institutions-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.institution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+.institution-card {
+  padding: 19px;
+}
+.institution-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.institution-card-top > div {
+  flex: 1;
+  min-width: 0;
+}
+.institution-card-top h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.institution-card-top > div > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.institution-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  border-radius: 5px;
+  padding: 4px 7px;
+  background: var(--hover);
+  white-space: nowrap;
+}
+.institution-status.connected {
+  background: color-mix(in srgb, #187f63 10%, transparent);
+  color: #187f63;
+}
+.institution-status.error {
+  color: #b76540;
+  background: color-mix(in srgb, #b76540 10%, transparent);
+}
+.institution-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 7px;
+  background: color-mix(in srgb, #b76540 8%, transparent);
+  color: #a76348;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+.institution-error > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.institution-accounts {
+  display: flex;
+  flex-direction: column;
+  margin: 16px 0 8px;
+  padding-left: 46px;
+}
+.institution-accounts > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.institution-accounts > a:hover {
+  color: var(--text);
+}
+.institution-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.institution-actions .f-button {
+  font-size: 11px;
+  padding: 6px 10px;
+}
+.institution-actions .f-button:last-child {
+  margin-left: auto;
+}
+.institution-actions > .muted {
+  font-size: 11px;
+}
+.institution-privacy {
+  display: flex;
+  gap: 10px;
+  margin: 24px 8px;
+  color: var(--muted);
+}
+.institution-privacy > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.institution-privacy p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+}
+.disconnect-confirm p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+@media (max-width: 600px) {
+  .institutions-heading {
+    flex-wrap: wrap;
+  }
+  .institution-card-top {
+    flex-wrap: wrap;
+  }
+  .institution-status {
+    margin-left: 46px;
+  }
+  .institution-accounts {
+    padding-left: 0;
+  }
+  .institution-card {
+    padding: 15px;
+  }
+}

@@ -1,0 +1,643 @@
+import { v, ConvexError } from "convex/values";
+import schema from "./schema";
+import {
+  userQuery,
+  userMutation,
+  userAction,
+  owned,
+  text,
+  date,
+  cents,
+} from "./lib/access";
+import { accountKind, avatarPreset } from "./validators";
+import { api, internal } from "./_generated/api";
+import { internalMutation } from "./_generated/server";
+import { seedCategories, seedSample } from "./sample";
+
+const institutions = schema
+  .doc("plaidItems")
+  .omit("accessToken", "plaidItemId", "cursor", "syncLease");
+export const metadata = userQuery({
+  args: {},
+  returns: v.object({
+    profile: v.union(
+      schema
+        .doc("profiles")
+        .extend({ avatarUrl: v.union(v.string(), v.null()) }),
+      v.null(),
+    ),
+    accounts: v.array(schema.doc("accounts")),
+    groups: v.array(schema.doc("groups")),
+    categories: v.array(schema.doc("categories")),
+    merchants: v.array(
+      schema
+        .doc("merchants")
+        .extend({ resolvedLogoUrl: v.union(v.string(), v.null()) }),
+    ),
+    tags: v.array(schema.doc("tags")),
+    rules: v.array(schema.doc("rules")),
+    recurring: v.array(schema.doc("recurring")),
+    savedReports: v.array(schema.doc("savedReports")),
+    institutions: v.array(institutions),
+  }),
+  handler: async (ctx) => {
+    const [
+      profile,
+      accounts,
+      groups,
+      categories,
+      merchants,
+      tags,
+      rules,
+      recurring,
+      savedReports,
+      items,
+    ] = await Promise.all([
+      ctx.db
+        .query("profiles")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .unique(),
+      ctx.db
+        .query("accounts")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(201),
+      ctx.db
+        .query("groups")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(201),
+      ctx.db
+        .query("categories")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(501),
+      ctx.db
+        .query("merchants")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(2001),
+      ctx.db
+        .query("tags")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(201),
+      ctx.db
+        .query("rules")
+        .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+        .take(201),
+      ctx.db
+        .query("recurring")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(501),
+      ctx.db
+        .query("savedReports")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(101),
+      ctx.db
+        .query("plaidItems")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(101),
+    ]);
+    if (
+      accounts.length > 200 ||
+      groups.length > 200 ||
+      categories.length > 500 ||
+      merchants.length > 2000 ||
+      tags.length > 200 ||
+      recurring.length > 500 ||
+      savedReports.length > 100 ||
+      items.length > 100
+    )
+      throw new ConvexError(
+        "This workspace exceeds the supported item limit. Contact support before adding more items.",
+      );
+    return {
+      profile: profile
+        ? {
+            ...profile,
+            avatarUrl: profile.photoStorageId
+              ? await ctx.storage.getUrl(profile.photoStorageId)
+              : null,
+          }
+        : null,
+      accounts,
+      groups: groups.sort((a, b) => a.order - b.order),
+      categories: categories.sort((a, b) => a.order - b.order),
+      merchants: await Promise.all(
+        merchants.map(async (m) => ({
+          ...m,
+          resolvedLogoUrl: m.logoStorageId
+            ? await ctx.storage.getUrl(m.logoStorageId)
+            : (m.logoUrl ?? null),
+        })),
+      ),
+      tags: tags.sort((a, b) => a.order - b.order),
+      rules,
+      recurring,
+      savedReports,
+      institutions: items.map(
+        ({
+          accessToken: _token,
+          plaidItemId: _item,
+          cursor: _cursor,
+          syncLease: _lease,
+          ...safe
+        }) => safe,
+      ),
+    };
+  },
+});
+export const initialize = userMutation({
+  args: { name: v.optional(v.string()), sample: v.boolean() },
+  returns: v.id("profiles"),
+  handler: async (ctx, { name, sample }) => {
+    const user = await ctx.db.get(ctx.userId);
+    if (user?.isAnonymous && !sample)
+      throw new ConvexError("Demo guests can only use fictional sample data.");
+    const existing = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (existing) return existing._id;
+    if (
+      (
+        await ctx.db
+          .query("accounts")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(1)
+      ).length ||
+      (
+        await ctx.db
+          .query("transactions")
+          .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+          .take(1)
+      ).length ||
+      (
+        await ctx.db
+          .query("plaidItems")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(1)
+      ).length
+    )
+      throw new ConvexError("Initialize an empty workspace first.");
+    const id = await ctx.db.insert("profiles", {
+      userId: ctx.userId,
+      name: text(name ?? "My household"),
+      demo: sample,
+      reviewNew: true,
+      allowPending: false,
+      widgets: [
+        "netWorth",
+        "transactions",
+        "recurring",
+        "spending",
+        "cashFlow",
+      ],
+    });
+    const categories = await seedCategories(ctx);
+    if (sample) await seedSample(ctx, categories);
+    return id;
+  },
+});
+export const balanceHistory = userQuery({
+  args: {
+    from: v.string(),
+    to: v.string(),
+    accountId: v.optional(v.id("accounts")),
+  },
+  returns: v.object({
+    rows: v.array(schema.doc("balances")),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, { from, to, accountId }) => {
+    date(from);
+    date(to);
+    if (from > to || Date.parse(to) - Date.parse(from) > 10 * 366 * 86400000)
+      throw new ConvexError("Choose a date range up to ten years.");
+    if (accountId) await owned(ctx, accountId);
+    const rows = accountId
+      ? await ctx.db
+          .query("balances")
+          .withIndex("by_accountId_and_date", (q) =>
+            q.eq("accountId", accountId).gte("date", from).lte("date", to),
+          )
+          .take(12001)
+      : await ctx.db
+          .query("balances")
+          .withIndex("by_userId_and_date", (q) =>
+            q.eq("userId", ctx.userId).gte("date", from).lte("date", to),
+          )
+          .take(12001);
+    return { rows: rows.slice(0, 12000), complete: rows.length <= 12000 };
+  },
+});
+const accountFields = {
+  name: v.string(),
+  institution: v.string(),
+  mask: v.string(),
+  kind: accountKind,
+  subtype: v.string(),
+  balanceCents: v.number(),
+  currency: v.string(),
+  hidden: v.boolean(),
+  excludeNetWorth: v.boolean(),
+  closed: v.boolean(),
+  availableCents: v.optional(v.number()),
+  limitCents: v.optional(v.number()),
+  statementCents: v.optional(v.number()),
+  minimumCents: v.optional(v.number()),
+  dueDate: v.optional(v.string()),
+  statementDate: v.optional(v.string()),
+  apy: v.optional(v.number()),
+};
+export const saveAccount = userMutation({
+  args: { id: v.optional(v.id("accounts")), ...accountFields },
+  returns: v.id("accounts"),
+  handler: async (ctx, { id, ...fields }) => {
+    fields.name = text(fields.name);
+    fields.institution = text(fields.institution);
+    cents(fields.balanceCents);
+    if (!/^[A-Z]{3}$/.test(fields.currency))
+      throw new ConvexError("Enter a three-letter currency code.");
+    if (fields.currency !== "USD")
+      throw new ConvexError("Marten currently supports USD accounts.");
+    if (fields.mask.length > 8)
+      throw new ConvexError("Enter the last digits only.");
+    if (fields.dueDate) date(fields.dueDate);
+    if (fields.statementDate) date(fields.statementDate);
+    for (const value of [
+      fields.availableCents,
+      fields.limitCents,
+      fields.statementCents,
+      fields.minimumCents,
+    ])
+      if (value !== undefined) cents(value);
+    if (
+      fields.apy !== undefined &&
+      (!Number.isFinite(fields.apy) || fields.apy < 0 || fields.apy > 100)
+    )
+      throw new ConvexError("Enter a valid APY.");
+    if (id) {
+      const current = await owned(ctx, id);
+      if (
+        !current.manual &&
+        (
+          [
+            "balanceCents",
+            "kind",
+            "institution",
+            "currency",
+            "subtype",
+            "availableCents",
+            "limitCents",
+            "statementCents",
+            "minimumCents",
+            "dueDate",
+            "statementDate",
+            "apy",
+          ] as const
+        ).some((key) => key in fields && fields[key] !== current[key])
+      )
+        throw new ConvexError(
+          "Your bank manages this account's balances and statement details.",
+        );
+      if (!current.manual) {
+        await ctx.db.patch(id, fields);
+        return id;
+      }
+      await ctx.db.patch(id, {
+        ...fields,
+        apy: fields.apy,
+        updatedAt: Date.now(),
+      });
+    } else
+      id = await ctx.db.insert("accounts", {
+        ...fields,
+        userId: ctx.userId,
+        manual: true,
+        updatedAt: Date.now(),
+      });
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const balance = await ctx.db
+      .query("balances")
+      .withIndex("by_accountId_and_date", (q) =>
+        q.eq("accountId", id).eq("date", today),
+      )
+      .unique();
+    if (balance)
+      await ctx.db.patch(balance._id, { balanceCents: fields.balanceCents });
+    else
+      await ctx.db.insert("balances", {
+        userId: ctx.userId,
+        accountId: id,
+        date: today,
+        balanceCents: fields.balanceCents,
+      });
+    return id;
+  },
+});
+export const saveProfile = userMutation({
+  args: {
+    name: v.optional(v.string()),
+    reviewNew: v.optional(v.boolean()),
+    allowPending: v.optional(v.boolean()),
+    widgets: v.optional(v.array(v.string())),
+  },
+  returns: v.null(),
+  handler: async (ctx, fields) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (!profile) throw new ConvexError("Set up your workspace first.");
+    if (fields.name !== undefined) fields.name = text(fields.name);
+    if (
+      fields.widgets &&
+      (fields.widgets.length > 20 ||
+        fields.widgets.some(
+          (w) =>
+            ![
+              "netWorth",
+              "spending",
+              "cashFlow",
+              "recurring",
+              "transactions",
+              "accounts",
+              "topMerchants",
+            ].includes(w),
+        ))
+    )
+      throw new ConvexError("Choose supported dashboard widgets.");
+    await ctx.db.patch(profile._id, fields);
+    return null;
+  },
+});
+export const profileForUpload = userQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (!profile) throw new ConvexError("Set up your workspace first.");
+    return null;
+  },
+});
+
+export const saveProfileAvatar = userMutation({
+  args: { preset: v.union(avatarPreset, v.null()) },
+  returns: v.null(),
+  handler: async (ctx, { preset }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (!profile) throw new ConvexError("Set up your workspace first.");
+    await ctx.db.patch(profile._id, {
+      avatarPreset: preset ?? undefined,
+      photoStorageId: undefined,
+    });
+    if (profile.photoStorageId)
+      await ctx.storage.delete(profile.photoStorageId);
+    return null;
+  },
+});
+
+export const storeProfilePhoto = internalMutation({
+  args: { userId: v.id("users"), storageId: v.id("_storage") },
+  returns: v.null(),
+  handler: async (ctx, { userId, storageId }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) throw new ConvexError("Set up your workspace first.");
+    await ctx.db.patch(profile._id, {
+      photoStorageId: storageId,
+      avatarPreset: undefined,
+    });
+    if (profile.photoStorageId && profile.photoStorageId !== storageId)
+      await ctx.storage.delete(profile.photoStorageId);
+    return null;
+  },
+});
+
+export const uploadProfilePhoto = userAction({
+  args: { bytes: v.bytes(), contentType: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { bytes, contentType }): Promise<null> => {
+    await ctx.runQuery(api.workspace.profileForUpload, {});
+    if (!bytes.byteLength || bytes.byteLength > 1024 * 1024)
+      throw new ConvexError("Choose a cropped photo up to 1 MB.");
+    const header = new Uint8Array(bytes);
+    const jpeg =
+      contentType === "image/jpeg" &&
+      header[0] === 0xff &&
+      header[1] === 0xd8 &&
+      header[2] === 0xff;
+    const png =
+      contentType === "image/png" &&
+      [137, 80, 78, 71, 13, 10, 26, 10].every(
+        (byte, index) => header[index] === byte,
+      );
+    if (!jpeg && !png) throw new ConvexError("Choose a JPEG or PNG photo.");
+    // The action creates storage IDs; clients cannot attach someone else's file.
+    const storageId = await ctx.storage.store(
+      new Blob([bytes], { type: contentType }),
+    );
+    try {
+      await ctx.runMutation(internal.workspace.storeProfilePhoto, {
+        userId: ctx.userId,
+        storageId,
+      });
+    } catch (error) {
+      await ctx.storage.delete(storageId);
+      throw error;
+    }
+    return null;
+  },
+});
+
+export const saveReport = userMutation({
+  args: {
+    id: v.optional(v.id("savedReports")),
+    accountId: v.optional(v.id("accounts")),
+    categoryId: v.optional(v.id("categories")),
+    merchantId: v.optional(v.id("merchants")),
+    tagId: v.optional(v.id("tags")),
+    stacked: v.optional(v.boolean()),
+    name: v.string(),
+    report: v.string(),
+    groupBy: v.string(),
+    chart: v.string(),
+    from: v.string(),
+    to: v.string(),
+  },
+  returns: v.id("savedReports"),
+  handler: async (ctx, { id, ...fields }) => {
+    if (fields.accountId) await owned(ctx, fields.accountId);
+    if (fields.categoryId) await owned(ctx, fields.categoryId);
+    if (fields.merchantId) await owned(ctx, fields.merchantId);
+    if (fields.tagId) await owned(ctx, fields.tagId);
+    fields.name = text(fields.name);
+    date(fields.from);
+    date(fields.to);
+    if (fields.from > fields.to)
+      throw new ConvexError("Choose a valid report date range.");
+    if (
+      !["spending", "income", "cashflow", "cashFlow"].includes(fields.report) ||
+      !["category", "merchant", "group", "account", "month"].includes(
+        fields.groupBy,
+      ) ||
+      !["bar", "line", "sankey", "pie", "donut"].includes(fields.chart)
+    )
+      throw new ConvexError("Choose a supported report type.");
+    if (id) {
+      await owned(ctx, id);
+      await ctx.db.patch(id, {
+        ...fields,
+        accountId: fields.accountId,
+        categoryId: fields.categoryId,
+        merchantId: fields.merchantId,
+        tagId: fields.tagId,
+      });
+      return id;
+    }
+    return await ctx.db.insert("savedReports", {
+      userId: ctx.userId,
+      ...fields,
+    });
+  },
+});
+export const deleteReport = userMutation({
+  args: { id: v.id("savedReports") },
+  returns: v.null(),
+  handler: async (ctx, { id }) => {
+    await owned(ctx, id);
+    await ctx.db.delete(id);
+    return null;
+  },
+});
+
+export const importBalances = userMutation({
+  args: {
+    accountId: v.id("accounts"),
+    rows: v.array(v.object({ date: v.string(), balanceCents: v.number() })),
+  },
+  returns: v.number(),
+  handler: async (ctx, { accountId, rows }) => {
+    const account = await owned(ctx, accountId);
+    if (!account.manual)
+      throw new ConvexError(
+        "Historical balances can be imported for manual accounts.",
+      );
+    if (rows.length > 100)
+      throw new ConvexError("Import at most 100 balance rows per batch.");
+    for (const row of rows) {
+      date(row.date);
+      cents(row.balanceCents);
+      const existing = await ctx.db
+        .query("balances")
+        .withIndex("by_accountId_and_date", (q) =>
+          q.eq("accountId", accountId).eq("date", row.date),
+        )
+        .unique();
+      if (existing)
+        await ctx.db.patch(existing._id, { balanceCents: row.balanceCents });
+      else
+        await ctx.db.insert("balances", {
+          userId: ctx.userId,
+          accountId,
+          ...row,
+        });
+    }
+    return rows.length;
+  },
+});
+
+// The UI asks for explicit confirmation before calling this destructive demo reset.
+export const clearSample = userMutation({
+  args: {},
+  returns: v.object({ done: v.boolean(), deleted: v.number() }),
+  handler: async (ctx) => {
+    const user = await ctx.db.get(ctx.userId);
+    if (user?.isAnonymous)
+      throw new ConvexError("Exit the demo and sign in to set up your own finances.");
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (!profile) return { done: true, deleted: 0 };
+    if (!profile.demo)
+      throw new ConvexError("Only a sample workspace can be reset this way.");
+    if (
+      (
+        await ctx.db
+          .query("plaidItems")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(1)
+      ).length
+    )
+      throw new ConvexError(
+        "Disconnect all banks before resetting sample data.",
+      );
+    const rules = await ctx.db
+      .query("rules")
+      .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+      .take(100);
+    if (rules.length) {
+      for (const rule of rules) await ctx.db.delete(rule._id);
+      return { done: false, deleted: rules.length };
+    }
+    for (const table of [
+      "forecastScenarios",
+      "investmentHoldings",
+      "investmentTransactions",
+      "investmentSecurities",
+      "investmentSyncStates",
+      "attachments",
+      "uploads",
+      "activity",
+      "recurring",
+      "savedReports",
+      "tags",
+      "merchants",
+      "categories",
+      "groups",
+      "accounts",
+    ] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(100);
+      if (!rows.length) continue;
+      for (const row of rows) {
+        if ("storageId" in row) await ctx.storage.delete(row.storageId);
+        if ("logoStorageId" in row && row.logoStorageId)
+          await ctx.storage.delete(row.logoStorageId);
+        await ctx.db.delete(row._id);
+      }
+      return { done: false, deleted: rows.length };
+    }
+    for (const table of [
+      "transactions",
+      "balances",
+      "recurringPayments",
+      "creditScores",
+    ] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+        .take(100);
+      if (!rows.length) continue;
+      for (const row of rows) await ctx.db.delete(row._id);
+      return { done: false, deleted: rows.length };
+    }
+    if (profile.photoStorageId)
+      await ctx.storage.delete(profile.photoStorageId);
+    await ctx.db.delete(profile._id);
+    return { done: true, deleted: 1 };
+  },
+});
