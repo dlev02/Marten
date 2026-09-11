@@ -1,3 +1,4 @@
+import { CategoryIcon } from "../../components/folio/CategoryIcon";
 import {
   useCallback,
   useEffect,
@@ -243,7 +244,7 @@ function TransactionFields({
         >
           {tx.hidden ? "Unhide" : "Hide"}
         </Button>
-        {tx.source !== "plaid" && (
+        {tx.source !== "plaid" && tx.source !== "sophtron" && (
           <IconButton
             label="Delete transaction"
             disabled={!canEdit}
@@ -400,7 +401,9 @@ function TransactionFields({
             id={`date-${tx._id}`}
             label="Transaction date"
             value={tx.date}
-            disabled={tx.source === "plaid" || !canEdit}
+            disabled={
+              tx.source === "plaid" || tx.source === "sophtron" || !canEdit
+            }
             required
             onChange={(value) => void patch({ date: value })}
           />
@@ -431,7 +434,12 @@ function TransactionFields({
               {tx.splits.map((s, i) => (
                 <div key={i}>
                   <span>
-                    {data.categories.find((c) => c._id === s.categoryId)?.emoji}{" "}
+                    <CategoryIcon
+                      emoji={
+                        data.categories.find((c) => c._id === s.categoryId)
+                          ?.emoji
+                      }
+                    />{" "}
                     {data.categories.find((c) => c._id === s.categoryId)?.name}
                   </span>
                   <strong>{money(s.amountCents)}</strong>
@@ -602,7 +610,7 @@ function TransactionFields({
                 <li>
                   <span />
                   <div>
-                    {tx.source === "plaid"
+                    {tx.source === "plaid" || tx.source === "sophtron"
                       ? "Transaction imported"
                       : "Transaction added"}
                     <small>

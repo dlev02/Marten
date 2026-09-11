@@ -1,17 +1,98 @@
-.global-results > button:focus-visible {
-  outline-offset: -2px;
-  background: var(--hover);
+.command-palette {
+  width: min(580px, calc(100vw - 32px));
 }
-.global-results > button > span {
+.command-palette .modal-heading {
+  margin-bottom: 12px;
+}
+.command-palette .modal-heading > h2 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.command-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+.command-input > input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.command-input > input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.command-input > button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  padding: 4px;
+}
+.command-palette .global-results {
+  max-height: min(430px, calc(100dvh - 240px));
+  margin-top: 6px;
+  padding-bottom: 3px;
+}
+.command-group > h3 {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 15px 10px 7px;
+}
+.command-group > button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+}
+.command-group > button[aria-selected="true"] {
+  background: var(--selected);
+}
+.command-group > button > svg {
+  color: var(--muted);
+  flex: none;
+}
+.command-group > button > span {
+  flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.global-results small {
-  font-size: 11px;
-  white-space: nowrap;
+.command-group > button:not([aria-selected="true"]) .command-open-icon {
+  visibility: hidden;
+}
+.command-palette .search-footer {
+  margin-top: 10px;
+}
+@media (max-width: 460px) {
+  .command-input > input {
+    font-size: 14px;
+  }
+  .command-palette .search-footer {
+    gap: 6px;
+    font-size: 10px;
+  }
 }
 .settings-content [id] {
-  scroll-margin-top: 28px;
+  scroll-margin-top: calc(28px + var(--demo-banner-height, 0px));
 }
 .settings-content [id]:target {
   outline: 2px solid var(--blue);
@@ -19,6 +100,6 @@
 }
 @media (max-width: 760px) {
   .settings-content [id] {
-    scroll-margin-top: 80px;
+    scroll-margin-top: calc(80px + var(--demo-banner-height, 0px));
   }
 }

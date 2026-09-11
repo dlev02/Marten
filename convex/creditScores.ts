@@ -1,21 +1,23 @@
+import type { UserRead } from "./lib/access";
 import { ConvexError, v } from "convex/values";
 import schema from "./schema";
 import { date, owned, text, userMutation, userQuery } from "./lib/access";
 import { creditScoreFields } from "./lib/creditScores";
 
+export async function creditScoresForUser(ctx: UserRead) {
+  const rows = await ctx.db
+    .query("creditScores")
+    .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+    .order("desc")
+    .take(1001);
+  if (rows.length > 1000)
+    throw new ConvexError("This score history exceeds the supported limit.");
+  return rows;
+}
 export const list = userQuery({
   args: {},
   returns: v.array(schema.doc("creditScores")),
-  handler: async (ctx) => {
-    const rows = await ctx.db
-      .query("creditScores")
-      .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
-      .order("desc")
-      .take(1001);
-    if (rows.length > 1000)
-      throw new ConvexError("This score history exceeds the supported limit.");
-    return rows;
-  },
+  handler: creditScoresForUser,
 });
 
 export const save = userMutation({

@@ -105,6 +105,7 @@ export function Modal({
   description,
   onOpenAutoFocus,
   onCloseAutoFocus,
+  className = "",
 }: {
   open: boolean;
   onClose: () => void;
@@ -115,6 +116,7 @@ export function Modal({
   description?: string;
   onOpenAutoFocus?: (event: Event) => void;
   onCloseAutoFocus?: (event: Event) => void;
+  className?: string;
 }) {
   const returnFocus = useRef<HTMLElement | null>(null);
   return (
@@ -122,7 +124,7 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content
-          className={drawer ? "drawer" : `modal ${wide ? "wide" : ""}`}
+          className={`${drawer ? "drawer" : `modal ${wide ? "wide" : ""}`} ${className}`}
           {...(!description ? { "aria-describedby": undefined } : {})}
           onOpenAutoFocus={(event) => {
             returnFocus.current =
@@ -342,9 +344,11 @@ export function Avatar({
   color?: string;
   size?: "small" | "normal" | "large";
 }) {
-  const [failedLogo, setFailedLogo] = useState<string | null>(null);
-  const resolvedLogo = logo || brandLogo(name);
-  const showLogo = resolvedLogo && resolvedLogo !== failedLogo;
+  const [failedLogos, setFailedLogos] = useState<string[]>([]);
+  const resolvedLogo = [logo, brandLogo(name)].find(
+    (candidate) => candidate && !failedLogos.includes(candidate),
+  );
+  const showLogo = !!resolvedLogo;
   return (
     <span
       className={`avatar ${size} ${showLogo ? "has-logo" : ""}`}
@@ -357,7 +361,7 @@ export function Avatar({
         <img
           src={resolvedLogo}
           alt=""
-          onError={() => setFailedLogo(resolvedLogo)}
+          onError={() => setFailedLogos((failed) => [...failed, resolvedLogo])}
           referrerPolicy="no-referrer"
         />
       ) : (
@@ -376,11 +380,13 @@ export function Toggle({
   onChange,
   label,
   description,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (value: boolean) => void;
   label: string;
   description?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="toggle-row">
@@ -391,6 +397,7 @@ export function Toggle({
       <input
         type="checkbox"
         role="switch"
+        disabled={disabled}
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />

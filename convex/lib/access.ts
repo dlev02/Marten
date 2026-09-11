@@ -14,6 +14,8 @@ import {
 } from "../_generated/server";
 import { ConvexError } from "convex/values";
 import type { Id, Doc, TableNames } from "../_generated/dataModel";
+export type UserRead = QueryCtx & { userId: Id<"users"> };
+export type UserMutationCtx = MutationCtx & { userId: Id<"users"> };
 export async function requireUser(ctx: Pick<QueryCtx | ActionCtx, "auth">) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new ConvexError("Please sign in to continue.");

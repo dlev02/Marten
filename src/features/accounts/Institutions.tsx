@@ -25,6 +25,7 @@ import {
   useTask,
 } from "../../components/folio/ui";
 import "./accounts.css";
+import { SophtronConnection } from "./Sophtron";
 
 export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
   const data = useData(),
@@ -72,7 +73,7 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
       </div>
       {!status.configured && (
         <div className="account-notice">
-          Bank connections aren’t available yet. Manual accounts work without a
+          Plaid connections aren’t available yet. Manual accounts work without a
           connection.
         </div>
       )}
@@ -86,7 +87,7 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
         <Panel>
           <Empty
             icon={<Landmark size={26} />}
-            title="No bank connections yet"
+            title="No Plaid connections yet"
             description="Connect a bank to keep your accounts up to date automatically."
             action={
               <Button onClick={onAddAccount} icon={<Link2 size={16} />}>
@@ -204,6 +205,7 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
           })}
         </div>
       )}
+      <SophtronConnection />
       <div className="institution-privacy">
         <ShieldCheck size={19} />
         <p>

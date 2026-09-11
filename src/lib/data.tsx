@@ -5,6 +5,7 @@ export type { Metadata } from "./types";
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { Loading } from "../components/folio/ui";
+import { CategoryIcon } from "../components/folio/CategoryIcon";
 const DataContext = createContext<Metadata | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const data = useQuery(api.workspace.metadata, {});
@@ -47,7 +48,7 @@ export function categoryOptions(data: Metadata) {
     .map((c) => ({
       value: c._id,
       label: c.name,
-      icon: <span className="category-emoji">{c.emoji}</span>,
+      icon: <CategoryIcon emoji={c.emoji} />,
       group: data.groups.find((g) => g._id === c.groupId)?.name,
     }));
 }

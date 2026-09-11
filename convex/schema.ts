@@ -21,6 +21,67 @@ import {
 const owner = { userId: v.id("users") };
 export default defineSchema({
   ...authTables,
+  agentPreferences: defineTable({
+    ...owner,
+    browserEnabled: v.boolean(),
+    browserAllowEdits: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+  agentAuthorizationRequests: defineTable({
+    requestHash: v.string(),
+    clientId: v.string(),
+    clientName: v.string(),
+    redirectUri: v.string(),
+    challenge: v.string(),
+    scopes: v.array(v.string()),
+    resource: v.string(),
+    issuer: v.string(),
+    state: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    codeHash: v.optional(v.string()),
+    grantId: v.optional(v.id("agentGrants")),
+    completedAt: v.optional(v.number()),
+    redeemedAt: v.optional(v.number()),
+  })
+    .index("by_requestHash", ["requestHash"])
+    .index("by_codeHash", ["codeHash"])
+    .index("by_expiresAt", ["expiresAt"]),
+  agentGrants: defineTable({
+    ...owner,
+    clientId: v.string(),
+    clientName: v.string(),
+    scopes: v.array(v.string()),
+    resource: v.string(),
+    issuer: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    revokedAt: v.optional(v.number()),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
+  agentTokens: defineTable({
+    grantId: v.id("agentGrants"),
+    tokenHash: v.string(),
+    kind: v.union(v.literal("access"), v.literal("refresh")),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_grantId", ["grantId"])
+    .index("by_expiresAt", ["expiresAt"]),
+  agentActivity: defineTable({
+    ...owner,
+    grantId: v.optional(v.id("agentGrants")),
+    tool: v.string(),
+    source: v.union(v.literal("browser"), v.literal("mcp")),
+    readOnly: v.boolean(),
+    success: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_createdAt", ["createdAt"]),
   creditScores: defineTable({
     ...owner,
     ...creditScoreFields,
@@ -28,7 +89,12 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId_and_date", ["userId", "date"])
-    .index("by_userId_and_bureau_and_model_and_date", ["userId", "bureau", "model", "date"]),
+    .index("by_userId_and_bureau_and_model_and_date", [
+      "userId",
+      "bureau",
+      "model",
+      "date",
+    ]),
   forecastScenarios: defineTable({
     ...owner,
     name: v.string(),
@@ -43,6 +109,53 @@ export default defineSchema({
     windowStartedAt: v.number(),
     requests: v.number(),
   }).index("by_email", ["email"]),
+  reminderPreferences: defineTable({
+    ...owner,
+    emailEnabled: v.boolean(),
+    verifiedEmail: v.optional(v.string()),
+    daysBefore: v.number(),
+    timeMinutes: v.number(),
+    timeZone: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_emailEnabled", ["emailEnabled"]),
+  reminderEmailVerifications: defineTable({
+    ...owner,
+    email: v.string(),
+    codeHash: v.string(),
+    expiresAt: v.number(),
+    sentAt: v.number(),
+    attempts: v.number(),
+    windowStartedAt: v.number(),
+    requests: v.number(),
+  }).index("by_userId", ["userId"]),
+  reminderDeliveries: defineTable({
+    ...owner,
+    occurrenceKey: v.string(),
+    dueDate: v.string(),
+    channel: v.union(v.literal("browser"), v.literal("email")),
+    status: v.union(
+      v.literal("claimed"),
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("canceled"),
+    ),
+    batchId: v.string(),
+    claimedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_channel_and_occurrenceKey", [
+      "userId",
+      "channel",
+      "occurrenceKey",
+    ])
+    .index("by_userId_and_channel_and_claimedAt", [
+      "userId",
+      "channel",
+      "claimedAt",
+    ])
+    .index("by_dueDate", ["dueDate"]),
   profiles: defineTable({
     ...owner,
     name: v.string(),
@@ -52,6 +165,25 @@ export default defineSchema({
     reviewNew: v.boolean(),
     allowPending: v.boolean(),
     widgets: v.array(v.string()),
+  }).index("by_userId", ["userId"]),
+  sophtronConnections: defineTable({
+    ...owner,
+    apiUserId: v.string(),
+    customerId: v.string(),
+    environment: v.union(v.literal("production"), v.literal("preview")),
+    status: v.union(
+      v.literal("connected"),
+      v.literal("syncing"),
+      v.literal("error"),
+      v.literal("disconnected"),
+    ),
+    syncVersion: v.number(),
+    syncLease: v.optional(v.number()),
+    syncedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+    warning: v.optional(v.string()),
+    fromDate: v.optional(v.string()),
+    toDate: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
   accounts: defineTable({
     ...owner,
@@ -69,6 +201,15 @@ export default defineSchema({
     updatedAt: v.number(),
     itemId: v.optional(v.id("plaidItems")),
     plaidAccountId: v.optional(v.string()),
+    sophtronConnectionId: v.optional(v.id("sophtronConnections")),
+    sophtronAccountId: v.optional(v.string()),
+    sophtronMemberId: v.optional(v.string()),
+    sophtronImportFromDate: v.optional(v.string()),
+    sophtronUsdConfirmed: v.optional(v.boolean()),
+    sophtronDebtSign: v.optional(
+      v.union(v.literal("positive"), v.literal("negative")),
+    ),
+    sophtronUpdatedAt: v.optional(v.number()),
     logoUrl: v.optional(v.string()),
     availableCents: v.optional(v.number()),
     limitCents: v.optional(v.number()),
@@ -76,6 +217,7 @@ export default defineSchema({
     minimumCents: v.optional(v.number()),
     dueDate: v.optional(v.string()),
     statementDate: v.optional(v.string()),
+    statementPaidDate: v.optional(v.string()),
     statementReminder: v.optional(
       v.object({
         ...statementReminderFields,
@@ -86,6 +228,11 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_itemId", ["itemId"])
+    .index("by_sophtronConnectionId", ["sophtronConnectionId"])
+    .index("by_sophtronConnectionId_and_sophtronAccountId", [
+      "sophtronConnectionId",
+      "sophtronAccountId",
+    ])
     .index("by_userId_and_plaidAccountId", ["userId", "plaidAccountId"]),
   balances: defineTable({
     ...owner,
@@ -134,6 +281,7 @@ export default defineSchema({
     source: v.union(
       v.literal("manual"),
       v.literal("plaid"),
+      v.literal("sophtron"),
       v.literal("sample"),
       v.literal("csv"),
     ),
@@ -141,6 +289,7 @@ export default defineSchema({
     updatedAt: v.number(),
     editedFields: v.array(v.string()),
     plaidTransactionId: v.optional(v.string()),
+    sophtronTransactionId: v.optional(v.string()),
     pendingTransactionId: v.optional(v.string()),
     removedFromBank: v.optional(v.boolean()),
     splitDraft: v.optional(v.array(split)),
@@ -149,6 +298,10 @@ export default defineSchema({
   })
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_plaidTransactionId", ["userId", "plaidTransactionId"])
+    .index("by_accountId_and_sophtronTransactionId", [
+      "accountId",
+      "sophtronTransactionId",
+    ])
     .index("by_userId_and_importKey", ["userId", "importKey"])
     .index("by_userId_and_merchantId_and_date", [
       "userId",

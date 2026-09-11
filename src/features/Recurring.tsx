@@ -77,6 +77,8 @@ export function Recurring() {
   const [params] = useSearchParams();
   const requestedSearch = params.get("search") ?? "";
   const data = useData();
+  const setStatementPaid = useMutation(api.recurring.setStatementPaid);
+  const statementTask = useTask();
   const [month, setMonth] = useState(monthStart());
   const [mode, setMode] = useState("list");
   const [editor, setEditor] = useState<Draft | "new" | null>(null);
@@ -542,11 +544,13 @@ export function Recurring() {
                   Due{" "}
                   {dateLabel(a.dueDate!, { month: "short", day: "numeric" })}
                   <span className="status-chip">
-                    {a.statementReminder
-                      ? "Entered by you"
-                      : a.manual
-                        ? "Manual account"
-                        : "Bank reported"}
+                    {a.statementPaidDate === a.dueDate
+                      ? "Marked paid"
+                      : a.statementReminder
+                        ? "Entered by you"
+                        : a.manual
+                          ? "Manual account"
+                          : "Bank reported"}
                   </span>
                 </div>
                 <dl>
@@ -580,6 +584,27 @@ export function Recurring() {
                       },
                     )}
                   </small>
+                  <button
+                    className="text-link"
+                    disabled={statementTask.busy}
+                    onClick={() =>
+                      void statementTask.run(
+                        () =>
+                          setStatementPaid({
+                            accountId: a._id,
+                            dueDate: a.dueDate!,
+                            paid: a.statementPaidDate !== a.dueDate,
+                          }),
+                        a.statementPaidDate === a.dueDate
+                          ? "Statement marked unpaid"
+                          : "Statement marked paid",
+                      )
+                    }
+                  >
+                    {a.statementPaidDate === a.dueDate
+                      ? "Mark unpaid"
+                      : "Mark paid"}
+                  </button>
                   {a.kind === "credit" && (
                     <button
                       className="text-link"
@@ -599,7 +624,10 @@ export function Recurring() {
       )}
       <p className="recurring-footnote">
         Checkmarks track what you’ve paid or received. They don’t send payments
-        or change your transactions.
+        or change your transactions.{" "}
+        <Link to="/settings/preferences#reminders" className="text-link">
+          Set up reminders
+        </Link>
       </p>
       {editor !== null && (
         <RecurringEditor
@@ -1181,8 +1209,15 @@ function DetectionReview({
   onClose: () => void;
   onReview: (draft: Draft) => void;
 }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (!open) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [open]);
   const data = useData(),
-    result = useQuery(api.recurring.detect, open ? {} : "skip");
+    result = useQuery(api.recurring.detect, open ? { now } : "skip");
   return (
     <Modal
       open={open}
@@ -1196,7 +1231,7 @@ function DetectionReview({
         <div className="recurring-suggestions">
           {!result.complete && (
             <p className="muted">
-              Based on your 2,000 most recent transactions.
+              These suggestions may not include every recurring pattern.
             </p>
           )}
           {result.proposals.map((p, i) => {
@@ -1216,6 +1251,17 @@ function DetectionReview({
                   <small>
                     {frequencyName(p.frequency)} · {p.occurrences} similar
                     transactions
+                  </small>
+                  <small>
+                    {dateLabel(p.firstDate, {
+                      month: "short",
+                      year: "numeric",
+                    })}
+                    –
+                    {dateLabel(p.lastDate, { month: "short", year: "numeric" })}
+                    {p.amountToleranceCents
+                      ? ` · Varies by up to ${money(p.amountToleranceCents)}`
+                      : " · Same amount"}
                   </small>
                   <span className="amount">
                     {money(Math.abs(p.amountCents))}

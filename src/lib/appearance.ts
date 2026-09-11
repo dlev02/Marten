@@ -1,6 +1,26 @@
 import { flushSync } from "react-dom";
 
 export type AppFont = "folio" | "system";
+export type CategoryIconStyle = "illustrated" | "system";
+
+export function readCategoryIconStyle(): CategoryIconStyle {
+  try {
+    return localStorage.getItem("marten-category-icons") === "system"
+      ? "system"
+      : "illustrated";
+  } catch {
+    return "illustrated";
+  }
+}
+
+export function applyCategoryIconStyle(style: CategoryIconStyle) {
+  document.documentElement.dataset.categoryIcons = style;
+  try {
+    localStorage.setItem("marten-category-icons", style);
+  } catch {
+    /* The choice still applies when storage is unavailable. */
+  }
+}
 
 let currentTransition: ViewTransition | undefined;
 

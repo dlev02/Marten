@@ -1,3 +1,4 @@
+import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation } from "convex/react";
@@ -231,7 +232,10 @@ function Breakdown({
                       />
                       <span>
                         {row.emoji && (
-                          <span className="report-emoji">{row.emoji} </span>
+                          <CategoryIcon
+                            className="report-emoji"
+                            emoji={row.emoji}
+                          />
                         )}
                         {row.name}
                       </span>

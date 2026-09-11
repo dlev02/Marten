@@ -136,7 +136,23 @@ export const searchDestinations: SearchDestination[] = [
     section: "Settings",
     path: "/settings/institutions",
     keywords:
-      "settings institutions plaid chase amex schwab sync refresh reconnect disconnect",
+      "settings institutions plaid sophtron chase amex schwab sync refresh reconnect disconnect",
+  },
+  {
+    id: "sophtron",
+    title: "Sophtron · personal bank import",
+    section: "Settings",
+    path: "/settings/institutions#sophtron",
+    keywords:
+      "softron sophtron personal deployment bank provider credentials setup import currency account mapping",
+  },
+  {
+    id: "agents",
+    title: "AI connections · browser & MCP",
+    section: "Settings",
+    path: "/settings/agents",
+    keywords:
+      "assistant agent ai webmcp mcp chatgpt claude aside permissions read edit revoke connection subscription model",
   },
   {
     id: "preferences",
@@ -169,6 +185,14 @@ export const searchDestinations: SearchDestination[] = [
       "settings preferences font typeface typography dm sans system text",
   },
   {
+    id: "category-icons",
+    title: "Category icons · illustrated or emoji",
+    section: "Preferences",
+    path: "/settings/preferences#appearance",
+    keywords:
+      "category icons emoji illustration fluent microsoft system appearance",
+  },
+  {
     id: "review",
     title: "Review new transactions",
     section: "Preferences",
@@ -182,6 +206,14 @@ export const searchDestinations: SearchDestination[] = [
     section: "Preferences",
     path: "/settings/preferences#transaction-preferences",
     keywords: "settings preferences pending transactions authorization posted",
+  },
+  {
+    id: "reminders",
+    title: "Reminders & notifications",
+    section: "Preferences",
+    path: "/settings/preferences#reminders",
+    keywords:
+      "settings recurring bills due date browser email notifications time zone delivery reminder",
   },
   {
     id: "sample",

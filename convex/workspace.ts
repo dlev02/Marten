@@ -1,3 +1,6 @@
+import type { UserRead, UserMutationCtx } from "./lib/access";
+import type { Id } from "./_generated/dataModel";
+import type { Infer } from "convex/values";
 import { v, ConvexError } from "convex/values";
 import schema from "./schema";
 import {
@@ -17,6 +20,108 @@ import { seedCategories, seedSample } from "./sample";
 const institutions = schema
   .doc("plaidItems")
   .omit("accessToken", "plaidItemId", "cursor", "syncLease");
+export async function readWorkspace(ctx: UserRead) {
+  const [
+    profile,
+    accounts,
+    groups,
+    categories,
+    merchants,
+    tags,
+    rules,
+    recurring,
+    savedReports,
+    items,
+  ] = await Promise.all([
+    ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique(),
+    ctx.db
+      .query("accounts")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(201),
+    ctx.db
+      .query("groups")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(201),
+    ctx.db
+      .query("categories")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(501),
+    ctx.db
+      .query("merchants")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(2001),
+    ctx.db
+      .query("tags")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(201),
+    ctx.db
+      .query("rules")
+      .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+      .take(201),
+    ctx.db
+      .query("recurring")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(501),
+    ctx.db
+      .query("savedReports")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(101),
+    ctx.db
+      .query("plaidItems")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(101),
+  ]);
+  if (
+    accounts.length > 200 ||
+    groups.length > 200 ||
+    categories.length > 500 ||
+    merchants.length > 2000 ||
+    tags.length > 200 ||
+    recurring.length > 500 ||
+    savedReports.length > 100 ||
+    items.length > 100
+  )
+    throw new ConvexError(
+      "This workspace exceeds the supported item limit. Contact support before adding more items.",
+    );
+  return {
+    profile: profile
+      ? {
+          ...profile,
+          avatarUrl: profile.photoStorageId
+            ? await ctx.storage.getUrl(profile.photoStorageId)
+            : null,
+        }
+      : null,
+    accounts,
+    groups: groups.sort((a, b) => a.order - b.order),
+    categories: categories.sort((a, b) => a.order - b.order),
+    merchants: await Promise.all(
+      merchants.map(async (m) => ({
+        ...m,
+        resolvedLogoUrl: m.logoStorageId
+          ? await ctx.storage.getUrl(m.logoStorageId)
+          : (m.logoUrl ?? null),
+      })),
+    ),
+    tags: tags.sort((a, b) => a.order - b.order),
+    rules,
+    recurring,
+    savedReports,
+    institutions: items.map(
+      ({
+        accessToken: _token,
+        plaidItemId: _item,
+        cursor: _cursor,
+        syncLease: _lease,
+        ...safe
+      }) => safe,
+    ),
+  };
+}
 export const metadata = userQuery({
   args: {},
   returns: v.object({
@@ -40,108 +145,7 @@ export const metadata = userQuery({
     savedReports: v.array(schema.doc("savedReports")),
     institutions: v.array(institutions),
   }),
-  handler: async (ctx) => {
-    const [
-      profile,
-      accounts,
-      groups,
-      categories,
-      merchants,
-      tags,
-      rules,
-      recurring,
-      savedReports,
-      items,
-    ] = await Promise.all([
-      ctx.db
-        .query("profiles")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .unique(),
-      ctx.db
-        .query("accounts")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(201),
-      ctx.db
-        .query("groups")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(201),
-      ctx.db
-        .query("categories")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(501),
-      ctx.db
-        .query("merchants")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(2001),
-      ctx.db
-        .query("tags")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(201),
-      ctx.db
-        .query("rules")
-        .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
-        .take(201),
-      ctx.db
-        .query("recurring")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(501),
-      ctx.db
-        .query("savedReports")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(101),
-      ctx.db
-        .query("plaidItems")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(101),
-    ]);
-    if (
-      accounts.length > 200 ||
-      groups.length > 200 ||
-      categories.length > 500 ||
-      merchants.length > 2000 ||
-      tags.length > 200 ||
-      recurring.length > 500 ||
-      savedReports.length > 100 ||
-      items.length > 100
-    )
-      throw new ConvexError(
-        "This workspace exceeds the supported item limit. Contact support before adding more items.",
-      );
-    return {
-      profile: profile
-        ? {
-            ...profile,
-            avatarUrl: profile.photoStorageId
-              ? await ctx.storage.getUrl(profile.photoStorageId)
-              : null,
-          }
-        : null,
-      accounts,
-      groups: groups.sort((a, b) => a.order - b.order),
-      categories: categories.sort((a, b) => a.order - b.order),
-      merchants: await Promise.all(
-        merchants.map(async (m) => ({
-          ...m,
-          resolvedLogoUrl: m.logoStorageId
-            ? await ctx.storage.getUrl(m.logoStorageId)
-            : (m.logoUrl ?? null),
-        })),
-      ),
-      tags: tags.sort((a, b) => a.order - b.order),
-      rules,
-      recurring,
-      savedReports,
-      institutions: items.map(
-        ({
-          accessToken: _token,
-          plaidItemId: _item,
-          cursor: _cursor,
-          syncLease: _lease,
-          ...safe
-        }) => safe,
-      ),
-    };
-  },
+  handler: readWorkspace,
 });
 export const initialize = userMutation({
   args: { name: v.optional(v.string()), sample: v.boolean() },
@@ -246,96 +250,101 @@ const accountFields = {
   statementDate: v.optional(v.string()),
   apy: v.optional(v.number()),
 };
+const accountInput = v.object(accountFields);
+export async function saveAccountForUser(
+  ctx: UserMutationCtx,
+  { id, ...fields }: { id?: Id<"accounts"> } & Infer<typeof accountInput>,
+) {
+  fields.name = text(fields.name);
+  fields.institution = text(fields.institution);
+  cents(fields.balanceCents);
+  if (!/^[A-Z]{3}$/.test(fields.currency))
+    throw new ConvexError("Enter a three-letter currency code.");
+  if (fields.currency !== "USD")
+    throw new ConvexError("Marten currently supports USD accounts.");
+  if (fields.mask.length > 8)
+    throw new ConvexError("Enter the last digits only.");
+  if (fields.dueDate) date(fields.dueDate);
+  if (fields.statementDate) date(fields.statementDate);
+  for (const value of [
+    fields.availableCents,
+    fields.limitCents,
+    fields.statementCents,
+    fields.minimumCents,
+  ])
+    if (value !== undefined) cents(value);
+  if (
+    fields.apy !== undefined &&
+    (!Number.isFinite(fields.apy) || fields.apy < 0 || fields.apy > 100)
+  )
+    throw new ConvexError("Enter a valid APY.");
+  if (id) {
+    const current = await owned(ctx, id);
+    if (
+      !current.manual &&
+      (
+        [
+          "balanceCents",
+          "kind",
+          "institution",
+          "currency",
+          "subtype",
+          "availableCents",
+          "limitCents",
+          "statementCents",
+          "minimumCents",
+          "dueDate",
+          "statementDate",
+          "apy",
+        ] as const
+      ).some((key) => key in fields && fields[key] !== current[key])
+    )
+      throw new ConvexError(
+        "Your bank manages this account's balances and statement details.",
+      );
+    if (!current.manual) {
+      await ctx.db.patch(id, fields);
+      return id;
+    }
+    await ctx.db.patch(id, {
+      ...fields,
+      apy: fields.apy,
+      updatedAt: Date.now(),
+    });
+  } else
+    id = await ctx.db.insert("accounts", {
+      ...fields,
+      userId: ctx.userId,
+      manual: true,
+      updatedAt: Date.now(),
+    });
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const balance = await ctx.db
+    .query("balances")
+    .withIndex("by_accountId_and_date", (q) =>
+      q.eq("accountId", id).eq("date", today),
+    )
+    .unique();
+  if (balance)
+    await ctx.db.patch(balance._id, { balanceCents: fields.balanceCents });
+  else
+    await ctx.db.insert("balances", {
+      userId: ctx.userId,
+      accountId: id,
+      date: today,
+      balanceCents: fields.balanceCents,
+    });
+  return id;
+}
 export const saveAccount = userMutation({
   args: { id: v.optional(v.id("accounts")), ...accountFields },
   returns: v.id("accounts"),
-  handler: async (ctx, { id, ...fields }) => {
-    fields.name = text(fields.name);
-    fields.institution = text(fields.institution);
-    cents(fields.balanceCents);
-    if (!/^[A-Z]{3}$/.test(fields.currency))
-      throw new ConvexError("Enter a three-letter currency code.");
-    if (fields.currency !== "USD")
-      throw new ConvexError("Marten currently supports USD accounts.");
-    if (fields.mask.length > 8)
-      throw new ConvexError("Enter the last digits only.");
-    if (fields.dueDate) date(fields.dueDate);
-    if (fields.statementDate) date(fields.statementDate);
-    for (const value of [
-      fields.availableCents,
-      fields.limitCents,
-      fields.statementCents,
-      fields.minimumCents,
-    ])
-      if (value !== undefined) cents(value);
-    if (
-      fields.apy !== undefined &&
-      (!Number.isFinite(fields.apy) || fields.apy < 0 || fields.apy > 100)
-    )
-      throw new ConvexError("Enter a valid APY.");
-    if (id) {
-      const current = await owned(ctx, id);
-      if (
-        !current.manual &&
-        (
-          [
-            "balanceCents",
-            "kind",
-            "institution",
-            "currency",
-            "subtype",
-            "availableCents",
-            "limitCents",
-            "statementCents",
-            "minimumCents",
-            "dueDate",
-            "statementDate",
-            "apy",
-          ] as const
-        ).some((key) => key in fields && fields[key] !== current[key])
-      )
-        throw new ConvexError(
-          "Your bank manages this account's balances and statement details.",
-        );
-      if (!current.manual) {
-        await ctx.db.patch(id, fields);
-        return id;
-      }
-      await ctx.db.patch(id, {
-        ...fields,
-        apy: fields.apy,
-        updatedAt: Date.now(),
-      });
-    } else
-      id = await ctx.db.insert("accounts", {
-        ...fields,
-        userId: ctx.userId,
-        manual: true,
-        updatedAt: Date.now(),
-      });
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Chicago",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-    const balance = await ctx.db
-      .query("balances")
-      .withIndex("by_accountId_and_date", (q) =>
-        q.eq("accountId", id).eq("date", today),
-      )
-      .unique();
-    if (balance)
-      await ctx.db.patch(balance._id, { balanceCents: fields.balanceCents });
-    else
-      await ctx.db.insert("balances", {
-        userId: ctx.userId,
-        accountId: id,
-        date: today,
-        balanceCents: fields.balanceCents,
-      });
-    return id;
-  },
+  handler: saveAccountForUser,
 });
 export const saveProfile = userMutation({
   args: {
@@ -564,7 +573,9 @@ export const clearSample = userMutation({
   handler: async (ctx) => {
     const user = await ctx.db.get(ctx.userId);
     if (user?.isAnonymous)
-      throw new ConvexError("Exit the demo and sign in to set up your own finances.");
+      throw new ConvexError(
+        "Exit the demo and sign in to set up your own finances.",
+      );
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))

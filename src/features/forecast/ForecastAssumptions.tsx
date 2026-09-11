@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { Plane, Plus, Trash2 } from "lucide-react";
 import type { ForecastInputs, TravelPlan } from "../../../convex/lib/forecast";
 import { Button, IconButton } from "../../components/folio/ui";
@@ -62,6 +62,63 @@ export function PlanNumber({
   );
 }
 
+function PlanSlider({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  suffix = "years",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+  suffix?: string;
+}) {
+  const fill = Math.max(
+    0,
+    Math.min(100, ((value - min) / Math.max(1, max - min)) * 100),
+  );
+  return (
+    <div className="plan-slider">
+      <PlanNumber
+        label={label}
+        value={value}
+        onChange={onChange}
+        min={min}
+        max={max}
+        step={step}
+        suffix={suffix}
+      />
+      <input
+        type="range"
+        aria-label={`${label} slider`}
+        aria-valuetext={`${value}${suffix === "%" ? "%" : ` ${suffix}`}`}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        style={{ "--range-fill": `${fill}%` } as CSSProperties}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <div className="plan-slider-bounds" aria-hidden="true">
+        <span>
+          {min}
+          {suffix === "%" ? "%" : ""}
+        </span>
+        <span>
+          {max}
+          {suffix === "%" ? "%" : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function ForecastAssumptions({
   inputs,
   onChange,
@@ -105,22 +162,32 @@ export function ForecastAssumptions({
       </div>
       <div className="plan-fields">
         {number("currentAge", "Current age", false, { min: 18, max: 119 })}
-        {number("retirementAge", "Retirement age", false, {
-          min: 18,
-          max: 120,
-        })}
+        <PlanSlider
+          label="Retirement age"
+          value={inputs.retirementAge}
+          onChange={(value) => set("retirementAge", value)}
+          min={inputs.currentAge}
+          max={Math.max(inputs.currentAge, inputs.endAge)}
+        />
         {number("endAge", "Plan through age", false, { min: 19, max: 120 })}
-        {number("annualReturnPct", "Annual investment return", false, {
-          min: -50,
-          max: 30,
-          step: 0.5,
-          suffix: "%",
-        })}
-        {number("inflationPct", "Annual inflation", false, {
-          max: 30,
-          step: 0.5,
-          suffix: "%",
-        })}
+        <PlanSlider
+          label="Annual investment return"
+          value={inputs.annualReturnPct}
+          onChange={(value) => set("annualReturnPct", value)}
+          min={-50}
+          max={30}
+          step={0.25}
+          suffix="%"
+        />
+        <PlanSlider
+          label="Annual inflation"
+          value={inputs.inflationPct}
+          onChange={(value) => set("inflationPct", value)}
+          min={0}
+          max={30}
+          step={0.25}
+          suffix="%"
+        />
       </div>
       <section className="plan-travel" aria-labelledby="plan-travel-title">
         <div className="plan-section-title">

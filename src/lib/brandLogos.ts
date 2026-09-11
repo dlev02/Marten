@@ -1,9 +1,6 @@
-/**
- * Offline, exact-name brand artwork. See docs/assets.md for provenance.
- * A user-uploaded or institution-provided logo always takes precedence:
- *   const resolvedLogo = suppliedLogo || brandLogo(name);
- * The SVG assets include a white background and their own optical padding.
- */
+import brandCatalog from "./brandCatalog.json";
+
+/** Offline identification artwork. Catalog generation and provenance: docs/assets.md. */
 const brands = [
   ["target", ["Target", "Target Store", "Target Stores"]],
   ["netflix", ["Netflix", "Netflix.com", "Netflix Streaming"]],
@@ -28,6 +25,8 @@ const brands = [
     ],
   ],
   ["americanexpress", ["American Express", "Amex", "American Express Bank"]],
+  ["traderjoes", ["Trader Joe's", "Trader Joes"]],
+  ["walgreens", ["Walgreens", "Walgreens Pharmacy"]],
 ] as const;
 
 function normalizeBrandName(name: string) {
@@ -35,16 +34,26 @@ function normalizeBrandName(name: string) {
     .normalize("NFKC")
     .trim()
     .toLocaleLowerCase("en-US")
+    .replace(/[’‘]/g, "'")
     .replace(/\s+/g, " ");
 }
 
-const logoByName = new Map<string, string>(
-  brands.flatMap(([slug, aliases]) =>
-    aliases.map(
-      (name) => [normalizeBrandName(name), `/brands/${slug}.svg`] as const,
-    ),
-  ),
-);
+const logoByName = new Map<string, string>();
+const ambiguous = new Set<string>();
+for (const [slug, aliases] of brandCatalog as [string, string[]][]) {
+  for (const name of aliases) {
+    const key = normalizeBrandName(name);
+    const url = `/brands/catalog/${slug}.svg`;
+    if (logoByName.has(key) && logoByName.get(key) !== url) ambiguous.add(key);
+    else logoByName.set(key, url);
+  }
+}
+for (const key of ambiguous) logoByName.delete(key);
+// Reviewed aliases take precedence over the generated catalog.
+for (const [slug, aliases] of brands) {
+  for (const name of aliases)
+    logoByName.set(normalizeBrandName(name), `/brands/${slug}.svg`);
+}
 
 /** Returns a bundled URL for a listed alias, or null. Never performs a lookup request. */
 export function brandLogo(name: string): string | null {

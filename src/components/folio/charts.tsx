@@ -61,7 +61,6 @@ export function NetWorthChart({
   color?: string;
   valueLabel?: string;
 }) {
-  const reduced = useReducedMotion();
   const gradient = `gradient-${id.replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <div
@@ -111,6 +110,7 @@ export function NetWorthChart({
               <Tooltip content={<ChartTooltip />} />
             </>
           )}
+          {/* Keep the path and axes in the same resize frame. */}
           <Area
             name={valueLabel}
             type="monotone"
@@ -118,8 +118,7 @@ export function NetWorthChart({
             stroke={color}
             strokeWidth={compact ? 1.6 : 2.5}
             fill={`url(#${gradient})`}
-            animationDuration={500}
-            isAnimationActive={!reduced}
+            isAnimationActive={false}
             dot={false}
           />
         </AreaChart>

@@ -10,8 +10,13 @@ import {
   readFont,
   transitionAppearance,
   type AppFont,
+  applyCategoryIconStyle,
+  readCategoryIconStyle,
+  type CategoryIconStyle,
 } from "../../lib/appearance";
+import { CategoryIcon } from "../../components/folio/CategoryIcon";
 import { ProfileSettings } from "./ProfileSettings";
+import { ReminderSettings } from "./ReminderSettings";
 import { Select } from "../../components/folio/Select";
 import {
   Button,
@@ -29,6 +34,7 @@ export function Preferences() {
     clearSample = useMutation(api.workspace.clearSample),
     { theme, setTheme } = useTheme();
   const [font, setFont] = useState(readFont),
+    [iconStyle, setIconStyle] = useState(readCategoryIconStyle),
     [confirm, setConfirm] = useState(false),
     [acknowledged, setAcknowledged] = useState(false),
     [clearing, setClearing] = useState(false),
@@ -75,6 +81,29 @@ export function Preferences() {
               ]}
             />
           </Field>
+          <Field
+            label="Category icons"
+            hint="Saved on this device. Custom emoji keep their original appearance."
+          >
+            <Select
+              aria-label="Category icon style"
+              value={iconStyle}
+              onValueChange={(value) => {
+                const style = value as CategoryIconStyle;
+                setIconStyle(style);
+                applyCategoryIconStyle(style);
+              }}
+              options={[
+                { value: "illustrated", label: "Illustrated · Fluent" },
+                { value: "system", label: "System emoji" },
+              ]}
+            />
+            <div className="category-icon-preview" aria-hidden="true">
+              {["🏡", "🥑", "☕", "🌱", "✈️", "🎁"].map((emoji) => (
+                <CategoryIcon key={emoji} emoji={emoji} />
+              ))}
+            </div>
+          </Field>
         </Panel>
       </div>
       <div id="transaction-preferences" tabIndex={-1}>
@@ -95,6 +124,7 @@ export function Preferences() {
           />
         </Panel>
       </div>
+      <ReminderSettings />
       {data.profile?.demo && (
         <div id="sample-workspace" tabIndex={-1}>
           <Panel title="Sample workspace" className="settings-preference-panel">

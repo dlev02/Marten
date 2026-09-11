@@ -8,6 +8,7 @@ import {
   SlidersHorizontal,
   Workflow,
   CircleHelp,
+  Plug,
 } from "lucide-react";
 import { PageHeader } from "../components/folio/PageHeader";
 import { Categories } from "./settings/Categories";
@@ -17,6 +18,11 @@ import { Preferences } from "./settings/Preferences";
 import { Institutions } from "./accounts/Institutions";
 import "./settings.css";
 const FAQ = lazy(() => import("./settings/FAQ"));
+const AgentSettings = lazy(() =>
+  import("./settings/AgentSettings").then((module) => ({
+    default: module.AgentSettings,
+  })),
+);
 const sections = [
   { path: "categories", title: "Categories", icon: Shapes },
   { path: "merchants", title: "Merchants", icon: Store },
@@ -24,6 +30,7 @@ const sections = [
   { path: "tags", title: "Tags", icon: Tags },
   { path: "institutions", title: "Institutions", icon: Building2 },
   { path: "preferences", title: "Preferences", icon: SlidersHorizontal },
+  { path: "agents", title: "AI connections", icon: Plug },
   { path: "faq", title: "Help & FAQ", icon: CircleHelp },
 ];
 export function Settings({ onAddAccount }: { onAddAccount: () => void }) {
@@ -70,6 +77,7 @@ export function Settings({ onAddAccount }: { onAddAccount: () => void }) {
               element={<Institutions onAddAccount={onAddAccount} />}
             />
             <Route path="preferences" element={<Preferences />} />
+            <Route path="agents" element={<AgentSettings />} />
             <Route path="faq" element={<FAQ />} />
             <Route path="*" element={<Categories />} />
           </Routes>

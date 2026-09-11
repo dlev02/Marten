@@ -1377,6 +1377,10 @@ label select {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
+.toggle-row:has(input:disabled) {
+  opacity: 0.55;
+  cursor: default;
+}
 .transaction-toolbar {
   display: flex;
   align-items: center;
@@ -1421,6 +1425,39 @@ label select {
 }
 .filter-popover h3 {
   margin-bottom: 2px;
+}
+.date-range-popover {
+  width: 292px;
+}
+.date-range-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.date-range-presets button {
+  padding: 9px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+}
+.date-range-presets button:hover,
+.date-range-presets button[aria-pressed="true"] {
+  background: var(--hover);
+}
+.date-range-presets button[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.date-range-custom-label {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0 0 10px;
 }
 .small-menu {
   z-index: 300;
@@ -2346,12 +2383,6 @@ label select {
   }
 }
 @media (max-width: 1240px) {
-  .sidebar {
-    width: 214px;
-  }
-  .main-area {
-    margin-left: 214px;
-  }
   .page-content {
     padding: 25px 22px;
   }
@@ -2418,37 +2449,6 @@ label select {
   }
 }
 @media (max-width: 1000px) {
-  .sidebar {
-    width: 190px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-  .main-area {
-    margin-left: 190px;
-  }
-  .sidebar-top {
-    padding: 0 8px;
-  }
-  .nav-item {
-    font-size: 14px;
-    padding: 0 10px;
-    gap: 10px;
-  }
-  .sidebar .brand {
-    font-size: 25px;
-  }
-  .nav-item kbd {
-    display: none;
-  }
-  .sidebar-bottom {
-    padding-left: 0;
-    padding-right: 0;
-    gap: 0;
-  }
-  .profile-button {
-    font-size: 12px;
-    gap: 6px;
-  }
   .page-content {
     padding: 23px 18px;
   }
@@ -3006,19 +3006,6 @@ body,
 }
 .settings-content {
   animation: page-arrive 200ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@media (max-width: 1000px) and (min-width: 761px) {
-  .sidebar-top {
-    padding-inline: 0;
-    gap: 5px;
-  }
-  .sidebar .brand {
-    font-size: 23px;
-  }
-  .sidebar .brand .brand-mark {
-    width: 33px;
-    height: 36px;
-  }
 }
 @media (max-width: 760px) {
   .desktop-sidebar {

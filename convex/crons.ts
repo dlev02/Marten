@@ -8,4 +8,16 @@ crons.interval(
   internal.plaidInternal.sweep,
   { cursor: null },
 );
+crons.interval(
+  "Deliver opted-in payment reminders",
+  { minutes: 15 },
+  internal.reminders.sweep,
+  { cursor: null },
+);
+crons.daily(
+  "Remove old reminder delivery records",
+  { hourUTC: 7, minuteUTC: 43 },
+  internal.reminders.cleanup,
+  {},
+);
 export default crons;

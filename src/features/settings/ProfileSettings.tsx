@@ -120,27 +120,29 @@ export function ProfileSettings() {
           />
         </div>
         <div className="profile-photo-actions">
-          <Button
-            icon={<Camera size={16} />}
-            disabled={task.busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            {profile.avatarUrl ? "Change photo" : "Upload photo"}
-          </Button>
-          {(profile.avatarUrl || profile.avatarPreset) && (
+          <div className="profile-photo-buttons">
             <Button
-              tone="quiet"
+              icon={<Camera size={16} />}
               disabled={task.busy}
-              onClick={() =>
-                void task.run(
-                  () => saveAvatar({ preset: null }),
-                  "Profile picture removed",
-                )
-              }
+              onClick={() => fileInput.current?.click()}
             >
-              Use initials
+              {profile.avatarUrl ? "Change photo" : "Upload photo"}
             </Button>
-          )}
+            {(profile.avatarUrl || profile.avatarPreset) && (
+              <Button
+                tone="quiet"
+                disabled={task.busy}
+                onClick={() =>
+                  void task.run(
+                    () => saveAvatar({ preset: null }),
+                    "Profile picture removed",
+                  )
+                }
+              >
+                Use initials
+              </Button>
+            )}
+          </div>
           <p className="settings-helper">
             JPEG, PNG, or WebP · up to 10 MB. Crop before saving.
           </p>

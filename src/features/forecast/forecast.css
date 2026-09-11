@@ -261,6 +261,70 @@
   font-size: 12px;
   color: var(--muted);
 }
+.plan-slider {
+  padding: 3px 0 5px;
+}
+.plan-slider > input[type="range"] {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 24px;
+  padding: 0;
+  margin: 9px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--blue);
+}
+.plan-slider > input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--blue) var(--range-fill),
+    var(--strong-border) var(--range-fill)
+  );
+}
+.plan-slider > input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 3px;
+  background: var(--strong-border);
+}
+.plan-slider > input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 3px;
+  background: var(--blue);
+}
+.plan-slider > input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  margin-top: -6.5px;
+  border: 2px solid var(--blue);
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 1px 3px #0002;
+}
+.plan-slider > input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--blue);
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 1px 3px #0002;
+}
+.plan-slider > input[type="range"]:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.plan-slider-bounds {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
 .plan-travel {
   margin-top: 25px;
   padding-top: 23px;
@@ -684,6 +748,9 @@
   }
 }
 @media (pointer: coarse) {
+  .plan-slider > input[type="range"] {
+    height: 36px;
+  }
   .plan-number-input > input {
     min-height: 44px;
   }

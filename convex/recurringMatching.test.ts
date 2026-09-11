@@ -181,10 +181,28 @@ test("detection finds multiple amounts at one merchant and an existing schedule 
       });
   });
   expect(
-    (await alice.query(api.recurring.detect, {})).proposals
+    (
+      await alice.query(api.recurring.detect, {
+        now: Date.parse("2026-09-01T12:00:00Z"),
+      })
+    ).proposals
       .map((p) => p.amountCents)
       .sort(),
   ).toEqual([1600, 9500]);
+  expect(
+    (
+      await alice.query(api.recurring.detect, {
+        now: Date.parse("2026-09-01T12:00:00Z"),
+      })
+    ).proposals.map((p) => p.nextDate),
+  ).toEqual(["2026-09-10", "2026-09-10"]);
+  expect(
+    (
+      await alice.query(api.recurring.detect, {
+        now: Date.parse("2027-09-01T12:00:00Z"),
+      })
+    ).proposals,
+  ).toEqual([]);
   await alice.mutation(api.recurring.save, {
     accountId,
     merchantId,
@@ -200,11 +218,58 @@ test("detection finds multiple amounts at one merchant and an existing schedule 
     note: "",
   });
   expect(
-    (await alice.query(api.recurring.detect, {})).proposals.map(
-      (p) => p.amountCents,
-    ),
+    (
+      await alice.query(api.recurring.detect, {
+        now: Date.parse("2026-09-01T12:00:00Z"),
+      })
+    ).proposals.map((p) => p.amountCents),
   ).toEqual([9500]);
 });
+test.each([99, 101])(
+  "detection reports completeness accurately for %i eligible patterns",
+  async (patternCount) => {
+    const { t, alice, userId, accountId, categoryId } = await fixture();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < patternCount; i++) {
+        const merchantId = await ctx.db.insert("merchants", {
+          userId,
+          name: `Sample membership ${i}`,
+          normalizedName: `sample membership ${i}`,
+          color: "#000000",
+          transactionCount: 3,
+        });
+        for (const date of ["2026-06-10", "2026-07-10", "2026-08-10"])
+          await ctx.db.insert("transactions", {
+            userId,
+            accountId,
+            merchantId,
+            categoryId,
+            amountCents: 1600,
+            date,
+            originalName: "SAMPLE MEMBERSHIP",
+            notes: "",
+            tagIds: [],
+            reviewed: true,
+            hidden: false,
+            pending: false,
+            splits: [],
+            source: "sample",
+            searchText: "sample",
+            updatedAt: 1,
+            editedFields: [],
+          });
+      }
+    });
+    const result = await alice.query(api.recurring.detect, {
+      now: Date.parse("2026-09-01T12:00:00Z"),
+    });
+    expect(result.proposals).toHaveLength(Math.min(patternCount, 100));
+    expect(new Set(result.proposals.map((p) => p.merchantId)).size).toBe(
+      result.proposals.length,
+    );
+    expect(result.complete).toBe(patternCount < 100);
+  },
+);
 test("manual statement reminders isolate owners and preserve provider balances/details", async () => {
   const { t, alice, bob, userId, accountId, cashId } = await fixture();
   const value = {

@@ -1,0 +1,133 @@
+{
+  "repository": "https://github.com/microsoft/fluentui-emoji",
+  "commit": "1ffb34c752ecf5d402f04cfb4b392c77f57c54bc",
+  "style": "Flat",
+  "icons": [
+    {
+      "emoji": "💵",
+      "name": "Dollar banknote",
+      "file": "dollar-banknote.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Dollar%20banknote/Flat/dollar_banknote_flat.svg"
+    },
+    {
+      "emoji": "🌱",
+      "name": "Seedling",
+      "file": "seedling.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Seedling/Flat/seedling_flat.svg"
+    },
+    {
+      "emoji": "✨",
+      "name": "Sparkles",
+      "file": "sparkles.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Sparkles/Flat/sparkles_flat.svg"
+    },
+    {
+      "emoji": "🏡",
+      "name": "House with garden",
+      "file": "house-with-garden.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/House%20with%20garden/Flat/house_with_garden_flat.svg"
+    },
+    {
+      "emoji": "💡",
+      "name": "Light bulb",
+      "file": "light-bulb.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Light%20bulb/Flat/light_bulb_flat.svg"
+    },
+    {
+      "emoji": "🌐",
+      "name": "Globe with meridians",
+      "file": "globe-with-meridians.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Globe%20with%20meridians/Flat/globe_with_meridians_flat.svg"
+    },
+    {
+      "emoji": "🛡️",
+      "name": "Shield",
+      "file": "shield.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Shield/Flat/shield_flat.svg"
+    },
+    {
+      "emoji": "🥑",
+      "name": "Avocado",
+      "file": "avocado.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Avocado/Flat/avocado_flat.svg"
+    },
+    {
+      "emoji": "🍜",
+      "name": "Steaming bowl",
+      "file": "steaming-bowl.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Steaming%20bowl/Flat/steaming_bowl_flat.svg"
+    },
+    {
+      "emoji": "☕",
+      "name": "Hot beverage",
+      "file": "hot-beverage.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Hot%20beverage/Flat/hot_beverage_flat.svg"
+    },
+    {
+      "emoji": "🛍️",
+      "name": "Shopping bags",
+      "file": "shopping-bags.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Shopping%20bags/Flat/shopping_bags_flat.svg"
+    },
+    {
+      "emoji": "🚙",
+      "name": "Sport utility vehicle",
+      "file": "sport-utility-vehicle.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Sport%20utility%20vehicle/Flat/sport_utility_vehicle_flat.svg"
+    },
+    {
+      "emoji": "❤️",
+      "name": "Red heart",
+      "file": "red-heart.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Red%20heart/Flat/red_heart_flat.svg"
+    },
+    {
+      "emoji": "📁",
+      "name": "File folder",
+      "file": "file-folder.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/File%20folder/Flat/file_folder_flat.svg"
+    },
+    {
+      "emoji": "🎟️",
+      "name": "Admission tickets",
+      "file": "admission-tickets.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Admission%20tickets/Flat/admission_tickets_flat.svg"
+    },
+    {
+      "emoji": "🔄",
+      "name": "Counterclockwise arrows button",
+      "file": "counterclockwise-arrows-button.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Counterclockwise%20arrows%20button/Flat/counterclockwise_arrows_button_flat.svg"
+    },
+    {
+      "emoji": "✈️",
+      "name": "Airplane",
+      "file": "airplane.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Airplane/Flat/airplane_flat.svg"
+    },
+    {
+      "emoji": "🏋️",
+      "name": "Person lifting weights",
+      "file": "person-lifting-weights.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Person%20lifting%20weights/Default/Flat/person_lifting_weights_flat_default.svg"
+    },
+    {
+      "emoji": "🎁",
+      "name": "Wrapped gift",
+      "file": "wrapped-gift.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Wrapped%20gift/Flat/wrapped_gift_flat.svg"
+    },
+    {
+      "emoji": "↔️",
+      "name": "Left-right arrow",
+      "file": "left-right-arrow.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Left-right%20arrow/Flat/left-right_arrow_flat.svg"
+    },
+    {
+      "emoji": "💳",
+      "name": "Credit card",
+      "file": "credit-card.svg",
+      "source": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Credit%20card/Flat/credit_card_flat.svg"
+    }
+  ]
+}

@@ -1,8 +1,36 @@
 export const faqQuestions = [
   {
+    question: "Can I use ChatGPT, Claude or a browser assistant with Marten?",
+    answer:
+      "Open Settings → AI connections. A browser with WebMCP support can use Marten’s tools while the page is open. A custom MCP connection can work from a supported AI app without that tab. You approve access to your own workspace, with reading as the default and a separate choice for edits. You can disconnect an assistant at any time. Marten does not need a model API key; availability depends on your assistant’s plan and client support. Remote setup also needs Marten hosted at an HTTPS address.",
+    to: "/settings/agents",
+    linkLabel: "Manage AI connections",
+  },
+  {
+    question: "Can Marten notify me before a payment is due?",
+    answer:
+      "Preferences → Reminders offers browser notifications while a Marten tab is open and email reminders when it is closed. Browser delivery requires your permission. Email requires verification of your signed-in address and a configured email provider. Choose the lead time and delivery time. Paid items, paused schedules and past due dates do not create new reminders. Neither option makes a payment, and demo workspaces do not send reminders.",
+    to: "/settings/preferences#reminders",
+    linkLabel: "Set up reminders",
+  },
+  {
+    question: "How does Marten find recurring subscriptions?",
+    answer:
+      "Marten looks for repeated posted charges from the same merchant and account, with similar amounts and consistent weekly, biweekly, monthly, quarterly or yearly timing. It shows the evidence and any history limit before you add a schedule. Suggestions need your review; an ordinary repeat purchase should not become a subscription automatically. No paid AI service is required for detection.",
+    to: "/recurring",
+    linkLabel: "Review recurring items",
+  },
+  {
+    question: "Can I use Sophtron instead of Plaid?",
+    answer:
+      "The optional Sophtron personal-import pilot uses an existing provider account configured by the deployment owner. It imports reviewed cached balances and posted transactions, with explicit currency and debt-sign choices. Provider history completeness, pending-to-posted matching, removed transactions, holdings and statement minimums are not available in this pilot. Your own Sophtron setup and bank consent happen with Sophtron. Stopping imports in Marten retains cached records; revoke bank access in Sophtron itself.",
+    to: "/settings/institutions#sophtron",
+    linkLabel: "Review Sophtron setup",
+  },
+  {
     question: "How far back can Marten get my bank transactions?",
     answer:
-      "Marten requests up to 730 days—about two years—when you first connect a bank. The amount your bank provides can be shorter. Recent transactions often arrive first, with older history following as the connection finishes syncing. Marten keeps the history it has already imported as new transactions arrive.",
+      "With Plaid, Marten requests up to 730 days—about two years—when you first connect a bank. The amount your bank provides can be shorter. Recent transactions often arrive first, with older history following as the connection finishes syncing. Marten keeps the history it has already imported as new transactions arrive.",
     source: "https://plaid.com/docs/transactions/",
     sourceLabel: "Plaid transaction history",
   },
@@ -45,7 +73,7 @@ export const faqQuestions = [
   {
     question: "Can I correct a transaction or divide it between categories?",
     answer:
-      "Open a transaction to change its merchant, category, date, notes, tags, or review status. Split an amount across categories when one purchase covers several things; the pieces must add up to the transaction total. Attach a receipt if you want it alongside the transaction. Rules can apply your choices to future matching transactions, and Preview shows what a rule would change.",
+      "Open a transaction to change its merchant, category, notes, tags, or review status. You can also change dates on manual transactions; bank-managed dates stay with the provider. Split an amount across categories when one purchase covers several things; the pieces must add up to the transaction total. Attach a receipt if you want it alongside the transaction. Rules can apply your choices to future matching transactions, and Preview shows what a rule would change.",
   },
   {
     question: "What happens if I disconnect a bank?",
@@ -99,7 +127,7 @@ export const faqQuestions = [
   {
     question: "Can Marten match my device’s appearance?",
     answer:
-      "In Preferences, choose Match system for light and dark mode, and System font to use your device’s familiar typeface. Appearance and sidebar choices are saved for this browser. Your name and profile picture belong to your account. Marten also respects your device’s reduced-motion setting.",
+      "In Preferences, choose Match system for light and dark mode, System font to use your device’s familiar typeface, and Illustrated or System emoji for category icons. Appearance and sidebar choices are saved for this browser. Your name and profile picture belong to your account. Marten also respects your device’s reduced-motion setting.",
     to: "/settings/preferences",
     linkLabel: "Open preferences",
   },

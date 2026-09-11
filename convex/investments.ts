@@ -1,3 +1,4 @@
+import type { PaginationOptions } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import {
   paginationOptsValidator,
@@ -50,6 +51,72 @@ const connection = v.object({
   historyTo: v.union(v.string(), v.null()),
   error: v.union(v.string(), v.null()),
 });
+export async function investmentOverviewForUser(
+  ctx: Read,
+  args: { accountId?: Id<"accounts"> },
+) {
+  const { all, selected } = await investmentAccounts(ctx, args.accountId);
+  const selectedIds = new Set(selected.map((account) => account._id));
+  const rows = args.accountId
+    ? await ctx.db
+        .query("investmentHoldings")
+        .withIndex("by_userId_and_accountId", (q) =>
+          q.eq("userId", ctx.userId).eq("accountId", args.accountId!),
+        )
+        .take(1001)
+    : await ctx.db
+        .query("investmentHoldings")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(1001);
+  if (rows.length > 1000)
+    throw new ConvexError("Choose one account to view up to 1,000 holdings.");
+  const holdings = rows.filter((row) => selectedIds.has(row.accountId));
+  const securityIds = [...new Set(holdings.map((row) => row.securityId))];
+  const securityRows = await Promise.all(
+    securityIds.map((id) => ctx.db.get(id)),
+  );
+  if (securityRows.some((row) => row && row.userId !== ctx.userId))
+    throw new ConvexError("These security details are unavailable.");
+  const securities = new Map(
+    securityRows.filter((row) => row !== null).map((row) => [row._id, row]),
+  );
+  const itemIds = [
+    ...new Set(
+      selected.flatMap((account) => (account.itemId ? [account.itemId] : [])),
+    ),
+  ];
+  const connections = await Promise.all(
+    itemIds.map(async (id) => {
+      const item = await owned(ctx, id);
+      const state = await ctx.db
+        .query("investmentSyncStates")
+        .withIndex("by_itemId", (q) => q.eq("itemId", id))
+        .unique();
+      return {
+        itemId: id,
+        institution: item.institution,
+        status: item.status,
+        syncedAt: state?.syncedAt ?? null,
+        historyFrom: state?.historyFrom ?? null,
+        historyTo: state?.historyTo ?? null,
+        error: state?.error ?? item.error ?? null,
+      };
+    }),
+  );
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .unique();
+  return {
+    accounts: all,
+    connections,
+    demo: profile?.demo ?? false,
+    holdings: holdings.map((row) => ({
+      ...row,
+      security: securities.get(row.securityId) ?? null,
+    })),
+  };
+}
 export const overview = userQuery({
   args: accountFilter,
   returns: v.object({
@@ -62,71 +129,54 @@ export const overview = userQuery({
     connections: v.array(connection),
     demo: v.boolean(),
   }),
-  handler: async (ctx, args) => {
-    const { all, selected } = await investmentAccounts(ctx, args.accountId);
-    const selectedIds = new Set(selected.map((account) => account._id));
-    const rows = args.accountId
-      ? await ctx.db
-          .query("investmentHoldings")
-          .withIndex("by_userId_and_accountId", (q) =>
-            q.eq("userId", ctx.userId).eq("accountId", args.accountId!),
-          )
-          .take(1001)
-      : await ctx.db
-          .query("investmentHoldings")
-          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-          .take(1001);
-    if (rows.length > 1000)
-      throw new ConvexError("Choose one account to view up to 1,000 holdings.");
-    const holdings = rows.filter((row) => selectedIds.has(row.accountId));
-    const securityIds = [...new Set(holdings.map((row) => row.securityId))];
-    const securityRows = await Promise.all(
-      securityIds.map((id) => ctx.db.get(id)),
-    );
-    if (securityRows.some((row) => row && row.userId !== ctx.userId))
-      throw new ConvexError("These security details are unavailable.");
-    const securities = new Map(
-      securityRows.filter((row) => row !== null).map((row) => [row._id, row]),
-    );
-    const itemIds = [
-      ...new Set(
-        selected.flatMap((account) => (account.itemId ? [account.itemId] : [])),
-      ),
-    ];
-    const connections = await Promise.all(
-      itemIds.map(async (id) => {
-        const item = await owned(ctx, id);
-        const state = await ctx.db
-          .query("investmentSyncStates")
-          .withIndex("by_itemId", (q) => q.eq("itemId", id))
-          .unique();
-        return {
-          itemId: id,
-          institution: item.institution,
-          status: item.status,
-          syncedAt: state?.syncedAt ?? null,
-          historyFrom: state?.historyFrom ?? null,
-          historyTo: state?.historyTo ?? null,
-          error: state?.error ?? item.error ?? null,
-        };
-      }),
-    );
-    const profile = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .unique();
-    return {
-      accounts: all,
-      connections,
-      demo: profile?.demo ?? false,
-      holdings: holdings.map((row) => ({
-        ...row,
-        security: securities.get(row.securityId) ?? null,
-      })),
-    };
-  },
+  handler: investmentOverviewForUser,
 });
 
+export async function investmentActivityForUser(
+  ctx: Read,
+  args: {
+    accountId?: Id<"accounts">;
+    from: string;
+    to: string;
+    paginationOpts: PaginationOptions;
+  },
+) {
+  date(args.from);
+  date(args.to);
+  if (args.from > args.to) throw new ConvexError("Choose a valid date range.");
+  if (args.paginationOpts.numItems > 100)
+    throw new ConvexError("Load up to 100 investment events at a time.");
+  const { selected } = await investmentAccounts(ctx, args.accountId);
+  const selectedIds = new Set(selected.map((row) => row._id));
+  const result = args.accountId
+    ? await ctx.db
+        .query("investmentTransactions")
+        .withIndex("by_userId_and_accountId_and_date", (q) =>
+          q
+            .eq("userId", ctx.userId)
+            .eq("accountId", args.accountId!)
+            .gte("date", args.from)
+            .lte("date", args.to),
+        )
+        .order("desc")
+        .paginate(args.paginationOpts)
+    : await ctx.db
+        .query("investmentTransactions")
+        .withIndex("by_userId_and_date", (q) =>
+          q
+            .eq("userId", ctx.userId)
+            .gte("date", args.from)
+            .lte("date", args.to),
+        )
+        .order("desc")
+        .paginate(args.paginationOpts);
+  return {
+    ...result,
+    page: result.page.filter(
+      (row) => !row.removed && selectedIds.has(row.accountId),
+    ),
+  };
+}
 export const activity = userQuery({
   args: {
     ...accountFilter,
@@ -135,44 +185,7 @@ export const activity = userQuery({
     paginationOpts: paginationOptsValidator,
   },
   returns: paginationResultValidator(schema.doc("investmentTransactions")),
-  handler: async (ctx, args) => {
-    date(args.from);
-    date(args.to);
-    if (args.from > args.to)
-      throw new ConvexError("Choose a valid date range.");
-    if (args.paginationOpts.numItems > 100)
-      throw new ConvexError("Load up to 100 investment events at a time.");
-    const { selected } = await investmentAccounts(ctx, args.accountId);
-    const selectedIds = new Set(selected.map((row) => row._id));
-    const result = args.accountId
-      ? await ctx.db
-          .query("investmentTransactions")
-          .withIndex("by_userId_and_accountId_and_date", (q) =>
-            q
-              .eq("userId", ctx.userId)
-              .eq("accountId", args.accountId!)
-              .gte("date", args.from)
-              .lte("date", args.to),
-          )
-          .order("desc")
-          .paginate(args.paginationOpts)
-      : await ctx.db
-          .query("investmentTransactions")
-          .withIndex("by_userId_and_date", (q) =>
-            q
-              .eq("userId", ctx.userId)
-              .gte("date", args.from)
-              .lte("date", args.to),
-          )
-          .order("desc")
-          .paginate(args.paginationOpts);
-    return {
-      ...result,
-      page: result.page.filter(
-        (row) => !row.removed && selectedIds.has(row.accountId),
-      ),
-    };
-  },
+  handler: investmentActivityForUser,
 });
 
 export const history = userQuery({

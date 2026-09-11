@@ -6,7 +6,7 @@
 }
 .settings-rail {
   position: sticky;
-  top: 29px;
+  top: calc(29px + var(--demo-banner-height, 0px));
   min-width: 0;
 }
 .settings-rail .page-header {

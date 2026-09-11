@@ -1,0 +1,107 @@
+[
+  {
+    "emoji": "💵",
+    "name": "Dollar banknote",
+    "file": "dollar-banknote.svg"
+  },
+  {
+    "emoji": "🌱",
+    "name": "Seedling",
+    "file": "seedling.svg"
+  },
+  {
+    "emoji": "✨",
+    "name": "Sparkles",
+    "file": "sparkles.svg"
+  },
+  {
+    "emoji": "🏡",
+    "name": "House with garden",
+    "file": "house-with-garden.svg"
+  },
+  {
+    "emoji": "💡",
+    "name": "Light bulb",
+    "file": "light-bulb.svg"
+  },
+  {
+    "emoji": "🌐",
+    "name": "Globe with meridians",
+    "file": "globe-with-meridians.svg"
+  },
+  {
+    "emoji": "🛡️",
+    "name": "Shield",
+    "file": "shield.svg"
+  },
+  {
+    "emoji": "🥑",
+    "name": "Avocado",
+    "file": "avocado.svg"
+  },
+  {
+    "emoji": "🍜",
+    "name": "Steaming bowl",
+    "file": "steaming-bowl.svg"
+  },
+  {
+    "emoji": "☕",
+    "name": "Hot beverage",
+    "file": "hot-beverage.svg"
+  },
+  {
+    "emoji": "🛍️",
+    "name": "Shopping bags",
+    "file": "shopping-bags.svg"
+  },
+  {
+    "emoji": "🚙",
+    "name": "Sport utility vehicle",
+    "file": "sport-utility-vehicle.svg"
+  },
+  {
+    "emoji": "❤️",
+    "name": "Red heart",
+    "file": "red-heart.svg"
+  },
+  {
+    "emoji": "📁",
+    "name": "File folder",
+    "file": "file-folder.svg"
+  },
+  {
+    "emoji": "🎟️",
+    "name": "Admission tickets",
+    "file": "admission-tickets.svg"
+  },
+  {
+    "emoji": "🔄",
+    "name": "Counterclockwise arrows button",
+    "file": "counterclockwise-arrows-button.svg"
+  },
+  {
+    "emoji": "✈️",
+    "name": "Airplane",
+    "file": "airplane.svg"
+  },
+  {
+    "emoji": "🏋️",
+    "name": "Person lifting weights",
+    "file": "person-lifting-weights.svg"
+  },
+  {
+    "emoji": "🎁",
+    "name": "Wrapped gift",
+    "file": "wrapped-gift.svg"
+  },
+  {
+    "emoji": "↔️",
+    "name": "Left-right arrow",
+    "file": "left-right-arrow.svg"
+  },
+  {
+    "emoji": "💳",
+    "name": "Credit card",
+    "file": "credit-card.svg"
+  }
+]

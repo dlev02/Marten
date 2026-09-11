@@ -7,7 +7,12 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ToastProvider } from "./components/folio/ui";
 import App from "./App";
-import { applyFont, readFont } from "./lib/appearance";
+import {
+  applyFont,
+  readFont,
+  applyCategoryIconStyle,
+  readCategoryIconStyle,
+} from "./lib/appearance";
 import { initializeDemoContext } from "./lib/demo";
 import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-500.css";
@@ -19,6 +24,7 @@ if (!url) throw new Error("Set VITE_CONVEX_URL in .env.local to start Marten.");
 const convex = new ConvexReactClient(url);
 const demo = initializeDemoContext();
 applyFont(readFont());
+applyCategoryIconStyle(readCategoryIconStyle());
 const router = createBrowserRouter([{ path: "*", element: <App /> }]);
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

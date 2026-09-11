@@ -1,3 +1,8 @@
+import { CategoryIcon } from "../components/folio/CategoryIcon";
+import {
+  transactionDatePresets,
+  transactionRangeLabel,
+} from "../lib/dateRanges";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { useSearchParams } from "react-router-dom";
@@ -57,8 +62,9 @@ export function Transactions() {
     [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") ?? ""),
     [debounced, setDebounced] = useState(search);
-  const [from, setFrom] = useState(""),
-    [to, setTo] = useState(""),
+  const [from, setFrom] = useState(params.get("from") ?? ""),
+    [to, setTo] = useState(params.get("to") ?? ""),
+    [dateOpen, setDateOpen] = useState(false),
     [tab, setTab] = useState(
       params.get("tab") === "receipts" ? "receipts" : "all",
     ),
@@ -98,6 +104,8 @@ export function Transactions() {
   const requestedAccount = params.get("account") ?? "";
   const requestedCategory = params.get("category") ?? "";
   const requestedTag = params.get("tag") ?? "";
+  const requestedFrom = params.get("from") ?? "";
+  const requestedTo = params.get("to") ?? "";
   const requestedTab = params.get("tab") === "receipts" ? "receipts" : "all";
   const requestedImport = params.get("import") === "true";
   useEffect(() => {
@@ -109,6 +117,8 @@ export function Transactions() {
     setAccount(requestedAccount);
     setCategory(requestedCategory);
     setTag(requestedTag);
+    setFrom(requestedFrom);
+    setTo(requestedTo);
     setTab(requestedTab);
   }, [
     requestedSearch,
@@ -116,6 +126,8 @@ export function Transactions() {
     requestedAccount,
     requestedCategory,
     requestedTag,
+    requestedFrom,
+    requestedTo,
     requestedTab,
   ]);
   useEffect(() => {
@@ -268,22 +280,43 @@ export function Transactions() {
           onChange={setSearch}
           placeholder="Search transactions…"
         />
-        <Popover.Root>
+        <Popover.Root open={dateOpen} onOpenChange={setDateOpen}>
           <Popover.Trigger asChild>
             <Button
               icon={<CalendarDays size={16} />}
               className={from || to ? "filter-active" : ""}
             >
-              {from || to ? "Date range" : "Date"}
+              {transactionRangeLabel(from, to)}
             </Button>
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content
-              className="filter-popover"
+              className="filter-popover date-range-popover"
               align="end"
               sideOffset={8}
             >
               <h3>Date range</h3>
+              <div
+                className="date-range-presets"
+                role="group"
+                aria-label="Common date ranges"
+              >
+                {transactionDatePresets().map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    aria-pressed={from === preset.from && to === preset.to}
+                    onClick={() => {
+                      setFrom(preset.from);
+                      setTo(preset.to);
+                      setDateOpen(false);
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="date-range-custom-label">Custom range</p>
               <label>
                 From
                 <DatePicker
@@ -302,15 +335,7 @@ export function Transactions() {
                   min={from || undefined}
                 />
               </label>
-              <Button
-                tone="quiet"
-                onClick={() => {
-                  setFrom("");
-                  setTo("");
-                }}
-              >
-                All time
-              </Button>
+              <Button onClick={() => setDateOpen(false)}>Done</Button>
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
@@ -923,7 +948,7 @@ function InlineCategory({
   const c = data.categories.find((c) => c._id === transaction.categoryId);
   return transaction.splits.length ? (
     <span className="split-category">
-      {c?.emoji} {label}
+      <CategoryIcon emoji={c?.emoji} /> {label}
     </span>
   ) : (
     <Picker

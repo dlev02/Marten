@@ -34,3 +34,6 @@ coverage/
 .netlify/
 .agents/skills/
 .claude/skills/
+
+# Reproducible assets from the pinned build-time Simple Icons package
+public/brands/catalog/

@@ -1,3 +1,5 @@
+import type { UserRead } from "./lib/access";
+import type { Infer } from "convex/values";
 import { v, ConvexError } from "convex/values";
 import {
   paginationOptsValidator,
@@ -36,71 +38,74 @@ const listArgs = {
   accountId: v.optional(v.id("accounts")),
   merchantId: v.optional(v.id("merchants")),
 };
-export const list = userQuery({
-  args: listArgs,
-  returns: paginationResultValidator(schema.doc("transactions")),
-  handler: async (ctx, args) => {
-    if (args.paginationOpts.numItems > 200)
-      throw new ConvexError("Load at most 200 transactions at a time.");
-    if (args.from) date(args.from);
-    if (args.to) date(args.to);
-    if (args.accountId) await owned(ctx, args.accountId);
-    if (args.merchantId) await owned(ctx, args.merchantId);
-    const result = args.search?.trim()
+const transactionListInput = v.object(listArgs);
+export async function listTransactionsForUser(
+  ctx: UserRead,
+  args: Infer<typeof transactionListInput>,
+) {
+  if (args.paginationOpts.numItems > 200)
+    throw new ConvexError("Load at most 200 transactions at a time.");
+  if (args.from) date(args.from);
+  if (args.to) date(args.to);
+  if (args.accountId) await owned(ctx, args.accountId);
+  if (args.merchantId) await owned(ctx, args.merchantId);
+  const result = args.search?.trim()
+    ? await ctx.db
+        .query("transactions")
+        .withSearchIndex("search_text", (q) =>
+          q.search("searchText", args.search!.trim()).eq("userId", ctx.userId),
+        )
+        .paginate(args.paginationOpts)
+    : args.accountId
       ? await ctx.db
           .query("transactions")
-          .withSearchIndex("search_text", (q) =>
+          .withIndex("by_userId_and_accountId_and_date", (q) =>
             q
-              .search("searchText", args.search!.trim())
-              .eq("userId", ctx.userId),
+              .eq("userId", ctx.userId)
+              .eq("accountId", args.accountId!)
+              .gte("date", args.from ?? "0000")
+              .lte("date", args.to ?? "9999"),
           )
+          .order("desc")
           .paginate(args.paginationOpts)
-      : args.accountId
+      : args.merchantId
         ? await ctx.db
             .query("transactions")
-            .withIndex("by_userId_and_accountId_and_date", (q) =>
+            .withIndex("by_userId_and_merchantId_and_date", (q) =>
               q
                 .eq("userId", ctx.userId)
-                .eq("accountId", args.accountId!)
+                .eq("merchantId", args.merchantId!)
                 .gte("date", args.from ?? "0000")
                 .lte("date", args.to ?? "9999"),
             )
             .order("desc")
             .paginate(args.paginationOpts)
-        : args.merchantId
-          ? await ctx.db
-              .query("transactions")
-              .withIndex("by_userId_and_merchantId_and_date", (q) =>
-                q
-                  .eq("userId", ctx.userId)
-                  .eq("merchantId", args.merchantId!)
-                  .gte("date", args.from ?? "0000")
-                  .lte("date", args.to ?? "9999"),
-              )
-              .order("desc")
-              .paginate(args.paginationOpts)
-          : await ctx.db
-              .query("transactions")
-              .withIndex("by_userId_and_date", (q) =>
-                q
-                  .eq("userId", ctx.userId)
-                  .gte("date", args.from ?? "0000")
-                  .lte("date", args.to ?? "9999"),
-              )
-              .order("desc")
-              .paginate(args.paginationOpts);
-    return {
-      ...result,
-      page: result.page.filter(
-        (tx) =>
-          !("removedFromBank" in tx && tx.removedFromBank) &&
-          (!args.accountId || tx.accountId === args.accountId) &&
-          (!args.merchantId || tx.merchantId === args.merchantId) &&
-          (!args.from || tx.date >= args.from) &&
-          (!args.to || tx.date <= args.to),
-      ),
-    };
-  },
+        : await ctx.db
+            .query("transactions")
+            .withIndex("by_userId_and_date", (q) =>
+              q
+                .eq("userId", ctx.userId)
+                .gte("date", args.from ?? "0000")
+                .lte("date", args.to ?? "9999"),
+            )
+            .order("desc")
+            .paginate(args.paginationOpts);
+  return {
+    ...result,
+    page: result.page.filter(
+      (tx) =>
+        !("removedFromBank" in tx && tx.removedFromBank) &&
+        (!args.accountId || tx.accountId === args.accountId) &&
+        (!args.merchantId || tx.merchantId === args.merchantId) &&
+        (!args.from || tx.date >= args.from) &&
+        (!args.to || tx.date <= args.to),
+    ),
+  };
+}
+export const list = userQuery({
+  args: listArgs,
+  returns: paginationResultValidator(schema.doc("transactions")),
+  handler: listTransactionsForUser,
 });
 export const detail = userQuery({
   args: { id: v.id("transactions") },
@@ -134,14 +139,14 @@ export const detail = userQuery({
     };
   },
 });
-async function updateOne(
+export async function updateOne(
   ctx: UserWrite,
   id: Id<"transactions">,
   patch: Partial<TransactionFields>,
 ) {
   const tx = await owned(ctx, id);
   if (
-    tx.source === "plaid" &&
+    (tx.source === "plaid" || tx.source === "sophtron") &&
     (patch.accountId !== undefined ||
       patch.amountCents !== undefined ||
       patch.date !== undefined ||
@@ -197,7 +202,7 @@ export const remove = userMutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     const tx = await owned(ctx, id);
-    if (tx.source === "plaid")
+    if (tx.source === "plaid" || tx.source === "sophtron")
       throw new ConvexError(
         "Hide a bank transaction to exclude it from reports.",
       );

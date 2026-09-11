@@ -1,0 +1,114 @@
+.reminder-content {
+  padding: 0 22px;
+}
+.reminder-settings .settings-helper {
+  margin: 0;
+}
+.reminder-channel {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reminder-channel > svg {
+  color: var(--muted);
+  margin-top: 3px;
+}
+.reminder-channel strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.reminder-channel p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 4px 0 0;
+  max-width: 58ch;
+}
+.reminder-email-address {
+  overflow-wrap: anywhere;
+}
+.reminder-channel-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 0 32px;
+}
+.reminder-notice {
+  background: var(--hover);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  margin: 14px 0 0;
+}
+.reminder-verification {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reminder-verification-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.reminder-code {
+  max-width: 220px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.18em;
+}
+.reminder-timing {
+  margin-top: 24px;
+}
+.reminder-timing fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.reminder-timing legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.reminder-timing fieldset > .field {
+  max-width: 440px;
+  margin: 16px 0;
+}
+.reminder-time-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  max-width: 440px;
+}
+.reminder-settings .reminder-time-pair > .field,
+.reminder-settings .reminder-time-pair > .field + .field {
+  margin: 0;
+}
+.reminder-timing .settings-helper {
+  margin-bottom: 16px;
+  max-width: 65ch;
+}
+.reminder-privacy {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin: 20px 0 0;
+}
+@media (max-width: 540px) {
+  .reminder-channel {
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+  .reminder-channel > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .reminder-time-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -17,6 +17,8 @@ import {
 } from "../../components/folio/ui";
 import { moveItem } from "./ordering";
 import { Select } from "../../components/folio/Select";
+import { CategoryIcon } from "../../components/folio/CategoryIcon";
+import categoryIcons from "../../lib/categoryIcons.json";
 export function OrderControls({
   name,
   first,
@@ -185,7 +187,10 @@ export function Categories() {
                           )
                         }
                       />
-                      <span className="settings-category-emoji">{c.emoji}</span>
+                      <CategoryIcon
+                        className="settings-category-emoji"
+                        emoji={c.emoji}
+                      />
                       <button
                         className="settings-name-button"
                         onClick={() => setCategory(c)}
@@ -292,7 +297,7 @@ function CategoryEditor({
         }}
       >
         <div className="settings-form-grid">
-          <Field label="Icon">
+          <Field label="Icon" hint="Choose below or paste an emoji.">
             <input
               aria-label="Category icon"
               value={emoji}
@@ -311,6 +316,26 @@ function CategoryEditor({
               autoFocus
             />
           </Field>
+        </div>
+        <div
+          className="category-icon-picker"
+          role="group"
+          aria-label="Suggested category icons"
+        >
+          {categoryIcons.map((icon) => (
+            <button
+              key={icon.emoji}
+              type="button"
+              aria-label={`Use ${icon.name.toLowerCase()} icon`}
+              aria-pressed={
+                emoji.replace(/\uFE0F/g, "") ===
+                icon.emoji.replace(/\uFE0F/g, "")
+              }
+              onClick={() => setEmoji(icon.emoji)}
+            >
+              <CategoryIcon emoji={icon.emoji} />
+            </button>
+          ))}
         </div>
         <Field label="Group">
           <Picker

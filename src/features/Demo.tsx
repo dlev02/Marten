@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -58,8 +58,31 @@ export function DemoStartup({ authenticated }: { authenticated: boolean }) {
 export function DemoBanner() {
   const { signOut } = useAuthActions();
   const { busy, run } = useTask();
+  const banner = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = banner.current;
+    const shell = element?.closest<HTMLElement>(".app-shell");
+    if (!element || !shell) return;
+    const measure = () =>
+      shell.style.setProperty(
+        "--demo-banner-height",
+        `${element.getBoundingClientRect().height}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty("--demo-banner-height");
+    };
+  }, []);
   return (
-    <div className="demo-banner" role="note" aria-label="Demo workspace">
+    <div
+      ref={banner}
+      className="demo-banner"
+      role="note"
+      aria-label="Demo workspace"
+    >
       <p>
         <strong>Demo mode</strong>
         <span>Fictional finances. Your own accounts stay separate.</span>

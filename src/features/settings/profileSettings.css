@@ -21,6 +21,12 @@
 .profile-photo-actions {
   flex: 1;
 }
+.profile-photo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .profile-photo-actions .settings-helper {
   margin: 9px 0 0;
 }

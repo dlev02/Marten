@@ -1,7 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, Search } from "lucide-react";
-import { Modal, SearchBox } from "../../components/folio/ui";
+import {
+  ArrowUpRight,
+  Search,
+  X,
+  WalletCards,
+  CalendarDays,
+  Settings2,
+  Home,
+  List,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  ChartNoAxesCombined,
+  Gauge,
+  Shapes,
+  Store,
+  Tags,
+  Workflow,
+  CircleHelp,
+  FileUp,
+} from "lucide-react";
+import { Modal } from "../../components/folio/ui";
 import { useData } from "../../lib/data";
 import {
   searchDestinations,
@@ -11,6 +31,47 @@ import {
 import { faqQuestions } from "../../lib/faqQuestions";
 import "./search.css";
 
+const quickDestinations = new Set([
+  "dashboard",
+  "accounts",
+  "transactions",
+  "recurring",
+  "forecast",
+  "reports",
+  "institutions",
+  "preferences",
+  "import",
+]);
+const pageIcons = {
+  "/": Home,
+  "/accounts": WalletCards,
+  "/transactions": List,
+  "/cash-flow": BarChart3,
+  "/reports": PieChart,
+  "/recurring": CalendarDays,
+  "/investments": ChartNoAxesCombined,
+  "/forecast": TrendingUp,
+  "/credit-scores": Gauge,
+};
+function resultIcon(item: SearchDestination) {
+  if (item.id === "transaction-search") return Search;
+  if (item.id === "import") return FileUp;
+  const sections = {
+    Accounts: WalletCards,
+    Merchants: Store,
+    Categories: Shapes,
+    Tags,
+    Rules: Workflow,
+    Recurring: CalendarDays,
+    "Help & FAQ": CircleHelp,
+  };
+  return (
+    sections[item.section as keyof typeof sections] ??
+    pageIcons[item.path.split("?")[0] as keyof typeof pageIcons] ??
+    Settings2
+  );
+}
+
 export function GlobalSearch({
   open,
   onClose,
@@ -19,6 +80,9 @@ export function GlobalSearch({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const listId = useId();
+  const input = useRef<HTMLInputElement>(null);
   const data = useData();
   const navigate = useNavigate();
   const results = useRef<HTMLDivElement>(null);
@@ -26,7 +90,10 @@ export function GlobalSearch({
   const returnFocus = useRef<HTMLElement | null>(null);
   const navigating = useRef(false);
   useEffect(() => {
-    if (!open) setQuery("");
+    if (!open) {
+      setQuery("");
+      setActiveIndex(0);
+    }
   }, [open]);
   const go = (url: string) => {
     navigating.current = true;
@@ -95,20 +162,50 @@ export function GlobalSearch({
         })),
       ]
     : [];
-  const items = searchMatches(
+  const matches = searchMatches(
     [
       ...searchDestinations.filter(
-        (d) => d.id !== "sample" || data.profile?.demo,
+        (d) =>
+          (d.id !== "sample" || data.profile?.demo) &&
+          (query.trim() || quickDestinations.has(d.id)),
       ),
       ...dynamic,
     ],
     query,
-  ).slice(0, query.trim() ? 30 : 25);
+  ).slice(0, query.trim() ? 30 : 10);
+  const grouped = new Map<string, SearchDestination[]>();
+  for (const item of matches) {
+    const group =
+      item.section === "Pages"
+        ? "Go to"
+        : item.section === "Preferences"
+          ? "Settings"
+          : item.section;
+    grouped.set(group, [...(grouped.get(group) ?? []), item]);
+  }
+  if (query.trim())
+    grouped.set("Search transactions", [
+      {
+        id: "transaction-search",
+        title: `Search transactions for “${query.trim()}”`,
+        section: "Transactions",
+        path: `/transactions?search=${encodeURIComponent(query.trim())}`,
+      },
+    ]);
+  const items = [...grouped.values()].flat();
+  const selectedIndex = Math.min(activeIndex, items.length - 1);
+  useEffect(() => {
+    if (open)
+      results.current
+        ?.querySelector('[aria-selected="true"]')
+        ?.scrollIntoView({ block: "nearest" });
+  }, [open, selectedIndex]);
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Search Marten"
+      className="command-palette"
       onOpenAutoFocus={(event) => {
         event.preventDefault();
         navigating.current = false;
@@ -116,7 +213,7 @@ export function GlobalSearch({
           document.activeElement instanceof HTMLElement
             ? document.activeElement
             : null;
-        searchContent.current?.querySelector("input")?.focus();
+        input.current?.focus();
       }}
       onCloseAutoFocus={(event) => {
         event.preventDefault();
@@ -140,64 +237,102 @@ export function GlobalSearch({
     >
       <div
         ref={searchContent}
+        className="command-content"
         onKeyDown={(event) => {
           if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) return;
-          const buttons = Array.from(
-            results.current?.querySelectorAll<HTMLButtonElement>("button") ??
-              [],
-          );
-          const current = buttons.indexOf(
-            document.activeElement as HTMLButtonElement,
-          );
           if (
             event.key === "Enter" &&
-            event.target instanceof HTMLInputElement &&
-            buttons[0]
+            event.target === input.current &&
+            items[selectedIndex]
           ) {
             event.preventDefault();
-            buttons[0].click();
-          } else if (event.key !== "Enter" && buttons.length) {
+            go(items[selectedIndex].path);
+          } else if (event.key !== "Enter" && items.length) {
             event.preventDefault();
-            buttons[
-              current === -1
-                ? event.key === "ArrowDown"
-                  ? 0
-                  : buttons.length - 1
-                : (current +
-                    (event.key === "ArrowDown" ? 1 : -1) +
-                    buttons.length) %
-                  buttons.length
-            ].focus();
+            setActiveIndex(
+              (selectedIndex +
+                (event.key === "ArrowDown" ? 1 : -1) +
+                items.length) %
+                items.length,
+            );
+            input.current?.focus();
           }
         }}
       >
-        <SearchBox
-          value={query}
-          onChange={setQuery}
-          placeholder="Search settings, accounts, transactions…"
-        />
+        <div className="command-input">
+          <Search size={19} aria-hidden="true" />
+          <input
+            ref={input}
+            role="combobox"
+            aria-label="Search Marten"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-activedescendant={
+              items[selectedIndex] ? `${listId}-${selectedIndex}` : undefined
+            }
+            autoComplete="off"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            placeholder="Search pages, accounts, settings…"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                setQuery("");
+                setActiveIndex(0);
+                input.current?.focus();
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
         <div
           className="global-results"
           ref={results}
+          id={listId}
+          role="listbox"
           aria-label="Search results"
         >
-          {items.map((item) => (
-            <button key={item.id} onClick={() => go(item.path)}>
-              <ArrowUpRight size={17} aria-hidden="true" />
-              <span>{item.title}</span>
-              <small>{item.section}</small>
-            </button>
-          ))}
-          {query.trim() && (
-            <button
-              onClick={() =>
-                go(`/transactions?search=${encodeURIComponent(query.trim())}`)
-              }
+          {[...grouped].map(([group, entries], groupIndex) => (
+            <div
+              key={group}
+              className="command-group"
+              role="group"
+              aria-labelledby={`${listId}-group-${groupIndex}`}
             >
-              <Search size={18} aria-hidden="true" />
-              <span>Search transactions for “{query.trim()}”</span>
-            </button>
-          )}
+              <h3 id={`${listId}-group-${groupIndex}`}>{group}</h3>
+              {entries.map((item) => {
+                const index = items.indexOf(item);
+                const Icon = resultIcon(item);
+                return (
+                  <button
+                    id={`${listId}-${index}`}
+                    key={item.id}
+                    role="option"
+                    aria-selected={selectedIndex === index}
+                    tabIndex={-1}
+                    onPointerMove={() => setActiveIndex(index)}
+                    onClick={() => go(item.path)}
+                  >
+                    <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
+                    <span>{item.title}</span>
+                    <ArrowUpRight
+                      size={14}
+                      aria-hidden="true"
+                      className="command-open-icon"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
       <footer className="search-footer">

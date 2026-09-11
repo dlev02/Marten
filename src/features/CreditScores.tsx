@@ -4,6 +4,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   FileUp,
+  ExternalLink,
+  Gauge,
   Plus,
   ShieldCheck,
   Trash2,
@@ -55,6 +57,7 @@ export function CreditScores() {
   const [selected, setSelected] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [reading, setReading] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const readVersion = useRef(0);
   const toast = useToast();
@@ -88,21 +91,25 @@ export function CreditScores() {
   return (
     <div className="credit-scores-page">
       <PageHeader title="Credit scores">
-        <Button
-          icon={<FileUp size={16} />}
-          disabled={reading}
-          onClick={() => fileInput.current?.click()}
-        >
-          {reading ? "Reading locally…" : "Import PDF"}
-        </Button>
-        <Button
-          tone="primary"
-          icon={<Plus size={16} />}
-          disabled={reading}
-          onClick={() => setDraft({})}
-        >
-          Add score
-        </Button>
+        {!!groups.length && (
+          <Button
+            icon={<FileUp size={16} />}
+            disabled={reading}
+            onClick={() => fileInput.current?.click()}
+          >
+            {reading ? "Reading locally…" : "Import PDF"}
+          </Button>
+        )}
+        {!!groups.length && (
+          <Button
+            tone="primary"
+            icon={<Plus size={16} />}
+            disabled={reading}
+            onClick={() => setDraft({})}
+          >
+            Add score
+          </Button>
+        )}
       </PageHeader>
       <input
         ref={fileInput}
@@ -121,30 +128,134 @@ export function CreditScores() {
         Keep scores from your own reports. Each bureau and scoring model has its
         own history.
       </p>
-      <p className="credit-import-note">
-        <ShieldCheck size={16} /> PDFs stay on this device. Review the details
-        before saving. Up to 10 MB and 20 pages.
-      </p>
+      <button
+        className="credit-guide-trigger"
+        onClick={() => setGuideOpen(true)}
+      >
+        Where to find your score <ArrowUpRight size={14} />
+      </button>
+      {!!groups.length && (
+        <p className="credit-import-note">
+          <ShieldCheck size={16} /> PDFs stay on this device. Review the details
+          before saving. Up to 10 MB and 20 pages.
+        </p>
+      )}
       {reading && (
         <p role="status" className="credit-read-status">
           Reading the text in your PDF…
         </p>
       )}
+      <Modal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        title="Find your credit score"
+        description="Start with a bank or credit service you already use."
+      >
+        <div className="credit-source-guide">
+          {[
+            {
+              name: "Discover",
+              format: "On statements, online and in the app",
+              description:
+                "Look for the FICO score section in a recent statement. A PDF that contains readable score text can be imported here.",
+              url: "https://www.discover.com/credit-cards/card-smarts/check-your-fico-score-for-free/",
+            },
+            {
+              name: "Capital One · CreditWise",
+              format: "FICO Score 8 · TransUnion",
+              description:
+                "Open CreditWise to view your current score. Older CreditWise observations may use a different scoring model.",
+              url: "https://www.capitalone.com/creditwise/",
+            },
+            {
+              name: "Chase · Credit Journey",
+              format: "VantageScore 3.0 · Experian",
+              description:
+                "In Chase, open Credit Journey and select See details. Save the score and the date shown there.",
+              url: "https://www.chase.com/personal/financial-tools/monitor/free-credit-score",
+            },
+            {
+              name: "American Express · MyCredit Guide",
+              format: "FICO Score 8 · Experian",
+              description:
+                "Open MyCredit Guide to see your score. Use the model and bureau printed with the observation you are recording.",
+              url: "https://www.americanexpress.com/us/credit-cards/features-benefits/free-credit-score/index.html",
+            },
+          ].map((source) => (
+            <section key={source.name} className="credit-source-row">
+              <a href={source.url} target="_blank" rel="noreferrer">
+                {source.name} <ExternalLink size={14} />
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+              <span>{source.format}</span>
+              <p>{source.description}</p>
+            </section>
+          ))}
+        </div>
+        <p className="credit-editor-note">
+          Record the score’s own date, bureau and model. Statement availability
+          varies; a credit report alone may not include a score. Marten reads
+          text PDFs, so enter a score manually if it is only shown in an app or
+          screenshot.
+        </p>
+        <div className="modal-actions">
+          <Button
+            onClick={() => {
+              setGuideOpen(false);
+              fileInput.current?.click();
+            }}
+            icon={<FileUp size={15} />}
+            disabled={reading}
+          >
+            Import PDF
+          </Button>
+          <Button
+            tone="primary"
+            onClick={() => {
+              setGuideOpen(false);
+              setDraft({});
+            }}
+            disabled={reading}
+          >
+            Add score
+          </Button>
+        </div>
+      </Modal>
       {entries === undefined ? (
         <Loading />
       ) : !groups.length ? (
         <Panel className="credit-empty-panel">
           <Empty
+            icon={<Gauge size={27} strokeWidth={1.5} />}
             title="Your score history starts here"
-            description="Add the score, date, bureau and model shown by your card issuer or credit service."
+            description="Save a score from your bank or credit report, then follow how it changes over time."
+            action={
+              <div className="credit-empty-actions">
+                <Button
+                  tone="primary"
+                  icon={<Plus size={16} />}
+                  onClick={() => setDraft({})}
+                  disabled={reading}
+                >
+                  Add your first score
+                </Button>
+                <Button
+                  icon={<FileUp size={16} />}
+                  onClick={() => fileInput.current?.click()}
+                  disabled={reading}
+                >
+                  {reading ? "Reading locally…" : "Import PDF"}
+                </Button>
+              </div>
+            }
           />
-          <Button onClick={() => setDraft({})} disabled={reading}>
-            Add your first score
-          </Button>
-          <p>
-            Supports base FICO Scores 8, 9, 10 and 10T, and VantageScore 3.0 and
-            4.0 on the 300–850 scale.
-          </p>
+          <div className="credit-empty-details">
+            <p>FICO and VantageScore · 300–850</p>
+            <p>
+              PDFs are read on this device. You review every score before
+              saving.
+            </p>
+          </div>
         </Panel>
       ) : (
         <>
@@ -366,6 +477,12 @@ function ScoreEditor({
               throw new Error(
                 "Complete the score, date, bureau, model and source.",
               );
+            if (
+              !/^\d{3}$/.test(score) ||
+              Number(score) < 300 ||
+              Number(score) > 850
+            )
+              throw new Error("Enter a whole-number score from 300 to 850.");
             await save({
               ...(draft.entry ? { id: draft.entry._id } : {}),
               score: Number(score),
@@ -392,10 +509,9 @@ function ScoreEditor({
               className="f-input"
               aria-label="Credit score"
               inputMode="numeric"
-              type="number"
-              min={300}
-              max={850}
-              step={1}
+              type="text"
+              pattern="[0-9]{3}"
+              maxLength={3}
               required
               value={score}
               onChange={(event) => setScore(event.target.value)}

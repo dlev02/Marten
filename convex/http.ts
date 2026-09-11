@@ -3,8 +3,10 @@ import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { verifyWebhook } from "./lib/plaidApi";
+import { addAgentRoutes } from "./agentHttp";
 const http = httpRouter();
 auth.addHttpRoutes(http);
+addAgentRoutes(http);
 http.route({
   path: "/plaid/webhook",
   method: "POST",

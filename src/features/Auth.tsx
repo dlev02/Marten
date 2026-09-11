@@ -1,14 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import {
-  ArrowRight,
-  Building2,
-  Check,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { ArrowRight, Building2, Check, Eye, EyeOff } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { Button, useTask } from "../components/folio/ui";
 import { PasswordRecovery } from "./PasswordRecovery";
@@ -46,13 +39,11 @@ export function AuthScreen() {
         ) : (
           <>
             <div className="auth-intro">
-              <h1>
-                {signup ? "Make room for a clearer picture." : "Welcome back."}
-              </h1>
+              <h1>{signup ? "Create your account" : "Welcome back"}</h1>
               <p>
                 {signup
-                  ? "Bring your accounts and everyday spending together."
-                  : "Your finances, all in one place."}
+                  ? "Bring your accounts and spending together."
+                  : "Sign in to your Marten account."}
               </p>
             </div>
             <form
@@ -118,36 +109,37 @@ export function AuthScreen() {
                 </div>
               )}
               <Button tone="primary" type="submit" disabled={busy}>
-                {busy ? "Signing in…" : signup ? "Create account" : "Sign in"}
+                {busy
+                  ? signup
+                    ? "Creating account…"
+                    : "Signing in…"
+                  : signup
+                    ? "Create account"
+                    : "Sign in"}
                 <ArrowRight size={17} />
               </Button>
             </form>
+            <a
+              className="auth-demo-link"
+              href="/demo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Explore demo</span>
+              <span className="auth-demo-label">Sample data</span>
+              <span className="sr-only">
+                (opens in a new tab, no account needed)
+              </span>
+            </a>
             <p className="auth-switch">
               {signup ? "Already have an account?" : "New to Marten?"}{" "}
               <button className="text-link" onClick={() => setSignup(!signup)}>
                 {signup ? "Sign in" : "Create account"}
               </button>
             </p>
-            <div className="auth-demo">
-              <a
-                className="text-link"
-                href="/demo"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Explore demo{" "}
-                <span className="sr-only">(opens in a new tab)</span>
-              </a>
-              <span>Fictional finances. No sign-up needed.</span>
-            </div>
           </>
         )}
-        <div className="auth-privacy">
-          <ShieldCheck size={16} />
-          <span>Your bank credentials stay with your bank.</span>
-        </div>
       </section>
-      <footer>A little clarity goes a long way.</footer>
     </main>
   );
 }

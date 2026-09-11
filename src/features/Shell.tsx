@@ -33,6 +33,7 @@ import { Avatar, Loading, IconButton, useTask } from "../components/folio/ui";
 import { Brand } from "./Auth";
 import { GlobalSearch } from "./search/GlobalSearch";
 import { DemoBanner } from "./Demo";
+import { ReminderDispatcher } from "./ReminderDispatcher";
 import { exitDemo, isDemoSession } from "../lib/demo";
 const Dashboard = lazy(() =>
   import("./Dashboard").then((module) => ({ default: module.Dashboard })),
@@ -217,6 +218,7 @@ export function Shell() {
         </main>
       </div>
       <PlaidLinkFlow />
+      <ReminderDispatcher />
       <GlobalSearch open={search} onClose={() => setSearch(false)} />
       <AddAccount open={account} onClose={() => setAccount(false)} />
     </div>
