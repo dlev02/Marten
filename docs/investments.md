@@ -1,0 +1,73 @@
+# Investments
+
+The Investments page shows cached investment account value, current holdings,
+reported cost basis, allocation by account or security type, and investment
+activity. It uses existing Plaid connections and the explicitly labeled sample
+workspace. It does not place trades or fetch live quotes.
+
+## Financial meaning
+
+- Account balances remain the source of net worth. Holdings explain those
+  balances and are never added again.
+- The historical chart is account value, including deposits and withdrawals.
+  It is not time-weighted or money-weighted return. A date is shown only after
+  every selected USD account has a saved balance; pre-range balances supply the
+  baseline. A growing subset of accounts cannot appear as portfolio growth.
+- Unrealized gain is current holding value minus the institution's reported
+  total cost basis. Missing basis remains unknown. Coverage uses absolute USD
+  position value; foreign and unknown currencies are excluded from USD totals.
+  Zero or short-position basis does not produce a misleading gain percentage.
+- Quantity and unit price preserve fractional precision. Total monetary amounts
+  use integer cents. Valuation date and last sync are visible in holding details.
+- Allocation uses reported security types, without looking through funds to
+  their underlying assets. A difference between holdings and account value is
+  disclosed without manufacturing a cash position.
+- Investment activity is stored separately from spending transactions. The UI
+  reverses Plaid's amount sign to display positive cash inflows and negative
+  outflows. Cancellation records remain visible; superseded/missing provider
+  records are retained internally but omitted from current activity.
+
+## Ingestion and storage
+
+[The sync helper](../convex/lib/investmentSync.ts) calls cached
+`/investments/holdings/get` and paginates `/investments/transactions/get` over a
+requested two-year window with a maximum page size of 500. Actual history and
+cost-basis availability depend on the institution. No paid on-demand
+`/investments/refresh` or live quote endpoint is called.
+
+All pages must load and validate before [one atomic
+mutation](../convex/investmentInternal.ts) publishes the snapshot. A changed
+pagination total, duplicate event, invalid identifier, unresolved account or
+security, expired sync lease, or provider failure preserves the previous
+investment snapshot. The ordinary bank sync can still publish account balances
+and spending transactions while reporting an investment-specific warning.
+Existing verified webhooks and the six-hour catch-up cron request the same sync.
+
+The four owner-scoped tables are `investmentSecurities`, `investmentHoldings`,
+`investmentTransactions`, and `investmentSyncStates`. Stable account/security
+pairs preserve holding IDs across refreshes; provider transaction IDs prevent
+duplicate activity. Cancellation references can cross pages or fetched windows.
+The bounded implementation allows up to 1,000 holdings, 2,000 retained securities,
+and 5,000 retained activity records per connection. Exceeding a limit preserves
+the previous snapshot and explains the limit. It does not silently truncate.
+The history query permits 12,000 balance rows and asks for a shorter range if
+that limit is exceeded.
+
+[Public queries](../convex/investments.ts) require authentication and verify
+selected account ownership. They return safe connection metadata, never Plaid
+access tokens. All-active excludes hidden/closed accounts; explicitly selecting
+an owned hidden/closed account permits inspecting its saved history.
+
+The sample mutation runs only for a sample profile, seeds fictional securities
+idempotently, and makes each account's holdings reconcile exactly to its sample
+balance. Clearing sample data removes the four investment tables as well.
+
+## Verification
+
+The focused suite covers normalization and fractional precision, unknown/zero
+basis, currency exclusion, anchored month-end ranges, idempotent snapshots,
+rollback on invalid/duplicate positions, cross-window cancellation, stale sync
+leases, ownership, complete history coverage, sample reconciliation, all-page
+publication, and later-page failures. See [the verification
+record](verification.md) for observed command and browser results. Mocked provider
+tests do not establish a real brokerage connection or real institution coverage.

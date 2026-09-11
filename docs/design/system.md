@@ -1,0 +1,23 @@
+# Marten visual specification
+
+The dashboard, transaction, and forecast concepts in this directory define the initial visual structure. Drew subsequently requested the Marten name, new mark, blue accent, additional screens, and refinements documented in the fidelity ledger. They use fictional financial data. Financial values in the working application are derived from stored data; visual concept numbers are not a source of truth.
+
+- Shell: 236px left sidebar, main content inset 28px, restrained warm gray canvas #f6f5f3, white panels, 12px corners, subtle edge/shadow. Main navigation Dashboard, Accounts, Transactions, Cash Flow, Reports, Recurring, Investments, and Forecast. Credit-score history is a secondary tool. Search and Settings are utilities.
+- Typography: locally bundled DM Sans (licensed substitute for Monarch's proprietary Oracle), 16px navigation, 14px controls/body, 12px captions, 28px page heading, 32px primary totals. Tight heading tracking. Tabular numbers for currency. Heading weight 600; avoid heavy bold everywhere.
+- Palette: text #22201d, secondary #74716d, borders #e9e6e2, muted blue action #356587, cyan chart #00a3bd, green positive #187f63. Dark mode: canvas #191917, panels #242421, text #f4f2ed, muted #aba8a2, borders #373733, blue action #83b8d5 with dark ink #152b3b. No tinted chart overlays outside the area fill.
+- Brand: standalone image-generated curled marten silhouette in public/marten-mark.png with a code-native Marten wordmark. Its transparent alpha is used as a CSS mask so the mark follows the theme accent. Concepts are references, never rendered as application UI.
+- Icons: Lucide outline, 20px in navigation, 16px controls, 1.7px strokes. Home, credit-card, list, bar-chart, pie-chart, calendar, search, settings, moon, chevrons, arrows, paperclip, eye, check-circle, plus, grip. Hover shades and keyboard focus ring.
+- Dashboard: header with Customize and Add account; net worth/history and recent transaction panels; recurring and spending panels; wider cash flow continuation. Clickable rows and chart tooltips.
+- Transactions: tabs All/Receipts, search/date/filter/add controls, compact rows with date groups, merchant identity/category/account/amount; full-height right detail drawer approximately 500px. Autosave fields with error feedback, review/hide controls, split/notes/tags/attachments/activity, previous/next navigation.
+- Accounts: full-width networth/history, grouped accounts with sparklines and asset/liability sidebar. Detail drawer with metadata, balances, history and transactions.
+- Cash Flow/Reports: period controls, real charts and segmented grouping, totals derived from complete period result set, labeled loading until pagination completes.
+- Recurring: list/calendar modes with month selection, merchant/date/account/amount, payment completion state; manual edit and reviewed detection suggestions.
+- Settings: compact secondary navigation and table/list sections; category groups/reorder, merchants/edit/merge, tags, ordered rules/editor/preview, institutions, preferences.
+- Controls: shared Radix Select, custom DayPicker calendar with typed-date fallback, and preset/custom-hex color popover. Nested menus remain above their parent dialog. Visible keyboard focus, escape/return focus, and 44px coarse-pointer targets are required.
+- Forecast: primary curve/status/totals at left, editable plan details at right, full-width annual ledger below; assumptions move under results on tablets and become one column on phones.
+- Motion: 160ms hover/fade, 240ms drawer slide, 180ms theme crossfade, and 240ms sidebar snapshot transition. Financial charts avoid repeated reveal animations while adjusting data. Reduced motion disables nonessential movement.
+- Responsive: 1000px two-column panels simplify, 760px sidebar becomes offcanvas, tables scroll within region and preserve amount visibility, drawers full viewport on narrow screens. Controls wrap into useful rows.
+
+Intentional copy differences from concepts: explicit Sample data status for fictional workspace; honest empty/loading/error/connection states; account holder's saved name instead of Brian. Those are required for truthful working software. Generated concept merchant logos may be replaced by licensed/provider-supplied images or clear typographic initials when no logo is supplied; do not send private transaction data to third-party image services.
+
+The final [fidelity ledger](qa/fidelity-ledger.md) records screenshot comparisons and intentional changes. Internal component paths and persisted browser preference keys retain the original `folio` identifier to preserve existing sessions and settings.
