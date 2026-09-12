@@ -9,10 +9,18 @@ export type SearchDestination = {
 // Add destinations here whenever a new screen or preference is introduced.
 export const searchDestinations: SearchDestination[] = [
   {
+    id: "hide-amounts",
+    title: "Hide amounts",
+    section: "Preferences",
+    path: "/settings/preferences#privacy",
+    keywords:
+      "privacy private mask balances values numbers cost basis screen sharing presentation hide money",
+  },
+  {
     id: "dashboard",
     title: "Dashboard",
     section: "Pages",
-    path: "/",
+    path: "/dashboard",
     keywords: "home overview widgets customize",
   },
   {
@@ -43,7 +51,15 @@ export const searchDestinations: SearchDestination[] = [
     section: "Transactions",
     path: "/transactions?import=true",
     keywords:
-      "excel xlsx csv upload columns merchant amount debit credit date notes duplicate",
+      "excel xlsx csv upload columns merchant amount debit credit date notes duplicate monarch money migrate tags reviewed template format headers",
+  },
+  {
+    id: "import-balances",
+    title: "Import balance history",
+    section: "Accounts",
+    path: "/transactions?import=true",
+    keywords:
+      "monarch money balance history net worth csv export migrate accounts past",
   },
   {
     id: "cashflow",
@@ -106,7 +122,23 @@ export const searchDestinations: SearchDestination[] = [
     section: "Settings",
     path: "/settings/categories",
     keywords:
-      "settings category groups reorder rename income expense transfer disable",
+      "settings category groups reorder rename income expense transfer disable icon library artwork gaming transit suggested categories pharmacy accommodation hotels eSIM ferries video games",
+  },
+  {
+    id: "support",
+    title: "Support Marten",
+    section: "Pages",
+    path: "/support",
+    keywords:
+      "donate donation ko-fi kofi sponsor tip coffee thank you help the project",
+  },
+  {
+    id: "feedback",
+    title: "Send feedback",
+    section: "Help",
+    path: "/support?feedback=1",
+    keywords:
+      "bug report issue problem broken idea feature request suggestion question github contact",
   },
   {
     id: "merchants",
@@ -136,15 +168,15 @@ export const searchDestinations: SearchDestination[] = [
     section: "Settings",
     path: "/settings/institutions",
     keywords:
-      "settings institutions plaid sophtron chase amex schwab sync refresh reconnect disconnect",
+      "settings institutions plaid simplefin bridge chase amex schwab sync refresh reconnect disconnect",
   },
   {
-    id: "sophtron",
-    title: "Sophtron · personal bank import",
+    id: "simplefin",
+    title: "SimpleFIN Bridge · connect banks",
     section: "Settings",
-    path: "/settings/institutions#sophtron",
+    path: "/settings/institutions#simplefin",
     keywords:
-      "softron sophtron personal deployment bank provider credentials setup import currency account mapping",
+      "simplefin simple fin bridge setup token bank provider connect import accounts subscription",
   },
   {
     id: "agents",
@@ -185,12 +217,19 @@ export const searchDestinations: SearchDestination[] = [
       "settings preferences font typeface typography dm sans system text",
   },
   {
+    id: "sidebar-labels",
+    title: "Collapsed sidebar labels",
+    section: "Preferences",
+    path: "/settings/preferences#appearance",
+    keywords: "sidebar collapsed labels tooltips hover navigation preferences",
+  },
+  {
     id: "category-icons",
     title: "Category icons · illustrated or emoji",
     section: "Preferences",
     path: "/settings/preferences#appearance",
     keywords:
-      "category icons emoji illustration fluent microsoft system appearance",
+      "category icons emoji illustration custom marten woodland system appearance",
   },
   {
     id: "review",
@@ -229,6 +268,13 @@ export const searchDestinations: SearchDestination[] = [
     path: "/settings/faq",
     keywords:
       "settings help faq questions password reset bank history 730 days syncing importing statements transfers refunds appearance",
+  },
+  {
+    id: "delete-account",
+    title: "Delete account",
+    section: "Settings",
+    path: "/settings/preferences#delete-account",
+    keywords: "delete account remove data close erase privacy",
   },
 ];
 
