@@ -162,12 +162,6 @@
 .support-way small {
   color: var(--muted);
 }
-.support-note {
-  margin-top: 32px;
-  font-size: 12.5px;
-  color: var(--muted);
-  max-width: 64ch;
-}
 @media (max-width: 760px) {
   .support-hero,
   .support-columns {

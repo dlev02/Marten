@@ -50,9 +50,10 @@ export function SupportContent({
           )}
           <p>
             This is a passion project, built for family and shared with anyone
-            who wants it. There is no subscription, no ad, and no plan to add
-            either. If Marten saves you an evening a month, a small donation
-            keeps the domain paid and the improvements coming.
+            who wants it. There are no subscriptions or ads, and no plans to add
+            either. If Marten saves you time, a small donation helps cover the
+            domain and keep improvements coming. Donations are optional gifts,
+            not purchases—every feature stays free, whether you donate or not.
           </p>
           <div className="support-actions">
             <a
@@ -116,10 +117,6 @@ export function SupportContent({
           </div>
         </section>
       </div>
-      <p className="support-note">
-        Donations are voluntary gifts, not purchases. They never unlock
-        features, and everything in Marten stays free whether you donate or not.
-      </p>
     </div>
   );
 }

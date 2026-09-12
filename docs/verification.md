@@ -1,5 +1,18 @@
 # Verification record
 
+## September 12 — Support copy and hosting badge
+
+- Folded the voluntary-donation note into the introduction shared by public
+  and in-app Support; removed the separate note and its unused styling.
+- `npm run typecheck`, focused Prettier checks, and `git diff --check` passed.
+  Reviewed the local public Support page at desktop, 820px, and 390px widths
+  in light appearance. Dark appearance and the authenticated screen were not
+  separately reviewed. The copy change has not been published.
+- Disabled `built_with_badge_enabled` on the `marten-money` Netlify project.
+  The API returned `false`, and reloading the live Support page confirmed the
+  injected Powered by Netlify badge was absent. This project-wide setting
+  takes effect without a frontend deployment.
+
 Final assembled-app checks were completed on **September 11, 2026** using fictional Taylor and Morgan workspaces. This record distinguishes automated checks, observed browser behavior, development configuration, and remaining release work.
 
 ## September 12 — Production launch configuration follow-through
