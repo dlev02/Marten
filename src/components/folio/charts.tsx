@@ -48,23 +48,55 @@ function ChartTooltip({
     </div>
   );
 }
+/**
+ * The path sweeps in from the left once on mount and again when the caller
+ * changes `revealKey` (a range choice). A clip rectangle grows over the plot,
+ * so axes stay put and live data updates or resizes never replay it. Reduced
+ * motion and compact sparklines render the full path immediately.
+ */
+function useReveal(revealKey: string | undefined, enabled: boolean) {
+  const reduced = useReducedMotion();
+  const [phase, setPhase] = useState<"start" | "done">("start");
+  // Runs on mount and on an explicit key change only; data is not a dependency.
+  useEffect(() => {
+    if (!enabled || reduced) return;
+    setPhase("start");
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setPhase("done"));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [revealKey, enabled, reduced]);
+  return enabled && !reduced ? phase : "done";
+}
 export function NetWorthChart({
   data,
   compact = false,
   id = "networth",
   color = "#00a3bd",
   valueLabel = "Net worth",
+  revealKey,
 }: {
   data: { label: string; value: number }[];
   compact?: boolean;
   id?: string;
   color?: string;
   valueLabel?: string;
+  /** Change this (for example to the selected range) to replay the reveal. */
+  revealKey?: string;
 }) {
-  const gradient = `gradient-${id.replace(/[^a-zA-Z0-9]/g, "")}`;
+  useAmountsHidden();
+  const safeId = id.replace(/[^a-zA-Z0-9]/g, "");
+  const gradient = `gradient-${safeId}`;
+  const clip = `reveal-${safeId}`;
+  const reveal = useReveal(revealKey, !compact);
   return (
     <div
-      className={compact ? "sparkline" : "networth-chart"}
+      className={`${compact ? "sparkline" : "networth-chart"} ${reveal === "start" ? "chart-reveal-start" : "chart-reveal-done"}`}
+      style={{ "--chart-clip": `url(#${clip})` } as React.CSSProperties}
       role="img"
       aria-label={`Balance history: ${data.length ? money(data[0].value) + " to " + money(data[data.length - 1].value) : "no history"}`}
     >
@@ -82,6 +114,17 @@ export function NetWorthChart({
               <stop offset="0%" stopColor={color} stopOpacity={0.17} />
               <stop offset="100%" stopColor={color} stopOpacity={0.01} />
             </linearGradient>
+            {!compact && (
+              <clipPath id={clip}>
+                <rect
+                  className="chart-reveal-rect"
+                  x="0"
+                  y="0"
+                  width="100%"
+                  height="100%"
+                />
+              </clipPath>
+            )}
           </defs>
           {!compact && (
             <>
@@ -113,6 +156,7 @@ export function NetWorthChart({
           {/* Keep the path and axes in the same resize frame. */}
           <Area
             name={valueLabel}
+            className="chart-revealed"
             type="monotone"
             dataKey="value"
             stroke={color}
@@ -189,7 +233,7 @@ export function FlowChart({
               stackId={stacked ? "all" : undefined}
               maxBarSize={40}
               animationDuration={500}
-              isAnimationActive={!reduced}
+              isAnimationActive={false}
               onClick={onSelect ? (_, index) => onSelect(index) : undefined}
               cursor={onSelect ? "pointer" : undefined}
             >
@@ -214,7 +258,7 @@ export function FlowChart({
               stackId={stacked ? "all" : undefined}
               maxBarSize={40}
               animationDuration={500}
-              isAnimationActive={!reduced}
+              isAnimationActive={false}
               onClick={onSelect ? (_, index) => onSelect(index) : undefined}
               cursor={onSelect ? "pointer" : undefined}
             >
