@@ -249,6 +249,9 @@ const accountFields = {
   dueDate: v.optional(v.string()),
   statementDate: v.optional(v.string()),
   apy: v.optional(v.number()),
+  paymentPlan: v.optional(
+    v.union(v.literal("statement"), v.literal("minimum")),
+  ),
 };
 const accountInput = v.object(accountFields);
 export async function saveAccountForUser(

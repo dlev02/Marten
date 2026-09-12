@@ -206,7 +206,10 @@ export function AccountForm({
     [apy, setApy] = useState(account?.apy?.toString() ?? ""),
     [hidden, setHidden] = useState(account?.hidden ?? false),
     [excluded, setExcluded] = useState(account?.excludeNetWorth ?? false),
-    [closed, setClosed] = useState(account?.closed ?? false);
+    [closed, setClosed] = useState(account?.closed ?? false),
+    [paymentPlan, setPaymentPlan] = useState<"statement" | "minimum">(
+      account?.paymentPlan ?? "statement",
+    );
   const bankManaged = !!account && !account.manual;
   const subtypeOptions =
     kind === "cash"
@@ -256,6 +259,7 @@ export function AccountForm({
           excludeNetWorth: excluded,
           closed,
           ...(apy ? { apy: Number(apy) } : {}),
+          ...(kind === "credit" || kind === "loan" ? { paymentPlan } : {}),
           ...(account?.availableCents !== undefined
             ? { availableCents: account.availableCents }
             : {}),
@@ -397,6 +401,24 @@ export function AccountForm({
         <p className="account-notice">
           Your bank keeps the balance and account type up to date.
         </p>
+      )}
+      {(kind === "credit" || kind === "loan") && (
+        <Field
+          label="Planned payment"
+          hint="Shown as an upcoming payment on the dashboard when a statement is due."
+        >
+          <Picker
+            label="Planned payment"
+            value={paymentPlan}
+            onChange={(value) =>
+              setPaymentPlan(value as "statement" | "minimum")
+            }
+            options={[
+              { value: "statement", label: "Pay the statement balance" },
+              { value: "minimum", label: "Pay the minimum" },
+            ]}
+          />
+        </Field>
       )}
       {account && (
         <div className="account-preferences">

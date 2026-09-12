@@ -224,6 +224,10 @@ export default defineSchema({
     dueDate: v.optional(v.string()),
     statementDate: v.optional(v.string()),
     statementPaidDate: v.optional(v.string()),
+    // How the upcoming card/loan payment is planned: the full statement (default) or the minimum.
+    paymentPlan: v.optional(
+      v.union(v.literal("statement"), v.literal("minimum")),
+    ),
     statementReminder: v.optional(
       v.object({
         ...statementReminderFields,

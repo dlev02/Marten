@@ -114,7 +114,7 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
     return points.filter((p) => p.date >= cutoff);
   }, [history, data.accounts, range, from, sixMonths]);
   const change = chart.length > 1 ? networth - chart[0].value : 0;
-  const upcoming = data.recurring
+  const schedules = data.recurring
     .filter((r) => r.active)
     .flatMap((r) =>
       recurringDates(r.nextDate, r.frequency, today, to).map((date) => ({
@@ -128,6 +128,36 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
         color: data.merchants.find((m) => m._id === r.merchantId)?.color,
       })),
     )
+    .map((r) => ({ ...r, kind: "schedule" as const }));
+  // A card or loan statement is due every month, so it belongs with upcoming items.
+  const statements = data.accounts
+    .filter(
+      (a) =>
+        (a.kind === "credit" || a.kind === "loan") &&
+        !a.closed &&
+        !!a.dueDate &&
+        a.dueDate >= today &&
+        a.dueDate <= to &&
+        a.statementPaidDate !== a.dueDate &&
+        (a.paymentPlan === "minimum"
+          ? a.minimumCents !== undefined
+          : a.statementCents !== undefined || a.minimumCents !== undefined),
+    )
+    .map((a) => ({
+      _id: a._id,
+      kind: "statement" as const,
+      date: a.dueDate!,
+      name: `${a.name} statement`,
+      account:
+        a.paymentPlan === "minimum" ? "Minimum payment" : "Statement balance",
+      color: undefined,
+      logo: a.logoUrl,
+      amountCents:
+        a.paymentPlan === "minimum"
+          ? a.minimumCents!
+          : (a.statementCents ?? a.minimumCents!),
+    }));
+  const upcoming = [...schedules, ...statements]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 4);
   const defaults = [
@@ -276,7 +306,15 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
                 <small>{dateLabel(r.date, { month: "short" })}</small>
                 <strong>{Number(r.date.slice(8))}</strong>
               </span>
-              <Avatar name={r.name} color={r.color} />
+              <Avatar
+                name={
+                  r.kind === "statement"
+                    ? r.name.replace(/ statement$/, "")
+                    : r.name
+                }
+                color={r.color}
+                logo={r.kind === "statement" ? r.logo : undefined}
+              />
               <span className="row-title">
                 <strong>{r.name}</strong>
                 <small>{r.account}</small>
