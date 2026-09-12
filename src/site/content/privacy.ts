@@ -239,6 +239,31 @@ export const privacyPolicy: SiteDocument = {
       ],
     },
     {
+      id: "your-rights",
+      heading: "Your rights, including under GDPR and similar laws",
+      blocks: [
+        {
+          type: "p",
+          text: "Marten is run by an individual in the United States and is not aimed at any particular country, but the same rights are offered to everyone, whether or not a law such as the EU GDPR, the UK GDPR, or a US state privacy law applies to you.",
+        },
+        {
+          type: "ul",
+          items: [
+            "**Access and portability.** Everything Marten holds about you is visible in the app. Transactions and reports export as CSV from the app; if you want a complete copy of your account data in a machine-readable form, ask through {{CONTACT_EMAIL}} and it will be provided within 30 days.",
+            "**Correction.** You can edit your name, email, profile picture, accounts, transactions, categories, and settings yourself at any time.",
+            "**Deletion.** Settings → Preferences → Delete account removes your workspace, files, connections, and sign-in in one step; there is no waiting period and nothing is kept except short-lived server logs and backups that age out on their own. You can also ask for deletion through {{CONTACT_EMAIL}}.",
+            "**Restriction and objection.** Marten performs no profiling, no automated decision-making with legal effect, no marketing, and no processing beyond running the app for you, so there is nothing to opt out of; disconnecting a bank or deleting your account stops processing entirely.",
+            "**Withdrawal of consent.** Bank connections, AI-assistant access, and reminders are each opt-in and can be switched off in the app at any time.",
+            "**Complaint.** If you believe your rights have been ignored, you may contact your local data-protection authority. Please raise it with Marten first; it is a one-person project and most problems can be fixed quickly.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Legal basis, for those who need it stated: processing is necessary to provide the service you asked for (your account and the features you enable), and bank data is processed on the basis of the consent you give in Plaid Link or SimpleFIN Bridge. The data controller is the operator named in the Contact section. Data is stored in the United States; if you use Marten from elsewhere, your data is transferred there.",
+        },
+      ],
+    },
+    {
       id: "security",
       heading: "Security",
       blocks: [
