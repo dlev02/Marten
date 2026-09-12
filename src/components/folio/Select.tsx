@@ -1,7 +1,12 @@
-import { forwardRef, type ReactNode } from "react";
+import { createContext, forwardRef, useContext, type ReactNode } from "react";
 import * as RadixSelect from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import "./select.css";
+
+// Nested controls must stay inside their dialog's allowed scroll boundary.
+// This shared context intentionally refreshes the consuming controls together.
+// eslint-disable-next-line react-refresh/only-export-components
+export const PickerPortalContext = createContext<HTMLElement | null>(null);
 
 export type SelectOption = { value: string; label: string; disabled?: boolean };
 export type SelectProps = {
@@ -35,6 +40,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     },
     ref,
   ) {
+    const portalContainer = useContext(PickerPortalContext);
     // Radix reserves an empty value for its placeholder. Index keys let an actual
     // “All accounts” option safely represent an empty filter value.
     const selected = options.findIndex((option) => option.value === value);
@@ -52,17 +58,21 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           className={`folio-select ${className}`}
         >
           {icon}
-          <RadixSelect.Value placeholder={placeholder} />
+          <RadixSelect.Value
+            className="folio-select-label"
+            placeholder={placeholder}
+          />
           <RadixSelect.Icon asChild>
             <ChevronDown size={15} />
           </RadixSelect.Icon>
         </RadixSelect.Trigger>
-        <RadixSelect.Portal>
+        <RadixSelect.Portal container={portalContainer}>
           <RadixSelect.Content
             className="folio-select-menu"
             position="popper"
             sideOffset={5}
             collisionPadding={12}
+            collisionBoundary={portalContainer}
           >
             <RadixSelect.ScrollUpButton className="folio-select-scroll">
               <ChevronUp size={15} />

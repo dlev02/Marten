@@ -30,7 +30,8 @@ export function DemoStartup({ authenticated }: { authenticated: boolean }) {
     });
   }, [authenticated, attempt, initialize, signIn]);
   const message = demoStorageError() ?? error;
-  if (!message) return <Loading text="Preparing your fictional household…" />;
+  if (!message)
+    return <Loading full text="Preparing your fictional household…" />;
   return (
     <main className="auth-page">
       <div className="auth-logo">

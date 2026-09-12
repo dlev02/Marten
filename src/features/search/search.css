@@ -1,5 +1,6 @@
-.command-palette {
-  width: min(580px, calc(100vw - 32px));
+.modal.command-palette {
+  width: min(700px, calc(100vw - 32px));
+  max-width: 700px;
 }
 .command-palette .modal-heading {
   margin-bottom: 12px;
@@ -8,13 +9,24 @@
   font-size: 15px;
   font-weight: 500;
 }
+/* Icon, field, and clear button read as one control; the ring wraps all of it. */
 .command-input {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 11px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--strong-border);
+  border-radius: 9px;
+  background: var(--surface);
   color: var(--muted);
+}
+.command-input:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.command-input > svg {
+  flex: none;
 }
 .command-input > input {
   min-width: 0;
@@ -31,6 +43,9 @@
   color: var(--muted);
   opacity: 1;
 }
+.command-input > input:focus-visible {
+  outline: none;
+}
 .command-input > button {
   display: grid;
   place-items: center;
@@ -42,7 +57,7 @@
 }
 .command-palette .global-results {
   max-height: min(430px, calc(100dvh - 240px));
-  margin-top: 6px;
+  margin-top: 8px;
   padding-bottom: 3px;
 }
 .command-group > h3 {

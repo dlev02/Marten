@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useContext, useEffect, useId, useRef, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "@daypicker/react";
-import { Select } from "./Select";
+import { PickerPortalContext, Select } from "./Select";
 import { localDate } from "../../lib/format";
 import {
   displayCalendarDate,
@@ -36,6 +36,7 @@ export function DatePicker({
   className?: string;
 }) {
   const generatedId = useId();
+  const portalContainer = useContext(PickerPortalContext);
   const fieldId = id ?? generatedId;
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -136,11 +137,12 @@ export function DatePicker({
             </Popover.Trigger>
           </div>
         </Popover.Anchor>
-        <Popover.Portal>
+        <Popover.Portal container={portalContainer}>
           <Popover.Content
             className="date-picker-menu"
             sideOffset={7}
             collisionPadding={12}
+            collisionBoundary={portalContainer}
             align="start"
             aria-label={`${label} calendar`}
             onOpenAutoFocus={(event) => event.preventDefault()}

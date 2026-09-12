@@ -60,6 +60,9 @@
   box-shadow: 0 12px 36px #00000020;
   width: 334px;
   max-width: calc(100vw - 24px);
+  max-height: var(--radix-popover-content-available-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .date-picker-navigation {
   display: flex;
