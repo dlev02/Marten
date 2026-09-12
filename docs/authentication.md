@@ -27,6 +27,20 @@ Submitting the code calls `flow: "reset-verification"` with the canonical email 
 
 The request screen uses the same next step for an unknown account. This is a **UI behavior**, not a claim of server-side account-enumeration resistance: the underlying provider can return distinguishable errors for an unknown account. A generic screen alone does not change that API contract.
 
+## Sign-in attempts and session revocation
+
+- Failed password sign-ins are limited by Convex Auth's built-in limiter,
+  configured in [auth.ts](../convex/auth.ts) as ten failures per hour per
+  account, after which one further attempt is allowed every six minutes.
+  Successful sign-ins are not throttled. The sign-in screen shows the
+  provider's message when the limit is reached.
+- Every `userQuery`, `userMutation`, and `userAction` checks that the
+  session named in the token still exists ([access.ts](../convex/lib/access.ts),
+  [sessions.ts](../convex/sessions.ts)). A password reset or account deletion
+  deletes session rows, so tokens issued to other devices stop working on
+  their next request instead of at the token's expiry. Covered by
+  `convex/sessionRevocation.test.ts`.
+
 ## Request limits and failure handling
 
 [resetLimits.ts](../convex/lib/resetLimits.ts) reserves each request against the normalized email address in `resetEmailLimits`:

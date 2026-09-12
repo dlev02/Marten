@@ -13,7 +13,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Marten uses email and password sign-in through the Convex Auth library. Passwords must be at least 12 characters and are stored only as a hash. Email addresses are trimmed and lowercased so one address maps to one account. Session tokens are kept in your browser's local storage and cleared when you sign out.",
+          text: "Marten uses email and password sign-in through the Convex Auth library. Passwords must be at least 12 characters and are stored only as a hash. Email addresses are trimmed and lowercased so one address maps to one account. Session tokens are kept in your browser's local storage and cleared when you sign out. Every request also checks that its session still exists on the server, so a password reset or an account deletion ends other sessions immediately rather than when their tokens expire.",
         },
         {
           type: "p",
@@ -92,7 +92,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Sensitive actions are throttled so a mistake or a script cannot hammer them: password-reset and reminder-verification codes (one per minute, five per hour), SimpleFIN connection attempts (a small per-user hourly budget), and AI-connection OAuth and tool calls. Uploads are bounded by size and type on the server.",
+          text: "Sensitive actions are throttled so a mistake or a script cannot hammer them: failed password sign-ins (ten per hour per account, then one more try every six minutes), password-reset and reminder-verification codes (one per minute, five per hour), SimpleFIN connection attempts (a small per-user hourly budget), and AI-connection OAuth and tool calls. Uploads are bounded by size and type on the server.",
         },
       ],
     },
@@ -114,9 +114,7 @@ export const securityOverview: SiteDocument = {
           type: "ul",
           items: [
             "**Two-factor authentication** is planned but not yet available. Choose a long, unique password and use a password manager.",
-            "**Self-service account deletion** is not built yet; deletion is done on request (see the [Privacy Policy]({{SITE_URL}}/privacy)).",
             "The sign-in screen shows the same next step for an unknown email address, but that is a UI choice, not a guarantee against account enumeration.",
-            "A password reset removes other session records; it does not instantly invalidate an access token that was already issued before that token expires.",
             "No independent security audit or penetration test has been performed.",
           ],
         },

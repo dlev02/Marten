@@ -56,6 +56,7 @@ import type * as recurring from "../recurring.js";
 import type * as reminderDelivery from "../reminderDelivery.js";
 import type * as reminders from "../reminders.js";
 import type * as sample from "../sample.js";
+import type * as sessions from "../sessions.js";
 import type * as settings from "../settings.js";
 import type * as simplefin from "../simplefin.js";
 import type * as simplefinInternal from "../simplefinInternal.js";
@@ -118,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   reminderDelivery: typeof reminderDelivery;
   reminders: typeof reminders;
   sample: typeof sample;
+  sessions: typeof sessions;
   settings: typeof settings;
   simplefin: typeof simplefin;
   simplefinInternal: typeof simplefinInternal;

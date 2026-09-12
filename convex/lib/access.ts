@@ -1,4 +1,5 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "../_generated/api";
 import {
   customQuery,
   customMutation,
@@ -16,9 +17,25 @@ import { ConvexError } from "convex/values";
 import type { Id, Doc, TableNames } from "../_generated/dataModel";
 export type UserRead = QueryCtx & { userId: Id<"users"> };
 export type UserMutationCtx = MutationCtx & { userId: Id<"users"> };
-export async function requireUser(ctx: Pick<QueryCtx | ActionCtx, "auth">) {
+const SIGNED_OUT = "Please sign in to continue.";
+/**
+ * Verifies the caller's token and that its session still exists. A password
+ * reset or account deletion removes session rows, so a token that is still
+ * within its lifetime stops working immediately rather than at expiry.
+ */
+export async function requireUser(ctx: QueryCtx | MutationCtx | ActionCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new ConvexError("Please sign in to continue.");
+  if (!userId) throw new ConvexError(SIGNED_OUT);
+  // Convex Auth signs "userId|sessionId" into every token it issues. Test
+  // identities that carry only a user id have no session to check.
+  const sessionId = await getAuthSessionId(ctx);
+  if (!sessionId) return userId;
+  const alive =
+    "db" in ctx
+      ? (await ctx.db.get(sessionId)) !== null
+      : await ctx.runQuery(internal.sessions.isActive, { sessionId });
+  if (!alive)
+    throw new ConvexError("Your session ended. Please sign in again.");
   return userId;
 }
 const authContext = {

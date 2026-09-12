@@ -5,6 +5,9 @@ import { passwordResetEmail } from "./lib/passwordReset";
 import { reserveResetEmail } from "./lib/resetLimits";
 import type { MutationCtx } from "./_generated/server";
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  // Failed password sign-ins are limited per account: ten in an hour, then
+  // one more attempt every six minutes. Successful sign-ins are unaffected.
+  signIn: { maxFailedAttempsPerHour: 10 },
   callbacks: {
     afterUserCreatedOrUpdated: async (ctx, args) => {
       if (
