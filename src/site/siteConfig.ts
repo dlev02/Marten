@@ -6,7 +6,7 @@
 export const site = {
   name: "Marten",
   operator: "Drew",
-  url: "https://martenmoney.com",
+  url: "https://marten.money",
   github: "https://github.com/dlev02/marten",
   issues: "https://github.com/dlev02/marten/issues",
   newIssue: "https://github.com/dlev02/marten/issues/new/choose",
