@@ -13,7 +13,7 @@ export const termsOfService: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Marten is a free personal-finance web app hosted at {{SITE_URL}} and operated by Drew Levinson, an individual in the United States. It is a non-commercial passion project: there are no fees, no paid tiers, no ads, and no plan to add them. By creating an account or using the site you agree to these terms and to the [Privacy Policy]({{SITE_URL}}/privacy).",
+          text: "Marten is a free personal-finance web app hosted at {{SITE_URL}} and operated by Drew, an individual in the United States. It is a non-commercial passion project: there are no fees, no paid tiers, no ads, and no plan to add them. By creating an account or using the site you agree to these terms and to the [Privacy Policy]({{SITE_URL}}/privacy).",
         },
         {
           type: "p",
@@ -96,7 +96,7 @@ export const termsOfService: SiteDocument = {
         {
           type: "ul",
           items: [
-            "**Plaid** (Plaid, Inc.) is available on the hosted site only to accounts the operator has allow-listed, because Plaid's free Trial covers a limited number of institution logins for the whole deployment. When you use Plaid Link you agree to Plaid's terms and the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
+            "**Plaid** (Plaid, Inc.) is not offered to the public on the hosted site. It is available only to the operator's own household through an allow list, because Plaid's free Trial covers a limited number of institution logins for the whole deployment. Self-hosted copies of Marten can use their own Plaid credentials. When you use Plaid Link you agree to Plaid's terms and the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
             "**SimpleFIN Bridge** is a subscription you purchase directly from [SimpleFIN](https://beta-bridge.simplefin.org/), under SimpleFIN's own terms and prices. Marten shows SimpleFIN's advertised price only as an approximation; SimpleFIN sets and can change it.",
           ],
         },

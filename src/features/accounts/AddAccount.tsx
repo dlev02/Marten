@@ -128,7 +128,17 @@ export function AddAccount({
               </div>
             ) : plaidRestricted ? (
               <div className="account-notice">
-                Bank connections on this site use SimpleFIN Bridge.
+                Bank connections on this site use SimpleFIN Bridge. Plaid is
+                available when you{" "}
+                <a
+                  className="text-link"
+                  href="https://github.com/dlev02/marten/blob/main/docs/self-hosting.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  run your own copy of Marten
+                </a>
+                .
               </div>
             ) : status && !status.configured ? (
               <div className="account-notice">

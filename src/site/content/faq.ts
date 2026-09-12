@@ -53,9 +53,9 @@ export const publicFaq: FaqEntry[] = [
   {
     id: "why-not-plaid",
     category: "Banks & data",
-    question: "Why can't I use Plaid on the hosted site?",
+    question: "Can I use Plaid on the hosted site?",
     answer:
-      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list, and everyone else uses SimpleFIN or spreadsheets. If you self-host, you can apply for your own Plaid Trial and use it freely.",
+      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list; everyone else uses SimpleFIN or spreadsheets and the Plaid option simply isn't shown. If you self-host, you run your own backend, apply for your own Plaid Trial, and your bank data never touches this site at all.",
   },
   {
     id: "self-host",
@@ -68,7 +68,7 @@ export const publicFaq: FaqEntry[] = [
     id: "license",
     question: "What license is Marten under, and can I fork it?",
     answer:
-      'Marten is released under the GNU AGPL v3 with one added term: any copy, fork, or hosted instance must keep visible credit to the original author ("Built on Marten by Drew Levinson" with a link to the repository). You can run it, change it, self-host it, and share it. Your changes have to stay open under the same license, people using a hosted copy must be able to get the source, and you cannot rename it and drop the credit. Details are in [NOTICE.md](https://github.com/dlev02/marten/blob/main/NOTICE.md).',
+      'Marten is released under the GNU AGPL v3 with one added term: any copy, fork, or hosted instance must keep visible credit to the original author ("Built on Marten by Drew" with a link to the repository). You can run it, change it, self-host it, and share it. Your changes have to stay open under the same license, people using a hosted copy must be able to get the source, and you cannot rename it and drop the credit. Details are in [NOTICE.md](https://github.com/dlev02/marten/blob/main/NOTICE.md).',
     category: "Hosting & open source",
   },
   {

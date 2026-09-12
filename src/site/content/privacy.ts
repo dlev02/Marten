@@ -13,7 +13,7 @@ export const privacyPolicy: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Marten is a free personal-finance web app. You can add accounts by hand, import spreadsheets, or connect banks through a provider, and Marten shows your balances, transactions, recurring bills, investments, credit-score history, and a forecast in one place. The hosted site at {{SITE_URL}} is run by Drew Levinson, an individual in the United States, as a non-commercial passion project. Nobody at Marten sells anything, and there is no company behind it.",
+          text: "Marten is a free personal-finance web app. You can add accounts by hand, import spreadsheets, or connect banks through a provider, and Marten shows your balances, transactions, recurring bills, investments, credit-score history, and a forecast in one place. The hosted site at {{SITE_URL}} is run by Drew, an individual in the United States, as a non-commercial passion project. Nobody at Marten sells anything, and there is no company behind it.",
         },
         {
           type: "p",
@@ -62,7 +62,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "**Plaid** (Plaid, Inc.). On the hosted site, Plaid is available only to accounts on the operator's allow list, because Plaid's free Trial covers a fixed number of institution logins for the whole deployment. When Plaid is used, you sign in to your bank inside Plaid Link and choose what to share. Marten then receives and stores: institution name and logo, account names, types, and masked identifiers; cached current and available balances; transactions with dates, amounts, statement text, pending status, and Plaid's category suggestions; for cards and loans, statement balances, minimum payments, and due dates when the institution provides them; and for brokerage and retirement accounts, holdings, securities, and investment activity. Marten stores a Plaid access token and sync cursor on the server so it can keep syncing. Plaid's own handling of your data is described in the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
+          text: "**Plaid** (Plaid, Inc.). Plaid is the bank connection for self-hosted copies of Marten, where you run your own backend with your own Plaid credentials, so your bank data stays on infrastructure you control. On the hosted site, Plaid is switched off for everyone except the operator's own family, because Plaid's free Trial covers a fixed number of institution logins for the whole deployment; everyone else connects through SimpleFIN Bridge and never sees a Plaid option. When Plaid is used, you sign in to your bank inside Plaid Link and choose what to share. Marten then receives and stores: institution name and logo, account names, types, and masked identifiers; cached current and available balances; transactions with dates, amounts, statement text, pending status, and Plaid's category suggestions; for cards and loans, statement balances, minimum payments, and due dates when the institution provides them; and for brokerage and retirement accounts, holdings, securities, and investment activity. Marten stores a Plaid access token and sync cursor on the server so it can keep syncing. Plaid's own handling of your data is described in the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
         },
         {
           type: "p",
@@ -299,7 +299,7 @@ export const privacyPolicy: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Questions about privacy, or a request to see or delete your data: open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}}. The site is operated by Drew Levinson in the United States.",
+          text: "Questions about privacy, or a request to see or delete your data: open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}}. The site is operated by Drew in the United States.",
         },
       ],
     },
