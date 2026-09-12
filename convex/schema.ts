@@ -165,12 +165,17 @@ export default defineSchema({
     reviewNew: v.boolean(),
     allowPending: v.boolean(),
     widgets: v.array(v.string()),
+    // Set when the owner asked to delete the account; the scheduled sweep in
+    // accountDeletion.ts is emptying every table and will remove the sign-in last.
+    deletionRequestedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
-  sophtronConnections: defineTable({
+  // One SimpleFIN Bridge connection per Marten user. The access URL carries the
+  // bridge credentials and is sealed by lib/credentialCrypto when CREDENTIALS_KEY
+  // is set. Public functions never return it.
+  simplefinConnections: defineTable({
     ...owner,
-    apiUserId: v.string(),
-    customerId: v.string(),
-    environment: v.union(v.literal("production"), v.literal("preview")),
+    accessUrl: v.string(),
+    host: v.string(),
     status: v.union(
       v.literal("connected"),
       v.literal("syncing"),
@@ -182,11 +187,17 @@ export default defineSchema({
     syncedAt: v.optional(v.number()),
     error: v.optional(v.string()),
     warning: v.optional(v.string()),
+    providerErrors: v.optional(v.array(v.string())),
     fromDate: v.optional(v.string()),
     toDate: v.optional(v.string()),
-  }).index("by_userId", ["userId"]),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status_and_syncedAt", ["status", "syncedAt"]),
   accounts: defineTable({
     ...owner,
+    importName: v.optional(v.string()),
     name: v.string(),
     institution: v.string(),
     mask: v.string(),
@@ -201,15 +212,10 @@ export default defineSchema({
     updatedAt: v.number(),
     itemId: v.optional(v.id("plaidItems")),
     plaidAccountId: v.optional(v.string()),
-    sophtronConnectionId: v.optional(v.id("sophtronConnections")),
-    sophtronAccountId: v.optional(v.string()),
-    sophtronMemberId: v.optional(v.string()),
-    sophtronImportFromDate: v.optional(v.string()),
-    sophtronUsdConfirmed: v.optional(v.boolean()),
-    sophtronDebtSign: v.optional(
-      v.union(v.literal("positive"), v.literal("negative")),
-    ),
-    sophtronUpdatedAt: v.optional(v.number()),
+    simplefinConnectionId: v.optional(v.id("simplefinConnections")),
+    simplefinAccountId: v.optional(v.string()),
+    simplefinImportFromDate: v.optional(v.string()),
+    simplefinUpdatedAt: v.optional(v.number()),
     logoUrl: v.optional(v.string()),
     availableCents: v.optional(v.number()),
     limitCents: v.optional(v.number()),
@@ -228,10 +234,10 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_itemId", ["itemId"])
-    .index("by_sophtronConnectionId", ["sophtronConnectionId"])
-    .index("by_sophtronConnectionId_and_sophtronAccountId", [
-      "sophtronConnectionId",
-      "sophtronAccountId",
+    .index("by_simplefinConnectionId", ["simplefinConnectionId"])
+    .index("by_simplefinConnectionId_and_simplefinAccountId", [
+      "simplefinConnectionId",
+      "simplefinAccountId",
     ])
     .index("by_userId_and_plaidAccountId", ["userId", "plaidAccountId"]),
   balances: defineTable({
@@ -250,6 +256,7 @@ export default defineSchema({
   }).index("by_userId", ["userId"]),
   categories: defineTable({
     ...owner,
+    importName: v.optional(v.string()),
     groupId: v.id("groups"),
     name: v.string(),
     emoji: v.string(),
@@ -281,7 +288,7 @@ export default defineSchema({
     source: v.union(
       v.literal("manual"),
       v.literal("plaid"),
-      v.literal("sophtron"),
+      v.literal("simplefin"),
       v.literal("sample"),
       v.literal("csv"),
     ),
@@ -289,7 +296,7 @@ export default defineSchema({
     updatedAt: v.number(),
     editedFields: v.array(v.string()),
     plaidTransactionId: v.optional(v.string()),
-    sophtronTransactionId: v.optional(v.string()),
+    simplefinTransactionId: v.optional(v.string()),
     pendingTransactionId: v.optional(v.string()),
     removedFromBank: v.optional(v.boolean()),
     splitDraft: v.optional(v.array(split)),
@@ -298,9 +305,9 @@ export default defineSchema({
   })
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_plaidTransactionId", ["userId", "plaidTransactionId"])
-    .index("by_accountId_and_sophtronTransactionId", [
+    .index("by_accountId_and_simplefinTransactionId", [
       "accountId",
-      "sophtronTransactionId",
+      "simplefinTransactionId",
     ])
     .index("by_userId_and_importKey", ["userId", "importKey"])
     .index("by_userId_and_merchantId_and_date", [
@@ -370,6 +377,7 @@ export default defineSchema({
   }).index("by_userId", ["userId"]),
   investmentSecurities: defineTable({
     ...owner,
+    simplefinConnectionId: v.optional(v.id("simplefinConnections")),
     itemId: v.optional(v.id("plaidItems")),
     ...securityFields,
   })
@@ -377,6 +385,7 @@ export default defineSchema({
     .index("by_itemId", ["itemId"]),
   investmentHoldings: defineTable({
     ...owner,
+    simplefinConnectionId: v.optional(v.id("simplefinConnections")),
     itemId: v.optional(v.id("plaidItems")),
     accountId: v.id("accounts"),
     securityId: v.id("investmentSecurities"),

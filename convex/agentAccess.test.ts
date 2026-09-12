@@ -121,7 +121,7 @@ async function fixture() {
         updatedAt: now,
         editedFields: [],
         plaidTransactionId: "fictional-private-plaid-id",
-        sophtronTransactionId: "fictional-private-sophtron-id",
+        simplefinTransactionId: "fictional-private-sophtron-id",
       };
       const transactionId = await ctx.db.insert("transactions", transaction);
       return {
@@ -332,7 +332,7 @@ describe("agent consent and owned data", () => {
     expect(rows.page).toHaveLength(1);
     expect(rows.page[0]._id).toBe(f.seed.alice.transactionId);
     expect(JSON.stringify(rows)).not.toMatch(
-      /fictional-private|plaidTransactionId|sophtronTransactionId|userId|searchText/,
+      /fictional-private|plaidTransactionId|simplefinTransactionId|userId|searchText/,
     );
     await expect(
       f.call("get_transaction", { id: f.seed.bob.transactionId }),
@@ -377,7 +377,7 @@ describe("agent consent and owned data", () => {
       agentData({
         notes: "Keep this",
         nested: {
-          sophtronAccountId: "private",
+          simplefinAccountId: "private",
           plaidSecurityId: "private",
           accessToken: "private",
           amountCents: 123,

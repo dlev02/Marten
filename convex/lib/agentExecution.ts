@@ -63,7 +63,7 @@ export function agentData(value: unknown): unknown {
           ([key, item]) =>
             item !== undefined &&
             !omit.has(key) &&
-            !/token|secret|password|credential|^sophtron|^plaid/i.test(key),
+            !/token|secret|password|credential|^simplefin|^plaid/i.test(key),
         )
         .map(([key, item]) => [key, agentData(item)]),
     );

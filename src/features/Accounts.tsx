@@ -75,8 +75,8 @@ function accountConnection(
   institutions: Pick<Doc<"plaidItems">, "_id" | "status">[],
 ) {
   if (account.manual) return { label: "Manual balance", color: "var(--muted)" };
-  if (account.sophtronConnectionId)
-    return { label: "Sophtron import", color: "var(--muted)" };
+  if (account.simplefinConnectionId)
+    return { label: "SimpleFIN import", color: "var(--muted)" };
   const status = institutions.find(
     (item) => item._id === account.itemId,
   )?.status;
@@ -458,8 +458,10 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
               <div className="account-side-note">
                 <RefreshCw size={17} />
                 <p>
-                  {data.accounts.some((account) => account.sophtronConnectionId)
-                    ? "Plaid updates automatically. Import Sophtron updates from Bank connections, or edit manual balances anytime."
+                  {data.accounts.some(
+                    (account) => account.simplefinConnectionId,
+                  )
+                    ? "Plaid updates automatically. SimpleFIN imports daily and on request from Bank connections; edit manual balances anytime."
                     : "Connected accounts update automatically. You can update manual balances anytime."}
                 </p>
               </div>
@@ -544,21 +546,21 @@ function AccountDetail({
               ? "Manually updated"
               : connection.label}
           <span>
-            {account.sophtronConnectionId ? "Imported" : "Updated"}{" "}
+            {account.simplefinConnectionId ? "Imported" : "Updated"}{" "}
             {new Date(account.updatedAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
             })}
           </span>
         </div>
-        {account.sophtronConnectionId && (
+        {account.simplefinConnectionId && (
           <div className="account-notice">
-            Sophtron imports are requested in{" "}
-            <a href="/settings/institutions#sophtron">Bank connections</a>.
+            SimpleFIN imports run daily and on request from{" "}
+            <a href="/settings/institutions#simplefin">Bank connections</a>.
             History completeness is unverified; pending activity, holdings, and
             statement minimums are not included.
-            {account.sophtronUpdatedAt
-              ? ` The provider last updated this balance ${new Date(account.sophtronUpdatedAt).toLocaleString()}.`
+            {account.simplefinUpdatedAt
+              ? ` The provider last updated this balance ${new Date(account.simplefinUpdatedAt).toLocaleString()}.`
               : " The provider did not supply a balance update time."}
           </div>
         )}
