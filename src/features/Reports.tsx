@@ -1,8 +1,15 @@
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
 import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation } from "convex/react";
 import {
+  BarChart3,
+  LayoutGrid,
+  Waypoints,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -11,10 +18,12 @@ import {
   Save,
   Trash2,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Doc, Id } from "../../convex/_generated/dataModel";
+import { entries } from "../../convex/lib/finance";
 import {
   accountOptions,
   categoryOptions,
@@ -27,12 +36,18 @@ import {
   dateLabel,
   download,
   localDate,
-  money,
   monthEnd,
   monthOffset,
   monthStart,
 } from "../lib/format";
-import { summarize } from "../lib/reporting";
+import {
+  summarize,
+  normalizeReportChart,
+  reportCharts,
+  type ReportChart as ChartKind,
+  type ReportKind,
+} from "../lib/reporting";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import {
   aggregatePeriods,
   comparisonPeriods,
@@ -40,6 +55,7 @@ import {
   type ReportPeriod,
 } from "../lib/reportPeriods";
 import {
+  Avatar,
   Button,
   Empty,
   Field,
@@ -51,17 +67,21 @@ import {
   Tabs,
   useTask,
 } from "../components/folio/ui";
-import { FlowChart } from "../components/folio/charts";
+import {
+  BreakdownLegend,
+  BreakdownTreemap,
+  FlowChart,
+} from "../components/folio/charts";
 import { Select } from "../components/folio/Select";
 import { DatePicker } from "../components/folio/DatePicker";
 import { CashFlowTimeline } from "../components/folio/CashFlowTimeline";
 import { MoneyFlow } from "../components/folio/MoneyFlow";
 import { PageHeader } from "../components/folio/PageHeader";
+import { TransactionDrawer } from "./transactions/TransactionDrawer";
 import "./reports.css";
 
 type Summary = ReturnType<typeof summarize>;
 type BreakdownRow = Summary["spending"][number];
-type ReportKind = "cashflow" | "spending" | "income";
 type Period = ReportPeriod;
 const groupOptions = [
   { value: "category", label: "Category" },
@@ -131,7 +151,13 @@ function useReport(
     }
     return result;
   }, [summary.months, from, to]);
-  return { summary, complete, timeline, count: matching.length };
+  return {
+    summary,
+    complete,
+    timeline,
+    count: matching.length,
+    transactions: matching,
+  };
 }
 function Totals({
   summary,
@@ -140,6 +166,7 @@ function Totals({
   summary: Summary;
   complete: boolean;
 }) {
+  useAmountsHidden();
   return (
     <div className="report-totals" aria-busy={!complete}>
       {[
@@ -183,6 +210,7 @@ function GroupPicker({
   value: string;
   onChange: (value: string) => void;
 }) {
+  useAmountsHidden();
   return (
     <label className="report-select-label">
       <span>Group by</span>
@@ -199,11 +227,16 @@ function Breakdown({
   rows,
   total,
   title,
+  selected,
+  onSelect,
 }: {
   rows: BreakdownRow[];
   total: number;
   title: string;
+  selected: string | null;
+  onSelect: (id: string) => void;
 }) {
+  useAmountsHidden();
   const positiveTotal = rows.reduce(
     (sum, row) => sum + Math.max(row.value, 0),
     0,
@@ -223,9 +256,18 @@ function Breakdown({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  className={`report-row-selectable ${selected === row.id ? "selected" : ""}`}
+                  onClick={() => onSelect(row.id)}
+                >
                   <td>
-                    <div className="report-category">
+                    {/* The button carries keyboard access; the row extends the click target. */}
+                    <button
+                      type="button"
+                      className="report-category report-row-button"
+                      aria-pressed={selected === row.id}
+                    >
                       <span
                         className="report-dot"
                         style={{ background: row.color }}
@@ -239,7 +281,7 @@ function Breakdown({
                         )}
                         {row.name}
                       </span>
-                    </div>
+                    </button>
                   </td>
                   <td>{row.count}</td>
                   <td className="amount">{money(row.value)}</td>
@@ -273,7 +315,8 @@ function Breakdown({
             </tfoot>
           </table>
           <p className="report-table-note">
-            Split allocations count as separate entries.
+            Select a row to see its transactions. Split allocations count as
+            separate entries.
             {rows.some((row) => row.value < 0)
               ? " Negative amounts reduce the total; shares show positive amounts."
               : ""}
@@ -292,16 +335,23 @@ function BreakdownDonut({
   rows,
   total,
   report,
+  selected,
+  onSelect,
 }: {
   rows: BreakdownRow[];
   total: number;
   report: ReportKind;
+  selected: string | null;
+  onSelect: (name: string) => void;
 }) {
+  useAmountsHidden();
+  const [active, setActive] = useState<string | null>(null);
   const positive = rows.filter((row) => row.value > 0);
   const title = report === "income" ? "Income" : "Spending";
   return positive.length ? (
     <div className="report-donut-layout">
       <div
+        onMouseLeave={() => setActive(null)}
         className="report-donut"
         role="img"
         aria-label={`${title} by selected grouping; total ${money(total)}`}
@@ -316,14 +366,37 @@ function BreakdownDonut({
               outerRadius={111}
               paddingAngle={positive.length > 1 ? 2 : 0}
               stroke="none"
-              animationDuration={500}
-              isAnimationActive={
-                !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+              isAnimationActive={false}
+              onMouseEnter={(_, index) =>
+                setActive(positive[index]?.name ?? null)
               }
+              onClick={(_, index) => {
+                const row = positive[index];
+                if (row) onSelect(row.name);
+              }}
             >
-              {positive.map((row) => (
-                <Cell key={row.id} fill={row.color} />
-              ))}
+              {positive.map((row) => {
+                const highlighted =
+                  active === row.name ||
+                  (active === null && selected === row.name);
+                return (
+                  <Cell
+                    key={row.id}
+                    fill={row.color}
+                    opacity={
+                      active === null
+                        ? selected === null || selected === row.name
+                          ? 1
+                          : 0.4
+                        : active === row.name
+                          ? 1
+                          : 0.4
+                    }
+                    stroke={highlighted ? "var(--text)" : "none"}
+                    strokeWidth={highlighted ? 2 : 0}
+                  />
+                );
+              })}
             </Pie>
             <Tooltip
               formatter={(value) => money(Number(value))}
@@ -336,30 +409,29 @@ function BreakdownDonut({
           </PieChart>
         </ResponsiveContainer>
         <div className="report-donut-center">
-          <span>Total {title.toLowerCase()}</span>
-          <strong>{money(total, false)}</strong>
+          <span>{active ?? `Total ${title.toLowerCase()}`}</span>
+          <strong>
+            {money(
+              active
+                ? (positive.find((row) => row.name === active)?.value ?? total)
+                : total,
+              false,
+            )}
+          </strong>
         </div>
       </div>
-      <div className="report-legend">
-        {positive.slice(0, 8).map((row) => (
-          <div key={row.id}>
-            <span className="report-dot" style={{ background: row.color }} />
-            <span>{row.name}</span>
-            <strong>{money(row.value, false)}</strong>
-          </div>
-        ))}
-        {positive.length > 8 && (
-          <small className="muted">
-            {positive.length - 8} more in the breakdown below
-          </small>
-        )}
-        {rows.some((row) => row.value < 0) && (
-          <p className="muted">
-            The ring shows positive categories. Refunds and reversals are
-            included in the total and the breakdown below.
-          </p>
-        )}
-      </div>
+      <BreakdownLegend
+        rows={positive}
+        active={active}
+        onHover={setActive}
+        selected={selected}
+        onSelect={onSelect}
+        note={
+          rows.some((row) => row.value < 0)
+            ? "The ring shows positive categories. Refunds and reversals are included in the total and the breakdown below."
+            : undefined
+        }
+      />
     </div>
   ) : (
     <Empty
@@ -375,25 +447,120 @@ function ReportChart({
   chart,
   report,
   stacked,
+  selected,
+  onSelect,
 }: {
   summary: Summary;
   timeline: Summary["months"];
-  chart: string;
+  chart: ChartKind;
   report: ReportKind;
   stacked: boolean;
+  selected: string | null;
+  onSelect: (id: string) => void;
 }) {
+  useAmountsHidden();
   const rows = report === "income" ? summary.earnings : summary.spending;
+  // Chart shapes are name-keyed; the page tracks the breakdown row id.
+  const selectedName = rows.find((row) => row.id === selected)?.name ?? null;
+  const selectByName = (name: string) => {
+    const row = rows.find((item) => item.name === name);
+    if (row) onSelect(row.id);
+  };
+  if (chart === "sankey") return <MoneyFlow {...summary} />;
+  if (chart === "treemap")
+    return (
+      <BreakdownTreemap
+        data={rows}
+        label={report === "income" ? "Income" : "Spending"}
+        selected={selectedName}
+        onSelect={selectByName}
+      />
+    );
   return chart === "donut" ? (
     <BreakdownDonut
       rows={rows}
       total={report === "income" ? summary.income : summary.expense}
       report={report}
+      selected={selectedName}
+      onSelect={selectByName}
     />
   ) : (
     <FlowChart data={timeline} stacked={stacked} report={report} />
   );
 }
+const chartLabels: Record<ChartKind, string> = {
+  bar: "Trend bars",
+  donut: "Donut",
+  treemap: "Treemap",
+  sankey: "Sankey",
+};
+const chartIcons = {
+  bar: BarChart3,
+  donut: PieIcon,
+  treemap: LayoutGrid,
+  sankey: Waypoints,
+};
+function ChartSwitcher({
+  chart,
+  report,
+  onChange,
+  stacked,
+  onStackedChange,
+}: {
+  chart: ChartKind;
+  report: ReportKind;
+  onChange: (value: ChartKind) => void;
+  stacked: boolean;
+  onStackedChange: (value: boolean) => void;
+}) {
+  useAmountsHidden();
+  return (
+    <div className="report-chart-controls">
+      {chart === "bar" && report === "cashflow" && (
+        <label className="report-stack">
+          <input
+            type="checkbox"
+            checked={stacked}
+            onChange={(event) => onStackedChange(event.target.checked)}
+          />
+          Stacked
+        </label>
+      )}
+      <ToggleGroup
+        type="single"
+        value={chart}
+        onValueChange={(value) => {
+          if (value) onChange(value as ChartKind);
+        }}
+        aria-label="Chart type"
+        className="report-chart-switcher"
+      >
+        {reportCharts[report].map((value) => {
+          const Icon = chartIcons[value];
+          return (
+            <ToggleGroupItem key={value} value={value} asChild>
+              <IconButton label={chartLabels[value]}>
+                <Icon size={17} />
+              </IconButton>
+            </ToggleGroupItem>
+          );
+        })}
+      </ToggleGroup>
+    </div>
+  );
+}
+function chartTitle(report: ReportKind, chart: ChartKind) {
+  if (chart === "sankey") return "Where your money went";
+  const subject =
+    report === "income"
+      ? "Income"
+      : report === "spending" || chart !== "bar"
+        ? "Spending"
+        : "Cash flow";
+  return `${subject} ${chart === "bar" ? "over time" : "breakdown"}`;
+}
 function ReportFooter({ count }: { count: number }) {
+  useAmountsHidden();
   return (
     <p className="report-footnote">
       Based on {count.toLocaleString()} transactions in this period. Pending,
@@ -427,11 +594,297 @@ function exportReport(
   download(`marten-${report}-${from}-to-${to}.csv`, csv(rows));
 }
 
+type DrillSort = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
+const drillSortOptions: { value: DrillSort; label: string }[] = [
+  { value: "date-desc", label: "Date · newest" },
+  { value: "date-asc", label: "Date · oldest" },
+  { value: "amount-desc", label: "Amount · high to low" },
+  { value: "amount-asc", label: "Amount · low to high" },
+];
+type DrillEntry = { tx: Doc<"transactions">; amountCents: number };
+/**
+ * Transactions behind one breakdown row, using the same entry rules as
+ * `summarize` so split allocations and the category filter match the table.
+ * Amounts are the row's share of each transaction, signed the way the row is
+ * (income and expenses both read as positive totals).
+ */
+function drilldownEntries(
+  transactions: Doc<"transactions">[],
+  data: ReturnType<typeof useData>,
+  groupBy: string,
+  rowId: string,
+  categoryId?: string,
+): DrillEntry[] {
+  const result: DrillEntry[] = [];
+  for (const tx of transactions) {
+    if (tx.removedFromBank) continue;
+    let amountCents = 0,
+      matched = false;
+    for (const entry of entries(tx)) {
+      if (categoryId && entry.categoryId !== categoryId) continue;
+      const category = data.categories.find((c) => c._id === entry.categoryId),
+        categoryGroup = data.groups.find((g) => g._id === category?.groupId);
+      if (!categoryGroup || categoryGroup.kind === "transfer") continue;
+      const id =
+        groupBy === "merchant"
+          ? entry.merchantId
+          : groupBy === "group"
+            ? categoryGroup._id
+            : entry.categoryId;
+      if (`${categoryGroup.kind}:${id}` !== rowId) continue;
+      matched = true;
+      amountCents +=
+        categoryGroup.kind === "income"
+          ? -entry.amountCents
+          : entry.amountCents;
+    }
+    if (matched) result.push({ tx, amountCents });
+  }
+  return result;
+}
+function Drilldown({
+  row,
+  entries: list,
+  from,
+  to,
+  onClear,
+  onOpen,
+}: {
+  row: BreakdownRow;
+  entries: DrillEntry[];
+  from: string;
+  to: string;
+  onClear: () => void;
+  onOpen: (id: Id<"transactions">) => void;
+}) {
+  useAmountsHidden();
+  const data = useData();
+  const [sort, setSort] = useState<DrillSort>("date-desc");
+  const income = row.id.startsWith("income:");
+  const sorted = useMemo(() => {
+    const copy = [...list];
+    copy.sort((a, b) =>
+      sort === "date-desc"
+        ? b.tx.date.localeCompare(a.tx.date) ||
+          b.tx._creationTime - a.tx._creationTime
+        : sort === "date-asc"
+          ? a.tx.date.localeCompare(b.tx.date) ||
+            a.tx._creationTime - b.tx._creationTime
+          : sort === "amount-desc"
+            ? b.amountCents - a.amountCents
+            : a.amountCents - b.amountCents,
+    );
+    return copy;
+  }, [list, sort]);
+  const total = list.reduce((sum, entry) => sum + entry.amountCents, 0);
+  const largest = list.reduce(
+    (max, entry) => Math.max(max, entry.amountCents),
+    0,
+  );
+  const dates = list.map((entry) => entry.tx.date).sort();
+  const stats = [
+    { name: "Total", value: money(total) },
+    { name: "Transactions", value: list.length.toLocaleString() },
+    { name: "Average", value: list.length ? money(total / list.length) : "—" },
+    { name: "Largest", value: list.length ? money(largest) : "—" },
+    { name: "First", value: dates.length ? dateLabel(dates[0]) : "—" },
+    {
+      name: "Last",
+      value: dates.length ? dateLabel(dates[dates.length - 1]) : "—",
+    },
+  ];
+  return (
+    <Panel className="report-drilldown">
+      <div className="report-drilldown-header">
+        <div className="report-drilldown-title">
+          <span className="report-dot" style={{ background: row.color }} />
+          {row.emoji && (
+            <CategoryIcon
+              className="report-drilldown-emoji"
+              emoji={row.emoji}
+            />
+          )}
+          <div>
+            <h3>{row.name}</h3>
+            <small>
+              {income ? "Income" : "Spending"} · {dateLabel(from)} –{" "}
+              {dateLabel(to)}
+            </small>
+          </div>
+        </div>
+        <Button icon={<X size={15} />} onClick={onClear}>
+          Clear
+        </Button>
+      </div>
+      <dl className="report-drilldown-stats">
+        {stats.map((stat) => (
+          <div key={stat.name}>
+            <dt>{stat.name}</dt>
+            <dd>{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="report-drilldown-tools">
+        <span className="muted">
+          {list.length === 1 ? "1 transaction" : `${list.length} transactions`}
+        </span>
+        <label className="report-select-label">
+          <span>Sort</span>
+          <Select
+            aria-label="Sort drilldown transactions"
+            value={sort}
+            onValueChange={(value) => setSort(value as DrillSort)}
+            options={drillSortOptions}
+          />
+        </label>
+      </div>
+      {sorted.length ? (
+        <div className="report-drilldown-list" role="list">
+          {sorted.map(({ tx, amountCents }) => {
+            const merchant = data.merchants.find(
+                (m) => m._id === tx.merchantId,
+              ),
+              account = data.accounts.find((a) => a._id === tx.accountId);
+            return (
+              <button
+                type="button"
+                role="listitem"
+                key={tx._id}
+                className="report-drilldown-row"
+                onClick={() => onOpen(tx._id)}
+              >
+                <span className="report-drilldown-date">
+                  {dateLabel(tx.date, { month: "short", day: "numeric" })}
+                </span>
+                <span className="report-drilldown-merchant">
+                  <Avatar
+                    name={merchant?.name ?? tx.originalName}
+                    logo={merchant?.resolvedLogoUrl}
+                    color={merchant?.color}
+                    size="small"
+                  />
+                  <strong>{merchant?.name ?? tx.originalName}</strong>
+                </span>
+                <span className="report-drilldown-account">
+                  {account?.name ?? "Account"}
+                </span>
+                <span
+                  className={`report-drilldown-amount ${income ? "positive" : ""}`}
+                >
+                  {income ? "+" : ""}
+                  {money(Math.abs(amountCents))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <Empty
+          title="No transactions match"
+          description="This selection has no entries in the current period."
+        />
+      )}
+    </Panel>
+  );
+}
+/**
+ * Selection for the report drilldown: one breakdown row id, cleared by Escape,
+ * by choosing the same row again, or whenever the report inputs change.
+ */
+function useDrilldown(resetKey: string) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<Id<"transactions"> | null>(null);
+  useEffect(() => {
+    setSelected(null);
+    setOpenId(null);
+  }, [resetKey]);
+  useEffect(() => {
+    if (!selected || openId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const target = event.target as Element | null;
+      if (target?.closest('[role="dialog"], [role="listbox"], [role="menu"]'))
+        return;
+      setSelected(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selected, openId]);
+  const toggle = useCallback(
+    (id: string) => setSelected((current) => (current === id ? null : id)),
+    [],
+  );
+  return {
+    selected,
+    toggle,
+    clear: () => setSelected(null),
+    openId,
+    setOpenId,
+  };
+}
+function DrilldownSection({
+  drill,
+  rows,
+  transactions,
+  groupBy,
+  categoryId,
+  from,
+  to,
+}: {
+  drill: ReturnType<typeof useDrilldown>;
+  rows: BreakdownRow[];
+  transactions: Doc<"transactions">[];
+  groupBy: string;
+  categoryId?: string;
+  from: string;
+  to: string;
+}) {
+  useAmountsHidden();
+  const data = useData();
+  const row = rows.find((item) => item.id === drill.selected) ?? null;
+  const list = useMemo(
+    () =>
+      row
+        ? drilldownEntries(transactions, data, groupBy, row.id, categoryId)
+        : [],
+    [row, transactions, data, groupBy, categoryId],
+  );
+  const index = list.findIndex((entry) => entry.tx._id === drill.openId);
+  return (
+    <>
+      {row && (
+        <Drilldown
+          row={row}
+          entries={list}
+          from={from}
+          to={to}
+          onClear={drill.clear}
+          onOpen={drill.setOpenId}
+        />
+      )}
+      <TransactionDrawer
+        id={drill.openId}
+        onClose={() => drill.setOpenId(null)}
+        previous={
+          index > 0 ? () => drill.setOpenId(list[index - 1].tx._id) : undefined
+        }
+        next={
+          index >= 0 && index < list.length - 1
+            ? () => drill.setOpenId(list[index + 1].tx._id)
+            : undefined
+        }
+      />
+    </>
+  );
+}
+
 export function CashFlow() {
+  useAmountsHidden();
   const [anchor, setAnchor] = useState(monthStart()),
     [period, setPeriod] = useState<Period>("monthly"),
     [groupBy, setGroupBy] = useState("category"),
-    [chart, setChart] = useState("flow");
+    [chart, setChart] = useState<ChartKind>("sankey"),
+    [stacked, setStacked] = useState(false);
   const data = useData();
   const range = periodDates(anchor, period);
   const periods = comparisonPeriods(anchor, period);
@@ -457,6 +910,7 @@ export function CashFlow() {
   );
   const timeline = aggregatePeriods(history.months, periods);
   const count = selectedTransactions.length;
+  const drill = useDrilldown(`${range.from}|${range.to}|${groupBy}`);
   const move = (direction: number) => {
     const date = new Date(`${anchor}T12:00:00`);
     setAnchor(
@@ -518,41 +972,63 @@ export function CashFlow() {
       </Panel>
       <div className="cashflow-period-heading">
         <h2>{range.label}</h2>
-        <Select
-          aria-label="Cash flow details view"
-          value={chart}
-          onValueChange={setChart}
-          options={[
-            { value: "flow", label: "Money flow" },
-            { value: "breakdown", label: "Category breakdown" },
-          ]}
-        />
       </div>
       <Totals summary={summary} complete={complete} />
       <div className="report-section-heading">
-        <h2>Where your money went</h2>
+        <h2>Period details</h2>
         <GroupPicker value={groupBy} onChange={setGroupBy} />
       </div>
       {complete ? (
         <>
-          {chart === "flow" ? (
-            <Panel className="cashflow-money-panel">
-              <MoneyFlow {...summary} />
-            </Panel>
-          ) : (
-            <div className="report-breakdowns">
-              <Breakdown
-                rows={summary.spending}
-                total={summary.expense}
-                title="Expenses"
+          <Panel
+            title={chartTitle("cashflow", chart)}
+            className="report-chart-panel"
+            action={
+              <ChartSwitcher
+                chart={chart}
+                report="cashflow"
+                onChange={setChart}
+                stacked={stacked}
+                onStackedChange={setStacked}
               />
-              <Breakdown
-                rows={summary.earnings}
-                total={summary.income}
-                title="Income"
+            }
+          >
+            <div className={`report-chart-body chart-${chart}`}>
+              <ReportChart
+                summary={summary}
+                timeline={summary.months}
+                chart={chart}
+                report="cashflow"
+                stacked={stacked}
+                selected={drill.selected}
+                onSelect={drill.toggle}
               />
             </div>
-          )}
+          </Panel>
+          <div className="report-breakdowns">
+            <Breakdown
+              rows={summary.spending}
+              total={summary.expense}
+              title="Expenses"
+              selected={drill.selected}
+              onSelect={drill.toggle}
+            />
+            <Breakdown
+              rows={summary.earnings}
+              total={summary.income}
+              title="Income"
+              selected={drill.selected}
+              onSelect={drill.toggle}
+            />
+          </div>
+          <DrilldownSection
+            drill={drill}
+            rows={[...summary.spending, ...summary.earnings]}
+            transactions={selectedTransactions}
+            groupBy={groupBy}
+            from={range.from}
+            to={range.to}
+          />
           <ReportFooter count={count} />
         </>
       ) : (
@@ -563,6 +1039,7 @@ export function CashFlow() {
 }
 
 export function Reports() {
+  useAmountsHidden();
   const [params] = useSearchParams();
   const restoredLink = useRef<string | null>(null);
   const data = useData(),
@@ -573,7 +1050,7 @@ export function Reports() {
     [from, setFrom] = useState(() => monthOffset(monthStart(), -5)),
     [to, setTo] = useState(monthEnd()),
     [groupBy, setGroupBy] = useState("category"),
-    [chart, setChart] = useState("bar"),
+    [chart, setChart] = useState<ChartKind>("bar"),
     [stacked, setStacked] = useState(false),
     [saveOpen, setSaveOpen] = useState(false),
     [name, setName] = useState("");
@@ -590,6 +1067,7 @@ export function Reports() {
     complete: loaded,
     timeline,
     count,
+    transactions: reportTransactions,
   } = useReport(
     valid ? from : "9999-12-31",
     valid ? to : "9999-12-31",
@@ -597,6 +1075,9 @@ export function Reports() {
     filters,
   );
   const complete = valid && loaded;
+  const drill = useDrilldown(
+    `${from}|${to}|${groupBy}|${report}|${filters.accountId ?? ""}|${filters.categoryId ?? ""}|${filters.merchantId ?? ""}|${filters.tagId ?? ""}`,
+  );
   const restore = useCallback(
     (id: string) => {
       const saved = data.savedReports.find((item) => item._id === id);
@@ -605,9 +1086,11 @@ export function Reports() {
         return;
       }
       setSelectedId(saved._id);
-      setReport(
-        saved.report === "cashFlow" ? "cashflow" : (saved.report as ReportKind),
-      );
+      const kind: ReportKind =
+        saved.report === "income" || saved.report === "spending"
+          ? saved.report
+          : "cashflow";
+      setReport(kind);
       setFrom(saved.from);
       setTo(saved.to);
       setGroupBy(
@@ -615,9 +1098,7 @@ export function Reports() {
           ? saved.groupBy
           : "category",
       );
-      setChart(
-        saved.chart === "pie" || saved.chart === "donut" ? "donut" : "bar",
-      );
+      setChart(normalizeReportChart(saved.chart, kind));
       setStacked(saved.stacked ?? false);
       setFilters({
         accountId: saved.accountId,
@@ -679,7 +1160,11 @@ export function Reports() {
       <div className="report-nav">
         <Tabs
           value={report}
-          onChange={(v) => setReport(v as ReportKind)}
+          onChange={(v) => {
+            const kind = v as ReportKind;
+            setReport(kind);
+            setChart(normalizeReportChart(chart, kind));
+          }}
           items={reportOptions}
         />
         <div className="report-saved">
@@ -725,28 +1210,6 @@ export function Reports() {
           />
         </label>
         <GroupPicker value={groupBy} onChange={setGroupBy} />
-        <label>
-          <span>Chart</span>
-          <Select
-            aria-label="Report chart type"
-            value={chart}
-            onValueChange={setChart}
-            options={[
-              { value: "bar", label: "Trend bars" },
-              { value: "donut", label: "Donut chart" },
-            ]}
-          />
-        </label>
-        {chart === "bar" && report === "cashflow" && (
-          <label className="report-stack">
-            <input
-              type="checkbox"
-              checked={stacked}
-              onChange={(e) => setStacked(e.target.checked)}
-            />
-            Stack bars
-          </label>
-        )}
         <Button
           className={filtersOpen || filterCount ? "report-filter-active" : ""}
           icon={<SlidersHorizontal size={15} />}
@@ -845,43 +1308,41 @@ export function Reports() {
         <>
           <Totals summary={summary} complete={complete} />
           <Panel
-            title={
-              chart === "donut"
-                ? report === "income"
-                  ? "Income breakdown"
-                  : "Spending breakdown"
-                : report === "income"
-                  ? "Income over time"
-                  : report === "spending"
-                    ? "Spending over time"
-                    : "Cash flow over time"
-            }
+            title={chartTitle(report, chart)}
             className="report-chart-panel"
             action={
-              <span className="muted">
-                {dateLabel(from)} – {dateLabel(to)}
-              </span>
+              <ChartSwitcher
+                chart={chart}
+                report={report}
+                onChange={setChart}
+                stacked={stacked}
+                onStackedChange={setStacked}
+              />
             }
           >
-            {complete ? (
-              summary.spending.length || summary.earnings.length ? (
-                <ReportChart
-                  summary={summary}
-                  timeline={timeline}
-                  chart={chart}
-                  report={report}
-                  stacked={stacked}
-                />
+            <div className={`report-chart-body chart-${chart}`}>
+              {complete ? (
+                summary.spending.length || summary.earnings.length ? (
+                  <ReportChart
+                    summary={summary}
+                    timeline={timeline}
+                    chart={chart}
+                    report={report}
+                    stacked={stacked}
+                    selected={drill.selected}
+                    onSelect={drill.toggle}
+                  />
+                ) : (
+                  <Empty
+                    icon={<TrendingUp size={26} />}
+                    title="No activity in this date range"
+                    description="Choose a different period or add transactions to build your report."
+                  />
+                )
               ) : (
-                <Empty
-                  icon={<TrendingUp size={26} />}
-                  title="No activity in this date range"
-                  description="Choose a different period or add transactions to build your report."
-                />
-              )
-            ) : (
-              <Loading text="Loading all transactions for this report…" />
-            )}
+                <Loading text="Loading all transactions for this report…" />
+              )}
+            </div>
           </Panel>
           {complete && (
             <>
@@ -891,6 +1352,8 @@ export function Reports() {
                     rows={summary.spending}
                     total={summary.expense}
                     title="Expenses"
+                    selected={drill.selected}
+                    onSelect={drill.toggle}
                   />
                 )}
                 {report !== "spending" && (
@@ -898,9 +1361,23 @@ export function Reports() {
                     rows={summary.earnings}
                     total={summary.income}
                     title="Income"
+                    selected={drill.selected}
+                    onSelect={drill.toggle}
                   />
                 )}
               </div>
+              <DrilldownSection
+                drill={drill}
+                rows={[
+                  ...(report !== "income" ? summary.spending : []),
+                  ...(report !== "spending" ? summary.earnings : []),
+                ]}
+                transactions={reportTransactions}
+                groupBy={groupBy}
+                categoryId={filters.categoryId}
+                from={from}
+                to={to}
+              />
               <ReportFooter count={count} />
             </>
           )}

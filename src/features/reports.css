@@ -225,8 +225,9 @@
 .report-filter-active {
   color: var(--blue);
 }
-.report-select-label {
-  align-items: flex-start;
+.reports-page .report-select-label {
+  align-items: center;
+  flex-direction: row;
 }
 .report-filters > .report-stack {
   flex-direction: row;
@@ -294,6 +295,7 @@
 }
 .report-emoji {
   font-size: 14px;
+  margin-right: 5px;
 }
 .report-dot {
   display: inline-block;
@@ -373,12 +375,19 @@
   flex-direction: column;
   gap: 15px;
 }
-.report-legend > div {
+.report-legend > div,
+.report-legend > button {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
   font-size: 13px;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  font: inherit;
 }
 .report-legend strong {
   font-size: 12px;
@@ -492,5 +501,423 @@
 @media (max-width: 440px) {
   .report-extra-filters {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Shared report colors keep areas, ribbons, and their readable legends in sync. */
+.reports-page {
+  --report-chart-1: #00a3bd;
+  --report-chart-2: #fa855e;
+  --report-chart-3: #71b9a0;
+  --report-chart-4: #7ca2cf;
+  --report-chart-5: #b5a1ce;
+  --report-chart-6: #e4b869;
+  --report-chart-7: #cda694;
+  --report-chart-8: #959d93;
+  --report-chart-9: #4d7fa3;
+  --report-chart-10: #d9788a;
+  --report-chart-11: #9fb85f;
+  --report-chart-12: #8f7fb8;
+  --report-chart-ink: #152b3b;
+}
+.dark .reports-page {
+  --report-chart-1: #55bbcc;
+  --report-chart-2: #f49b7e;
+  --report-chart-3: #86c7ae;
+  --report-chart-4: #96b5dd;
+  --report-chart-5: #c5b3dd;
+  --report-chart-6: #eac788;
+  --report-chart-7: #d7b6a7;
+  --report-chart-8: #aeb5ab;
+  --report-chart-9: #7ea6c8;
+  --report-chart-10: #e39aa9;
+  --report-chart-11: #b9cf85;
+  --report-chart-12: #ada0d1;
+}
+.report-chart-controls,
+.report-chart-controls .report-stack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-chart-controls {
+  flex-shrink: 0;
+}
+.report-chart-controls .report-stack {
+  flex-direction: row;
+  white-space: nowrap;
+}
+.report-chart-switcher {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--canvas);
+}
+.report-chart-switcher .icon-button {
+  width: 34px;
+  height: 32px;
+  min-width: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  transition:
+    background 160ms ease-out,
+    color 160ms ease-out;
+}
+.report-chart-switcher .icon-button[data-state="on"] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--blue);
+  box-shadow: 0 1px 2px #0000000a;
+}
+.report-chart-switcher .icon-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.report-chart-body {
+  height: 430px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-block: 6px 18px;
+}
+/* The sankey has its own natural height and footer, so it grows instead of scrolling. */
+.report-chart-body.chart-sankey {
+  height: auto;
+  min-height: 430px;
+  overflow: visible;
+}
+.report-chart-body > .flow-chart {
+  height: 100%;
+  margin: 0 18px 0 4px;
+}
+.report-chart-body .money-flow-desktop svg {
+  height: 312px;
+}
+.report-chart-body .report-donut-layout {
+  min-height: 100%;
+}
+.report-treemap-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 1fr);
+  align-items: stretch;
+  gap: 24px;
+  padding: 12px 24px 4px;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.report-treemap {
+  height: 100%;
+  min-height: 260px;
+  min-width: 0;
+}
+/* The treemap stays put; only its value list scrolls when categories run long. */
+.report-treemap-layout .report-legend {
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  align-content: start;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+.report-legend > div,
+.report-legend > button {
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  width: calc(100% + 12px);
+  cursor: default;
+  transition:
+    background 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+.report-legend > .interactive {
+  cursor: pointer;
+}
+.report-legend > .interactive:hover,
+.report-legend > .interactive.active {
+  background: var(--hover);
+  outline: none;
+}
+.report-legend > .interactive:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.report-legend > .selected {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 1px var(--strong-border);
+}
+.report-legend.has-active > :not(.active) {
+  opacity: 0.55;
+}
+.report-legend.has-selected:not(.has-active) > .interactive:not(.selected) {
+  opacity: 0.6;
+}
+.report-treemap-cell rect,
+.report-donut .recharts-sector {
+  transition:
+    opacity 160ms ease,
+    stroke-width 160ms ease;
+  cursor: pointer;
+}
+.report-treemap-cell.dimmed rect {
+  opacity: 0.45;
+}
+.report-treemap-cell.active rect,
+.report-treemap-cell.selected rect {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.report-treemap-cell.selected rect {
+  stroke-width: 2.5;
+}
+.report-treemap-cell {
+  outline: none;
+}
+.report-treemap-cell rect {
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+.report-treemap-cell:hover rect,
+.report-treemap-cell:focus-visible rect {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.report-treemap-cell text {
+  pointer-events: none;
+}
+.report-legend > div > span:nth-child(2),
+.report-legend > button > span:nth-child(2) {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .report-chart-body {
+    height: 520px;
+  }
+  .report-chart-panel .panel-header {
+    min-height: 106px;
+    align-content: center;
+  }
+  .report-chart-panel .panel-header h2 {
+    flex: 1 0 100%;
+  }
+  .report-chart-controls {
+    margin-left: auto;
+  }
+  .report-treemap-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px 16px 16px;
+    gap: 18px;
+  }
+  .report-treemap {
+    height: 280px;
+  }
+  .report-chart-body .report-donut-layout {
+    min-height: 0;
+  }
+  .report-chart-switcher .icon-button {
+    width: 40px;
+    min-width: 40px;
+    height: 38px;
+  }
+}
+@media (pointer: coarse) {
+  .report-chart-switcher .icon-button {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-chart-switcher .icon-button {
+    transition: none;
+  }
+}
+
+/* Breakdown rows select a drilldown; the whole row is a click target and the name button carries focus. */
+.report-row-selectable {
+  cursor: pointer;
+}
+.report-row-selectable.selected td {
+  background: var(--selected);
+}
+.report-row-selectable.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.report-row-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.report-row-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.report-drilldown {
+  margin-top: 22px;
+}
+.report-drilldown-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px 0;
+}
+.report-drilldown-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.report-drilldown-title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+.report-drilldown-title small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-drilldown-emoji {
+  font-size: 18px;
+}
+.report-drilldown-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 22px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--hover);
+}
+.report-drilldown-stats > div {
+  min-width: 0;
+}
+.report-drilldown-stats dt {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.report-drilldown-stats dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-drilldown-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px 8px;
+  font-size: 12px;
+}
+.report-drilldown-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+}
+.report-drilldown-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.report-drilldown-row:hover {
+  background: var(--selected);
+}
+.report-drilldown-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.report-drilldown-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.report-drilldown-merchant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.report-drilldown-merchant strong {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.report-drilldown-account {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.report-drilldown-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+@media (max-width: 900px) {
+  .report-drilldown-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .report-drilldown-header,
+  .report-drilldown-tools {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .report-drilldown-stats {
+    margin-left: 16px;
+    margin-right: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .report-drilldown-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px;
+  }
+  .report-drilldown-account {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-drilldown-row,
+  .report-legend > div,
+  .report-legend > button {
+    transition: none;
   }
 }
