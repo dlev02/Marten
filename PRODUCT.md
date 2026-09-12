@@ -60,7 +60,7 @@ in ordinary product flows. Keep all settings discoverable through search.
 
 ## Evidence on Hand
 
-[Requirements](docs/requirements.md), [design system](docs/design/system.md),
+[Requirements](docs/requirements.md), [design system](DESIGN.md),
 [forecasting research](docs/forecasting-research.md),
 [investments research](docs/investments-research.md), and
 [verification](docs/verification.md) record product contracts and observed checks.

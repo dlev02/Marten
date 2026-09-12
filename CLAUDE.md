@@ -14,3 +14,8 @@ Convex agent skills for common tasks can be installed by running
 
 Read [AGENTS.md](AGENTS.md) for Marten's project-specific quality, autonomy,
 search, visual review, and verification expectations.
+
+Read [DESIGN.md](DESIGN.md) before interface work. Reuse its shared component
+map and update it with approved design changes. The optional
+[Claude Design handoff](docs/design/claude-design.md) describes how to carry this
+system into prototypes.
