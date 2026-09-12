@@ -1,5 +1,17 @@
 # Verification record
 
+## September 12 — Production release routing
+
+- Netlify production tracks `main`; automatic builds are enabled. Released
+  commits through `013c968` by fast-forwarding and pushing `main`, which
+  automatically started production deploy `6aa5d91789ac8a000859ae13`.
+  Netlify confirmed it published successfully at 22:59 UTC.
+- Deployed the committed Convex backend to production `confident-kiwi-9`;
+  schema validation and deployment completed successfully. This supersedes
+  the earlier development-only release status below.
+- Persistent backend CI credentials remain unconfigured pending explicit
+  approval; frontend automatic deployment requires no additional grant.
+
 ## September 12 — SimpleFIN categories and institution logos
 
 - Added optional category/extra-category and numeric/extra MCC parsing, strict

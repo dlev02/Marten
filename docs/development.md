@@ -100,6 +100,20 @@ For UI changes, inspect the actual page and perform the affected interaction aft
 
 ## Preparing a release
 
+For the hosted `marten.money` site, Netlify tracks `main` in `dlev02/marten`.
+Every push to `main` automatically builds and publishes the frontend; local
+commits and pushes to feature branches do not update the live site. For an
+authorized release, merge the reviewed commits into `main`, push, and verify
+the published Netlify deploy's commit matches the remote branch.
+
+The backend still deploys separately with `npx convex deploy -y` to production
+`confident-kiwi-9`. A successful frontend build does not prove backend changes
+were deployed. Automatic backend deployment would require a production-only,
+build-scoped `CONVEX_DEPLOY_KEY` in Netlify and a production build command of
+`npx convex deploy --cmd "npm run build" --cmd-url-env-var-name VITE_CONVEX_URL`.
+That persistent deployment grant has not been configured.
+
+
 1. Finish the relevant checks and record observed results in [verification.md](verification.md).
 2. Choose the intended backend explicitly. Set that deployment's auth and Plaid configuration separately from development.
 3. Build the frontend with the intended public `VITE_CONVEX_URL`. Configure the final HTTPS origin and a SPA fallback to `index.html` on the static host.
