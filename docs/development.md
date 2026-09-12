@@ -6,6 +6,11 @@ Read [AGENTS.md](../AGENTS.md), then the relevant source and the [architecture m
 
 Use the existing feature modules and shared helpers. Preserve unrelated work in a shared checkout. Do not edit `convex/_generated`, `dist`, or `node_modules` to fix application behavior.
 
+For UI work, start with [DESIGN.md](../DESIGN.md): it maps the current tokens,
+shared components, typography, layout, icons, charts, and interaction rules.
+Update the design reference alongside approved shared-style changes. For
+prototyping outside the repo, use the [Claude Design handoff](design/claude-design.md).
+
 ## First local run
 
 1. Install Node.js 22.12 or newer and run `npm ci` from the project root.
@@ -18,17 +23,19 @@ The current intended development backend is `stoic-narwhal-224.convex.cloud`. Tr
 
 ## Environment and authentication
 
-| Variable                              | Where it belongs                                        | Meaning                                                                  |
-| ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                            |
-| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                         |
-| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                             |
-| `AGENT_APP_ORIGIN`                    | Convex deployment environment                           | Optional exact frontend origin for MCP consent; falls back to `SITE_URL` |
-| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                        |
-| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                 |
-| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                 |
-| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows    |
-| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config       |
+| Variable                              | Where it belongs                                        | Meaning                                                                     |
+| ------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                               |
+| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                            |
+| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                                |
+| `AGENT_APP_ORIGIN`                    | Convex deployment environment                           | Optional exact frontend origin for MCP consent; falls back to `SITE_URL`    |
+| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                           |
+| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                    |
+| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                    |
+| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows       |
+| `PLAID_ALLOWED_EMAILS`                | Convex deployment environment                           | Optional comma-separated emails allowed to link Plaid; others use SimpleFIN |
+| `CREDENTIALS_KEY`                     | Convex deployment environment                           | Optional 32-byte base64 key that seals user-entered provider tokens         |
+| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config          |
 
 The installed Convex Auth initializer can configure a new development deployment:
 
@@ -100,3 +107,15 @@ For UI changes, inspect the actual page and perform the affected interaction aft
 5. Obtain authorization for public publication, publish the frontend, and recheck deep links, authentication, and bank callbacks at the final URL.
 
 The repository contains no assertion that those production steps have been completed. A local preview, backend push, successful test, and public website deployment are distinct outcomes.
+
+## Category artwork
+
+Edit `scripts/category-icon-art.mjs` for Marten category shapes, color tokens, labels, keywords, and compatibility aliases. Run `npm run assets:categories`, then `npx vitest run src/lib/categoryIcons.test.ts`. Generated SVGs and `src/lib/categoryIcons.json` are committed, so production builds do not need image generation or network access. Open `/docs/design/category-icons/review.html` on the Vite dev server to review every pictogram at 24px and 64px in both palettes, then exercise the actual category picker in `/demo`. See [the visual contract](design/category-icons/README.md).
+
+## Reorder controls
+
+Settings and dashboard customization use `@dnd-kit/core`, `@dnd-kit/sortable`,
+and `@dnd-kit/utilities` through `SortableList`. Keep each ordering scope in its
+own context. Category ordering cannot cross groups; rule ordering while filtered
+preserves hidden rules in their slots. Check pointer dragging, keyboard pickup,
+Escape cancellation, saved order after reload, and reduced-motion CSS.

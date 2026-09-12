@@ -169,6 +169,72 @@ describe("Plaid ingestion", () => {
     });
   });
 
+  test("a bank sync adopts a spreadsheet row for the same purchase instead of duplicating it", async () => {
+    const { t, sync, userId, asUser } = await fixture();
+    const account = (await t.run((ctx) => ctx.db.query("accounts").first()))!;
+    const categoryId = await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("groups", {
+        userId,
+        name: "Spending",
+        kind: "expense",
+        order: 0,
+      });
+      return ctx.db.insert("categories", {
+        userId,
+        groupId,
+        name: "Dining",
+        emoji: "🍽️",
+        order: 0,
+        enabled: true,
+      });
+    });
+    const key = "f".repeat(64);
+    await asUser.mutation(api.transactions.importMapped, {
+      rows: [
+        {
+          key,
+          accountId: account._id,
+          categoryId,
+          categoryMatched: true,
+          merchantName: "Sample Diner",
+          date: "2026-09-08",
+          amountCents: 1000,
+          originalName: "SAMPLE DINER",
+          notes: "From Monarch",
+          tags: ["Trip"],
+          reviewed: true,
+        },
+      ],
+    });
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [incoming],
+    });
+    const rows = await t.run((ctx) => ctx.db.query("transactions").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      source: "plaid",
+      plaidTransactionId: incoming.transactionId,
+      date: incoming.date,
+      pending: true,
+      categoryId,
+      notes: "From Monarch",
+      reviewed: true,
+      importKey: `mapped-v1:${key}`,
+    });
+    expect(rows[0].tagIds).toHaveLength(1);
+    // The same bank id updates in place; a different purchase is a new row.
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [
+        incoming,
+        { ...incoming, transactionId: "sample-other", date: "2026-09-10" },
+      ],
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query("transactions").collect()),
+    ).toHaveLength(2);
+  });
   test("a changed posted amount keeps allocations reconciled and flags review", async () => {
     const { t, sync, asUser } = await fixture();
     await t.mutation(internal.plaidInternal.ingestTransactions, {
@@ -838,6 +904,56 @@ describe("anonymous bank access boundaries", () => {
   });
 });
 
+describe("PLAID_ALLOWED_EMAILS", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  function configure(allowed?: string) {
+    vi.stubEnv("PLAID_CLIENT_ID", "fictional-client");
+    vi.stubEnv("PLAID_SECRET", "fictional-secret");
+    vi.stubEnv("PLAID_ENV", "sandbox");
+    if (allowed !== undefined) vi.stubEnv("PLAID_ALLOWED_EMAILS", allowed);
+  }
+  test("keeps Plaid open to everyone when the allowlist is unset", async () => {
+    configure();
+    const { asUser, asOther } = await fixture();
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      configured: true,
+      restricted: false,
+    });
+    expect(await asOther.query(api.plaid.status, {})).toMatchObject({
+      configured: true,
+      restricted: false,
+    });
+  });
+  test("reports Plaid unavailable and refuses new links for emails outside the list", async () => {
+    configure(" Sample@Example.test , owner@example.test ");
+    const { asUser, asOther, itemId } = await fixture();
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      configured: true,
+      restricted: false,
+    });
+    expect(await asOther.query(api.plaid.status, {})).toMatchObject({
+      configured: false,
+      restricted: true,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      asOther.action(api.plaid.createLinkToken, { mode: "transactions" }),
+    ).rejects.toThrow("SimpleFIN");
+    await expect(
+      asOther.action(api.plaid.exchangePublicToken, {
+        publicToken: "fictional-public-token",
+      }),
+    ).rejects.toThrow("SimpleFIN");
+    expect(fetchMock).not.toHaveBeenCalled();
+    // An allowed household member still syncs and links; sync ignores the list.
+    await expect(asUser.action(api.plaid.sync, { itemId })).resolves.toBeNull();
+  });
+});
+
 describe("webhook verification", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -967,5 +1083,120 @@ describe("provider normalization", () => {
         balances: { ...account.balances, iso_currency_code: "EUR" },
       }),
     ).toThrow("USD");
+  });
+});
+
+describe("connecting an imported manual account", () => {
+  test("a unique full match keeps the account ID and adopts its imported transaction", async () => {
+    const { t, asUser, sync, userId } = await fixture();
+    const prepared = await asUser.mutation(api.imports.prepareDestinations, {
+      accounts: [
+        { name: "Travel Visa (...1234)", kind: "credit", closed: false },
+      ],
+      categories: [{ name: "Hotels", kind: "expense", emoji: "🏨" }],
+    });
+    const accountId = prepared.accounts[0]._id;
+    await asUser.mutation(api.transactions.importMapped, {
+      rows: [
+        {
+          key: "e".repeat(64),
+          accountId,
+          categoryId: prepared.categories[0]._id,
+          categoryMatched: true,
+          merchantName: "Sample Diner",
+          date: "2026-09-09",
+          amountCents: 1000,
+          originalName: "SAMPLE DINER",
+          notes: "Keep historical notes",
+          reviewed: true,
+        },
+      ],
+    });
+    const before = await t.run((ctx) =>
+      ctx.db
+        .query("transactions")
+        .withIndex("by_userId_and_accountId_and_date", (q) =>
+          q.eq("userId", userId).eq("accountId", accountId),
+        )
+        .first(),
+    );
+    await t.mutation(internal.plaidInternal.updateAccounts, {
+      ...sync,
+      accounts: [
+        {
+          accountId: "imported-visa",
+          name: "Travel Visa",
+          mask: "1234",
+          kind: "credit",
+          subtype: "credit card",
+          balanceCents: 35000,
+          currency: "USD",
+        },
+      ],
+    });
+    expect(await t.run((ctx) => ctx.db.get(accountId))).toMatchObject({
+      manual: false,
+      plaidAccountId: "imported-visa",
+      name: "Travel Visa (...1234)",
+      balanceCents: 35000,
+    });
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [
+        { ...incoming, accountId: "imported-visa", pending: false },
+      ],
+    });
+    const after = await t.run((ctx) => ctx.db.get(before!._id));
+    expect(after).toMatchObject({
+      source: "plaid",
+      notes: "Keep historical notes",
+      reviewed: true,
+      accountId,
+    });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("transactions")
+          .withIndex("by_userId_and_accountId_and_date", (q) =>
+            q.eq("userId", userId).eq("accountId", accountId),
+          )
+          .collect(),
+      ),
+    ).toHaveLength(1);
+  });
+  test("closed accounts and ambiguous incoming matches are not automatically connected", async () => {
+    const { t, asUser, sync } = await fixture();
+    const prepared = await asUser.mutation(api.imports.prepareDestinations, {
+      accounts: [
+        { name: "Travel Visa (...1234)", kind: "credit", closed: true },
+        { name: "Active Visa (...5678)", kind: "credit", closed: false },
+      ],
+      categories: [],
+    });
+    const bank = {
+      name: "Active Visa",
+      mask: "5678",
+      kind: "credit" as const,
+      subtype: "credit card",
+      balanceCents: 0,
+      currency: "USD",
+    };
+    await t.mutation(internal.plaidInternal.updateAccounts, {
+      ...sync,
+      accounts: [
+        { ...bank, accountId: "new-1" },
+        { ...bank, accountId: "new-2" },
+        {
+          ...bank,
+          name: "Travel Visa",
+          mask: "1234",
+          accountId: "closed-match",
+        },
+      ],
+    });
+    for (const account of prepared.accounts)
+      expect(await t.run((ctx) => ctx.db.get(account._id))).toMatchObject({
+        manual: true,
+      });
   });
 });

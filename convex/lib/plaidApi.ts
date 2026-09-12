@@ -1,4 +1,5 @@
 import { env } from "../_generated/server";
+import { merchantDisplayName, preferredAccountName } from "./merchantNames";
 import { ConvexError, v, type Infer } from "convex/values";
 import { decodeProtectedHeader, importJWK, jwtVerify, type JWK } from "jose";
 
@@ -23,6 +24,20 @@ export function configuration() {
       selected === "sandbox" || selected === "production" ? selected : null,
   } as const;
 }
+/**
+ * A public deployment can keep Plaid for its operator's household while every
+ * other visitor uses SimpleFIN. Unset means Plaid is open to everyone (self-hosting).
+ */
+export function plaidAllowedFor(email: string | undefined): boolean {
+  const allowed = (env.PLAID_ALLOWED_EMAILS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allowed.length) return true;
+  return !!email && allowed.includes(email.trim().toLowerCase());
+}
+export const plaidRestrictedMessage =
+  "Bank connections on this site use SimpleFIN Bridge. Plaid isn’t available for this account.";
 export class PlaidFailure extends Error {
   constructor(readonly code: string) {
     super(safeError(code));
@@ -218,7 +233,7 @@ export function normalizeAccount(a: PlaidAccount): BankAccount {
     throw new PlaidFailure("UNSUPPORTED_CURRENCY");
   return {
     accountId: a.account_id,
-    name: (a.name || a.official_name || "Bank account").slice(0, 120),
+    name: preferredAccountName(a.name, a.official_name),
     mask: a.mask ?? "",
     kind:
       a.type === "depository"
@@ -253,7 +268,7 @@ export function normalizeTransaction(t: PlaidTransaction): BankTransaction {
     date: t.date,
     amountCents: bankCents(t.amount),
     name: t.name.slice(0, 500),
-    merchant: (t.merchant_name || t.name || "Unknown merchant").slice(0, 120),
+    merchant: merchantDisplayName(t.merchant_name || t.name || ""),
     ...(safeLogo(t.logo_url) ? { logoUrl: safeLogo(t.logo_url) } : {}),
     pending: t.pending,
     category:

@@ -1,3 +1,4 @@
+import { AmountInput } from "../../components/folio/AmountInput";
 import { useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -6,6 +7,7 @@ import {
   Check,
   CreditCard,
   Landmark,
+  Link2,
   Loader2,
   LockKeyhole,
   Plus,
@@ -17,7 +19,7 @@ import { useData } from "../../lib/data";
 import { parseMoney } from "../../lib/format";
 import { startPlaidFlow } from "../../lib/plaidLinkState";
 import { isDemoSession } from "../../lib/demo";
-import { SophtronImport } from "./Sophtron";
+import { SimpleFinFlow } from "./SimpleFin";
 import {
   Button,
   Field,
@@ -37,13 +39,15 @@ export function AddAccount({
   onClose: () => void;
 }) {
   const publicDemo = isDemoSession();
-  const [sophtronOpen, setSophtronOpen] = useState(false);
+  const [simplefinOpen, setSimplefinOpen] = useState(false);
   const [tab, setTab] = useState("connect"),
     [mode, setMode] = useState<"transactions" | "investments">("transactions");
   const data = useData(),
     status = useQuery(api.plaid.status, open ? {} : "skip"),
     createToken = useAction(api.plaid.createLinkToken),
     { busy, run } = useTask();
+  // A public deployment can limit Plaid to listed emails; everyone else uses SimpleFIN.
+  const plaidRestricted = status?.restricted === true;
   async function begin() {
     await run(async () => {
       if (!data.profile) return;
@@ -83,8 +87,9 @@ export function AddAccount({
               </span>
               <h2>Your money, in one place</h2>
               <p>
-                Securely connect through Plaid to keep your balances and
-                transactions up to date.
+                {plaidRestricted
+                  ? "Securely connect your bank to keep balances and transactions up to date."
+                  : "Securely connect through Plaid or SimpleFIN to keep your balances and transactions up to date."}
               </p>
             </div>
             <div className="connection-choices">
@@ -121,6 +126,10 @@ export function AddAccount({
                 You’re exploring sample data. Start a fresh workspace in
                 Preferences before connecting a bank.
               </div>
+            ) : plaidRestricted ? (
+              <div className="account-notice">
+                Bank connections on this site use SimpleFIN Bridge.
+              </div>
             ) : status && !status.configured ? (
               <div className="account-notice">
                 Plaid connections aren’t available yet. You can add an account
@@ -132,30 +141,38 @@ export function AddAccount({
                 accounts, not live financial accounts.
               </div>
             ) : null}
-            <Button
-              tone="primary"
-              className="connect-continue"
-              disabled={
-                busy || !status?.configured || data.profile?.demo || publicDemo
-              }
-              onClick={() => void begin()}
-              icon={
-                busy ? (
-                  <Loader2 size={17} className="spin" />
-                ) : (
-                  <LockKeyhole size={16} />
-                )
-              }
-            >
-              {busy ? "Connecting…" : "Continue with Plaid"}
-              {!busy && <ArrowRight size={17} />}
-            </Button>
-            <Button
-              onClick={() => setSophtronOpen(true)}
-              icon={<Landmark size={16} />}
-            >
-              Import from Sophtron
-            </Button>
+            <div className="connect-providers">
+              {!plaidRestricted && (
+                <>
+                  <ProviderChoice
+                    icon={
+                      busy ? (
+                        <Loader2 size={18} className="spin" />
+                      ) : (
+                        <LockKeyhole size={18} />
+                      )
+                    }
+                    title={busy ? "Connecting…" : "Continue with Plaid"}
+                    description="Chase, Amex, Schwab and thousands more"
+                    disabled={
+                      busy ||
+                      !status?.configured ||
+                      data.profile?.demo ||
+                      publicDemo
+                    }
+                    onClick={() => void begin()}
+                  />
+                  <span className="connect-divider">or</span>
+                </>
+              )}
+              <ProviderChoice
+                icon={<Link2 size={18} />}
+                title="Continue with SimpleFIN"
+                description="Bring your own SimpleFIN Bridge token · about $1.50/mo"
+                disabled={busy || data.profile?.demo || publicDemo}
+                onClick={() => setSimplefinOpen(true)}
+              />
+            </div>
             <button className="text-button" onClick={() => setTab("manual")}>
               Prefer to enter your balance? Add manually
             </button>
@@ -164,16 +181,47 @@ export function AddAccount({
           <AccountForm onSaved={onClose} />
         )}
       </Modal>
-      {open && sophtronOpen && (
-        <SophtronImport
-          onClose={() => setSophtronOpen(false)}
+      {open && simplefinOpen && (
+        <SimpleFinFlow
+          onClose={() => setSimplefinOpen(false)}
           onImported={() => {
-            setSophtronOpen(false);
+            setSimplefinOpen(false);
             onClose();
           }}
         />
       )}
     </>
+  );
+}
+
+/** Providers read as equal, parallel choices: icon, label with a one-line note, arrow. */
+function ProviderChoice({
+  icon,
+  title,
+  description,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="connect-provider"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="connect-provider-icon">{icon}</span>
+      <span className="connect-provider-text">
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      <ArrowRight size={17} className="connect-provider-arrow" />
+    </button>
   );
 }
 
@@ -369,7 +417,7 @@ export function AccountForm({
         >
           <div className="money-input">
             <span>$</span>
-            <input
+            <AmountInput
               aria-label="Current balance"
               required
               inputMode="decimal"
