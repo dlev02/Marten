@@ -1,0 +1,474 @@
+{
+  "name": "Marten category illustrations",
+  "version": 1,
+  "authorship": "Original SVG pictograms authored for Marten. No third-party vector paths.",
+  "direction": "Built-in image-generation style exploration, selected by Drew on September 12, 2026.",
+  "source": "scripts/category-icon-art.mjs",
+  "palette": {
+    "blue": "#356587",
+    "sky": "#83b8d5",
+    "sage": "#82947c",
+    "gold": "#c8a66a",
+    "clay": "#be806a",
+    "cream": "#ece4d3",
+    "ink": "#344956",
+    "pale": "#c6d6df"
+  },
+  "darkPalette": {
+    "blue": "#6e9dbc",
+    "sky": "#b4d4e3",
+    "sage": "#98aa90",
+    "gold": "#d0b17a",
+    "clay": "#cc927b",
+    "cream": "#ece4d3",
+    "ink": "#7896a6",
+    "pale": "#c6d6df"
+  },
+  "icons": [
+    {
+      "emoji": "💵",
+      "name": "Paychecks",
+      "file": "marten/paychecks.svg"
+    },
+    {
+      "emoji": "🌱",
+      "name": "Interest & growth",
+      "file": "marten/interest-and-growth.svg"
+    },
+    {
+      "emoji": "💰",
+      "name": "Other income",
+      "file": "marten/other-income.svg"
+    },
+    {
+      "emoji": "💼",
+      "name": "Business income",
+      "file": "marten/business-income.svg"
+    },
+    {
+      "emoji": "🛒",
+      "name": "Resale",
+      "file": "marten/resale.svg"
+    },
+    {
+      "emoji": "🪙",
+      "name": "Cash back & rewards",
+      "file": "marten/cash-back-and-rewards.svg"
+    },
+    {
+      "emoji": "🧾",
+      "name": "Reimbursements",
+      "file": "marten/reimbursements.svg"
+    },
+    {
+      "emoji": "🏧",
+      "name": "Cash & ATM",
+      "file": "marten/cash-and-atm.svg"
+    },
+    {
+      "emoji": "🏦",
+      "name": "Banking & fees",
+      "file": "marten/banking-and-fees.svg"
+    },
+    {
+      "emoji": "🏛️",
+      "name": "Taxes",
+      "file": "marten/taxes.svg"
+    },
+    {
+      "emoji": "📆",
+      "name": "Loan payments",
+      "file": "marten/loan-payments.svg"
+    },
+    {
+      "emoji": "⚖️",
+      "name": "Balance & legal",
+      "file": "marten/balance-and-legal.svg"
+    },
+    {
+      "emoji": "🖋️",
+      "name": "Checks",
+      "file": "marten/checks.svg"
+    },
+    {
+      "emoji": "↔️",
+      "name": "Transfers",
+      "file": "marten/transfers.svg"
+    },
+    {
+      "emoji": "💳",
+      "name": "Credit card",
+      "file": "marten/credit-card.svg"
+    },
+    {
+      "emoji": "🐷",
+      "name": "Savings",
+      "file": "marten/savings.svg"
+    },
+    {
+      "emoji": "🏡",
+      "name": "Home",
+      "file": "marten/home.svg"
+    },
+    {
+      "emoji": "💡",
+      "name": "Utilities",
+      "file": "marten/utilities.svg"
+    },
+    {
+      "emoji": "🌐",
+      "name": "Internet",
+      "file": "marten/internet.svg"
+    },
+    {
+      "emoji": "📱",
+      "name": "Phone",
+      "file": "marten/phone.svg"
+    },
+    {
+      "emoji": "⚡",
+      "name": "Gas & electric",
+      "file": "marten/gas-and-electric.svg"
+    },
+    {
+      "emoji": "💧",
+      "name": "Water",
+      "file": "marten/water.svg"
+    },
+    {
+      "emoji": "🗑️",
+      "name": "Waste & recycling",
+      "file": "marten/waste-and-recycling.svg"
+    },
+    {
+      "emoji": "🔨",
+      "name": "Home improvement",
+      "file": "marten/home-improvement.svg"
+    },
+    {
+      "emoji": "🪑",
+      "name": "Furniture",
+      "file": "marten/furniture.svg"
+    },
+    {
+      "emoji": "🧹",
+      "name": "Cleaning",
+      "file": "marten/cleaning.svg"
+    },
+    {
+      "emoji": "🏢",
+      "name": "Office rent",
+      "file": "marten/office-rent.svg"
+    },
+    {
+      "emoji": "🛡️",
+      "name": "Insurance",
+      "file": "marten/insurance.svg"
+    },
+    {
+      "emoji": "🥑",
+      "name": "Groceries",
+      "file": "marten/groceries.svg"
+    },
+    {
+      "emoji": "🍜",
+      "name": "Dining",
+      "file": "marten/dining.svg"
+    },
+    {
+      "emoji": "☕",
+      "name": "Coffee & tea",
+      "file": "marten/coffee-and-tea.svg"
+    },
+    {
+      "emoji": "🥡",
+      "name": "Meal delivery",
+      "file": "marten/meal-delivery.svg"
+    },
+    {
+      "emoji": "🍱",
+      "name": "Meal prep kits",
+      "file": "marten/meal-prep-kits.svg"
+    },
+    {
+      "emoji": "🍫",
+      "name": "Snacks & vending",
+      "file": "marten/snacks-and-vending.svg"
+    },
+    {
+      "emoji": "🏪",
+      "name": "Convenience store",
+      "file": "marten/convenience-store.svg"
+    },
+    {
+      "emoji": "🍷",
+      "name": "Bars & drinks",
+      "file": "marten/bars-and-drinks.svg"
+    },
+    {
+      "emoji": "🚙",
+      "name": "Car payments",
+      "file": "marten/car-payments.svg"
+    },
+    {
+      "emoji": "⛽",
+      "name": "Fuel",
+      "file": "marten/fuel.svg"
+    },
+    {
+      "emoji": "🚇",
+      "name": "Subway & trains",
+      "file": "marten/subway-and-trains.svg"
+    },
+    {
+      "emoji": "🚕",
+      "name": "Rideshare & taxis",
+      "file": "marten/rideshare-and-taxis.svg"
+    },
+    {
+      "emoji": "🛴",
+      "name": "Scooters",
+      "file": "marten/scooters.svg"
+    },
+    {
+      "emoji": "🚌",
+      "name": "Bus",
+      "file": "marten/bus.svg"
+    },
+    {
+      "emoji": "🚲",
+      "name": "Cycling",
+      "file": "marten/cycling.svg"
+    },
+    {
+      "emoji": "🅿️",
+      "name": "Parking & tolls",
+      "file": "marten/parking-and-tolls.svg"
+    },
+    {
+      "emoji": "🔧",
+      "name": "Car maintenance",
+      "file": "marten/car-maintenance.svg"
+    },
+    {
+      "emoji": "✈️",
+      "name": "Flights",
+      "file": "marten/flights.svg"
+    },
+    {
+      "emoji": "🏨",
+      "name": "Stays",
+      "file": "marten/stays.svg"
+    },
+    {
+      "emoji": "☂️",
+      "name": "Travel insurance",
+      "file": "marten/travel-insurance.svg"
+    },
+    {
+      "emoji": "📲",
+      "name": "eSIM & roaming",
+      "file": "marten/esim-and-roaming.svg"
+    },
+    {
+      "emoji": "🧳",
+      "name": "Travel planning",
+      "file": "marten/travel-planning.svg"
+    },
+    {
+      "emoji": "🗺️",
+      "name": "Tours & activities",
+      "file": "marten/tours-and-activities.svg"
+    },
+    {
+      "emoji": "🏞️",
+      "name": "Souvenirs",
+      "file": "marten/souvenirs.svg"
+    },
+    {
+      "emoji": "🛍️",
+      "name": "Shopping",
+      "file": "marten/shopping.svg"
+    },
+    {
+      "emoji": "👕",
+      "name": "Clothing",
+      "file": "marten/clothing.svg"
+    },
+    {
+      "emoji": "🖥️",
+      "name": "Electronics",
+      "file": "marten/electronics.svg"
+    },
+    {
+      "emoji": "📦",
+      "name": "Postage & shipping",
+      "file": "marten/postage-and-shipping.svg"
+    },
+    {
+      "emoji": "🌿",
+      "name": "Herbs & edibles",
+      "file": "marten/herbs-and-edibles.svg"
+    },
+    {
+      "emoji": "👑",
+      "name": "Personal",
+      "file": "marten/personal.svg"
+    },
+    {
+      "emoji": "🛁",
+      "name": "Toiletries",
+      "file": "marten/toiletries.svg"
+    },
+    {
+      "emoji": "❤️",
+      "name": "Health",
+      "file": "marten/health.svg"
+    },
+    {
+      "emoji": "🏋️",
+      "name": "Fitness & gym",
+      "file": "marten/fitness-and-gym.svg"
+    },
+    {
+      "emoji": "💊",
+      "name": "Pharmacy",
+      "file": "marten/pharmacy.svg"
+    },
+    {
+      "emoji": "✂️",
+      "name": "Haircuts",
+      "file": "marten/haircuts.svg"
+    },
+    {
+      "emoji": "🦷",
+      "name": "Dental",
+      "file": "marten/dental.svg"
+    },
+    {
+      "emoji": "🩺",
+      "name": "Doctor visits",
+      "file": "marten/doctor-visits.svg"
+    },
+    {
+      "emoji": "👓",
+      "name": "Vision",
+      "file": "marten/vision.svg"
+    },
+    {
+      "emoji": "🎟️",
+      "name": "Entertainment",
+      "file": "marten/entertainment.svg"
+    },
+    {
+      "emoji": "🎮",
+      "name": "Gaming",
+      "file": "marten/gaming.svg"
+    },
+    {
+      "emoji": "🎭",
+      "name": "Theater",
+      "file": "marten/theater.svg"
+    },
+    {
+      "emoji": "📺",
+      "name": "Streaming services",
+      "file": "marten/streaming-services.svg"
+    },
+    {
+      "emoji": "🍿",
+      "name": "Movies & virtual events",
+      "file": "marten/movies-and-virtual-events.svg"
+    },
+    {
+      "emoji": "🎳",
+      "name": "Bowling & activities",
+      "file": "marten/bowling-and-activities.svg"
+    },
+    {
+      "emoji": "🎧",
+      "name": "Music & audio",
+      "file": "marten/music-and-audio.svg"
+    },
+    {
+      "emoji": "🏕️",
+      "name": "Outdoors",
+      "file": "marten/outdoors.svg"
+    },
+    {
+      "emoji": "🐾",
+      "name": "Pets",
+      "file": "marten/pets.svg"
+    },
+    {
+      "emoji": "📚",
+      "name": "Books & learning",
+      "file": "marten/books-and-learning.svg"
+    },
+    {
+      "emoji": "🎓",
+      "name": "Student loans",
+      "file": "marten/student-loans.svg"
+    },
+    {
+      "emoji": "🧩",
+      "name": "APIs & development",
+      "file": "marten/apis-and-development.svg"
+    },
+    {
+      "emoji": "🧠",
+      "name": "AI assistants",
+      "file": "marten/ai-assistants.svg"
+    },
+    {
+      "emoji": "🔲",
+      "name": "Digital services & apps",
+      "file": "marten/digital-services-and-apps.svg"
+    },
+    {
+      "emoji": "🕸️",
+      "name": "Website domains",
+      "file": "marten/website-domains.svg"
+    },
+    {
+      "emoji": "📎",
+      "name": "Office supplies",
+      "file": "marten/office-supplies.svg"
+    },
+    {
+      "emoji": "📣",
+      "name": "Advertising",
+      "file": "marten/advertising.svg"
+    },
+    {
+      "emoji": "🎗️",
+      "name": "Charity",
+      "file": "marten/charity.svg"
+    },
+    {
+      "emoji": "🎁",
+      "name": "Gifts",
+      "file": "marten/gifts.svg"
+    },
+    {
+      "emoji": "⚽",
+      "name": "Sports & child activities",
+      "file": "marten/sports-and-child-activities.svg"
+    },
+    {
+      "emoji": "🧸",
+      "name": "Child care",
+      "file": "marten/child-care.svg"
+    },
+    {
+      "emoji": "🔄",
+      "name": "Subscriptions",
+      "file": "marten/subscriptions.svg"
+    },
+    {
+      "emoji": "📁",
+      "name": "General",
+      "file": "marten/general.svg"
+    }
+  ]
+}

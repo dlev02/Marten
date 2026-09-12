@@ -37,7 +37,7 @@ export function AgentSettings() {
         </div>
       </div>
       {!status.canEnable && (
-        <p className="inline-notice">
+        <p className="inline-notice agent-notice">
           Sign in to a personal workspace to enable agent access. Demo and
           sample data cannot be shared through these connections.
         </p>
@@ -103,7 +103,7 @@ export function AgentSettings() {
           </Button>
         </div>
         {!status.remoteReady && (
-          <p className="inline-notice">
+          <p className="inline-notice agent-notice">
             Remote setup needs Marten hosted at an HTTPS address. The
             deployment’s app address must point to that site before a connection
             from ChatGPT or Claude can finish.

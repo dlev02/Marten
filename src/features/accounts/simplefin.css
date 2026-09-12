@@ -1,0 +1,193 @@
+.simplefin-section {
+  margin-top: 20px;
+}
+.simplefin-connect,
+.simplefin-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+.simplefin-connect > p,
+.simplefin-import > p {
+  margin: 0;
+  line-height: 1.6;
+}
+.simplefin-import form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+.simplefin-steps {
+  margin: 0;
+  padding-left: 21px;
+  list-style: decimal;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.simplefin-steps a,
+.simplefin-note a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.simplefin-steps a svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.simplefin-token {
+  width: 100%;
+  resize: vertical;
+  font:
+    12px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  overflow-wrap: anywhere;
+}
+.simplefin-price {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.simplefin-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.simplefin-capabilities span {
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 12px;
+}
+.simplefin-provider-errors ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.simplefin-account-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.simplefin-review-account {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 160ms ease;
+}
+.simplefin-review-account.selected {
+  border-color: var(--accent);
+}
+.simplefin-account-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.simplefin-account-check input,
+.simplefin-check input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  accent-color: var(--accent);
+}
+.simplefin-account-check > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.simplefin-account-check strong {
+  display: block;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.simplefin-account-check small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.simplefin-reported-balance {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  max-width: 160px;
+}
+.simplefin-account-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.simplefin-import .field,
+.simplefin-connect .field {
+  min-width: 0;
+  margin-bottom: 0;
+}
+.simplefin-check {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.simplefin-check input {
+  margin-top: 2px;
+}
+.simplefin-final-review {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.simplefin-result {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+.simplefin-result h2,
+.simplefin-result p {
+  margin: 0;
+}
+.simplefin-result-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--hover);
+  color: var(--accent);
+}
+.simplefin-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 15px 0 0;
+}
+@media (max-width: 580px) {
+  .simplefin-account-check {
+    flex-wrap: wrap;
+  }
+  .simplefin-reported-balance {
+    flex-basis: 100%;
+    margin-left: 28px;
+    text-align: left;
+    max-width: none;
+  }
+  .simplefin-review-account {
+    padding: 13px;
+  }
+  .simplefin-account-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .simplefin-section .institution-actions {
+    flex-wrap: wrap;
+  }
+}

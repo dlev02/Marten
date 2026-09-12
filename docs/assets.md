@@ -54,8 +54,19 @@ Schwab is not mapped in the local fallback catalog: it was absent from this Simp
 
 ## Category illustrations
 
-Twenty-one Microsoft [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) Flat SVGs are bundled unchanged in `public/category-icons/`, pinned to commit `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc`. Their total SVG size is about 40 KiB. The exact source URLs and emoji mapping are retained in `sources.json`; the MIT license is included alongside them. No CDN request or model generation is involved.
+Marten’s **89 original category pictograms** are bundled in `public/category-icons/marten/`. The library replaces the earlier 21-icon Fluent Emoji subset. It covers money, home and bills, food, transport, travel, shopping, healthcare, leisure, learning and work, family and giving, and everyday organization.
 
-`CategoryIcon` displays the illustration for a known emoji and the original system emoji for other values. Variation selectors are normalized for matching, while stored category values remain unchanged. Preferences → Appearance switches between Illustrated and System emoji for this device; the category editor offers the bundled choices and still accepts pasted emoji. This preserves portable exports and custom categories.
+The [approved style exploration](design/category-icons/style-concept.png) was made with the built-in image-generation tool. The production assets are original, code-authored SVG drawings translated from that direction, rather than cropped raster images or third-party emoji paths. Shapes, palette, keywords, and aliases live in [`scripts/category-icon-art.mjs`](../scripts/category-icon-art.mjs); `npm run assets:categories` regenerates the committed light/dark SVGs, metadata, and [review sheet](design/category-icons/review.html). The full generation prompt and visual contract are in [the library guide](design/category-icons/README.md). Runtime rendering never calls an image service.
 
-Retrieved September 11, 2026 UTC. Artwork is for identification, not an endorsement.
+`CategoryIcon` maps known emoji and compatibility aliases to illustrations; it retains the system emoji for unknown values. Existing stored values, exports, and imports remain unchanged. For example, the old sparkle displays as a money pouch in Illustrated mode but keeps its original stored emoji. This is a presentation lookup, not a category-name inference or data migration. The active app theme chooses the corresponding SVG palette; Preferences → Appearance → System emoji bypasses the illustrations.
+
+The category editor offers searchable collections and still accepts custom emoji. Each artwork is reviewed at 24 and 64 pixels on light and dark surfaces. Category names from an authorized read-only Monarch review informed coverage; no private financial data or competitor artwork is included in the assets or fixtures.
+
+### Additional reviewed merchant icons
+
+Sweetgreen uses its official [site icon](https://www.sweetgreen.com/icon.svg),
+saved as `public/brands/sweetgreen.svg`. Equinox uses its official
+[favicon](https://assets.cdn-equinox.com/images/favicon.png), saved as
+`public/brands/equinox.png`. Retrieved September 12, 2026 for merchant
+identification. Both load locally; no transaction names are sent to a logo
+service. Exact reviewed aliases include their common billing names.

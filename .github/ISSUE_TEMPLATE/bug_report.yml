@@ -1,0 +1,40 @@
+name: Bug report
+description: Something in Marten is not working the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please do not paste bank credentials, tokens, account numbers, or real transaction data; fictional examples are fine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem. Screenshots of fictional or redacted data help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Transactions
+        2. Filter by ...
+        3. See ...
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, device, and where you use Marten — the in-app Send feedback button fills this in for you
+  - type: dropdown
+    id: data
+    attributes:
+      label: Where were you using Marten?
+      options:
+        - Hosted Marten site
+        - Self-hosted
+        - Demo mode

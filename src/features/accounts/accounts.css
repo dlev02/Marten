@@ -413,12 +413,97 @@
   font-size: 11px;
   margin: 20px 0;
 }
-.connect-continue {
-  width: 100%;
+.connect-providers {
+  display: grid;
+  gap: 10px;
   margin-top: 14px;
 }
-.connect-continue > svg:last-child {
-  margin-left: auto;
+.connect-provider {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid var(--strong-border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.connect-provider:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--muted);
+}
+.connect-provider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.connect-provider:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.connect-provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+.connect-provider-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+.connect-provider-text strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.connect-provider-text small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.connect-provider-arrow {
+  flex: none;
+  color: var(--muted);
+  transition: transform 160ms;
+}
+.connect-provider:hover:not(:disabled) .connect-provider-arrow {
+  color: var(--text);
+  transform: translateX(2px);
+}
+.connect-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.connect-divider::before,
+.connect-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--border);
+  flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .connect-provider,
+  .connect-provider-arrow {
+    transition: none;
+  }
+  .connect-provider:hover:not(:disabled) .connect-provider-arrow {
+    transform: none;
+  }
 }
 .connect-account > .text-button {
   display: block;

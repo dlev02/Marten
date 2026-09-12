@@ -2,9 +2,15 @@
 
 Reviewed **2026-09-11** against current public documentation, rendered provider pages, and Marten's source. This is a research record, not confirmation of Drew's account entitlements. No provider account was created, agreement accepted, bank connected, or paid plan activated.
 
+## Update: SimpleFIN Bridge (September 11, 2026)
+
+[SimpleFIN Bridge](https://beta-bridge.simplefin.org/) is now Marten's second provider and the Sophtron pilot has been removed. The bridge is a consumer subscription (advertised at $1.50 + tax per month or $15 + tax per year, up to 25 institutions and 25 apps) that the user buys directly, links their banks in, and then authorizes apps with a one-time setup token. Each Marten user pastes their own token, so it needs no deployment secrets and works on a shared or self-hosted Marten. The [protocol](https://www.simplefin.org/protocol.html) defines balances and transactions. Marten also accepts bridge-supplied pending flags, merchant category codes and validated investment positions when present; those extensions are not guaranteed by the base protocol. Holdings supply quantities and values, with an implied unit price; ambiguous basis and quote timestamps remain unavailable. The bridge asks for at most about 24 requests a day and recommends 45-day windows. Implementation and limits: [simplefin.md](simplefin.md). SimpleFIN publishes no per-institution reliability data; validate a real subscription against the household's banks before relying on it.
+
+Sophtron's research below is retained for context. Its personal-use license and key-sharing restrictions did not fit a shared deployment, and its API showed little recent activity, which is why the adapter was retired in favor of SimpleFIN.
+
 ## Recommendation
 
-Keep Plaid for the shared family deployment. Drew and his dad can have separate Marten accounts while using the deployment's one Plaid configuration. Their institution connections share its quota. For independently operated copies, each operator can configure their own provider account on their own backend, subject to that account's approval and terms.
+Keep Plaid for the operator's own household and offer SimpleFIN to everyone else. Drew and his dad can have separate Marten accounts while using the deployment's one Plaid configuration; their institution connections share its quota. For independently operated copies, each operator can configure their own provider account on their own backend, subject to that account's approval and terms.
 
 Sophtron is a credible candidate for a **personal, separately configured second provider**: its current agreement explicitly offers free personal, noncommercial API use. Validate its data against the family's actual institutions before relying on it. Yodlee has the necessary aggregation capabilities, but its public material does not establish a current free live-data allowance or a price suitable for this small deployment.
 

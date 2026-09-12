@@ -70,7 +70,14 @@ export async function investmentOverviewForUser(
         .take(1001);
   if (rows.length > 1000)
     throw new ConvexError("Choose one account to view up to 1,000 holdings.");
-  const holdings = rows.filter((row) => selectedIds.has(row.accountId));
+  const holdings = rows.filter((row) => {
+    const account = selected.find((account) => account._id === row.accountId);
+    return (
+      selectedIds.has(row.accountId) &&
+      (!account?.simplefinConnectionId ||
+        row.simplefinConnectionId === account.simplefinConnectionId)
+    );
+  });
   const securityIds = [...new Set(holdings.map((row) => row.securityId))];
   const securityRows = await Promise.all(
     securityIds.map((id) => ctx.db.get(id)),

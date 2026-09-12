@@ -1,0 +1,24 @@
+/* Net-worth reveal: a clip rectangle over the plot grows left to right on mount
+   and on an explicit range change (see NetWorthChart). Axes are not clipped. */
+.networth-chart .recharts-area.chart-revealed {
+  clip-path: var(--chart-clip);
+}
+.chart-reveal-rect {
+  transform-origin: 0 0;
+  transform: scaleX(1);
+}
+.chart-reveal-start .chart-reveal-rect {
+  transform: scaleX(0);
+}
+.chart-reveal-done .chart-reveal-rect {
+  transition: transform 680ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .networth-chart .recharts-area.chart-revealed {
+    clip-path: none;
+  }
+  .chart-reveal-rect {
+    transition: none;
+    transform: none;
+  }
+}

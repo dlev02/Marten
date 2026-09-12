@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactElement } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useTheme } from "next-themes";
+import { useAmountsHidden, setAmountsHidden } from "../lib/amountVisibility";
 import {
   BarChart3,
   ChartNoAxesCombined,
@@ -23,7 +24,13 @@ import {
   X,
   ExternalLink,
   Gauge,
+  Heart,
+  MessageSquare,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { useSidebarLabels } from "../lib/sidebarLabels";
 import * as Popover from "@radix-ui/react-popover";
 import * as Dialog from "@radix-ui/react-dialog";
 import { profileAvatarUrl } from "../lib/profileAvatar";
@@ -35,6 +42,8 @@ import { GlobalSearch } from "./search/GlobalSearch";
 import { DemoBanner } from "./Demo";
 import { ReminderDispatcher } from "./ReminderDispatcher";
 import { exitDemo, isDemoSession } from "../lib/demo";
+import { RouteErrorBoundary } from "../components/folio/RouteErrorBoundary";
+import { FeedbackDialog } from "./Feedback";
 const Dashboard = lazy(() =>
   import("./Dashboard").then((module) => ({ default: module.Dashboard })),
 );
@@ -65,10 +74,13 @@ const CreditScores = lazy(() =>
 const Settings = lazy(() =>
   import("./Settings").then((module) => ({ default: module.Settings })),
 );
+const Support = lazy(() =>
+  import("./Support").then((module) => ({ default: module.Support })),
+);
 import { AddAccount } from "./accounts/AddAccount";
 import { PlaidLinkFlow } from "./accounts/PlaidLinkFlow";
 const nav = [
-  { path: "/", label: "Dashboard", icon: Home },
+  { path: "/dashboard", label: "Dashboard", icon: Home },
   { path: "/accounts", label: "Accounts", icon: WalletCards },
   { path: "/transactions", label: "Transactions", icon: List },
   { path: "/cash-flow", label: "Cash Flow", icon: BarChart3 },
@@ -83,6 +95,7 @@ export function Shell() {
   const [mobile, setMobile] = useState(false),
     [search, setSearch] = useState(false),
     [account, setAccount] = useState(false),
+    [feedback, setFeedback] = useState(false),
     [collapsed, setCollapsed] = useState(() => {
       try {
         return localStorage.getItem("folio-sidebar-collapsed") === "true";
@@ -109,6 +122,11 @@ export function Shell() {
     setMobile(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
+  // Search and the support page can deep-link straight into the feedback dialog.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("feedback") === "1")
+      setFeedback(true);
+  }, [location.search]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -125,6 +143,7 @@ export function Shell() {
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
+      {isDemoSession() && <DemoBanner />}
       <aside className="sidebar desktop-sidebar" id="desktop-navigation">
         <SidebarContent
           collapsed={collapsed}
@@ -136,6 +155,7 @@ export function Shell() {
           }
           onClose={() => setMobile(false)}
           onSearch={() => setSearch(true)}
+          onFeedback={() => setFeedback(true)}
         />
       </aside>
       <div className="main-area">
@@ -161,6 +181,10 @@ export function Shell() {
                     setMobile(false);
                     setSearch(true);
                   }}
+                  onFeedback={() => {
+                    setMobile(false);
+                    setFeedback(true);
+                  }}
                 />
               </Dialog.Content>
             </Dialog.Portal>
@@ -170,7 +194,6 @@ export function Shell() {
             <Search size={20} />
           </IconButton>
         </div>
-        {isDemoSession() && <DemoBanner />}
         <main className="page-content" id="main-content">
           <Suspense
             fallback={
@@ -179,41 +202,51 @@ export function Shell() {
               </div>
             }
           >
-            <div
-              className="route-content"
-              key={location.pathname.split("/")[1] || "dashboard"}
-            >
-              <Routes>
-                <Route
-                  path="/"
-                  element={<Dashboard onAddAccount={() => setAccount(true)} />}
-                />
-                <Route
-                  path="/accounts"
-                  element={<Accounts onAddAccount={() => setAccount(true)} />}
-                />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/cash-flow" element={<CashFlow />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/recurring" element={<Recurring />} />
-                <Route
-                  path="/investments"
-                  element={
-                    <Investments onAddAccount={() => setAccount(true)} />
-                  }
-                />
-                <Route path="/forecast" element={<Forecast />} />
-                <Route path="/credit-scores" element={<CreditScores />} />
-                <Route
-                  path="/settings/*"
-                  element={<Settings onAddAccount={() => setAccount(true)} />}
-                />
-                <Route
-                  path="*"
-                  element={<Dashboard onAddAccount={() => setAccount(true)} />}
-                />
-              </Routes>
-            </div>
+            <RouteErrorBoundary resetKey={location.pathname}>
+              <div
+                className="route-content"
+                key={location.pathname.split("/")[1] || "dashboard"}
+              >
+                <Routes>
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <Dashboard onAddAccount={() => setAccount(true)} />
+                    }
+                  />
+                  <Route
+                    path="/accounts"
+                    element={<Accounts onAddAccount={() => setAccount(true)} />}
+                  />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/cash-flow" element={<CashFlow />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/recurring" element={<Recurring />} />
+                  <Route
+                    path="/investments"
+                    element={
+                      <Investments onAddAccount={() => setAccount(true)} />
+                    }
+                  />
+                  <Route
+                    path="/forecast"
+                    element={<Forecast onAddAccount={() => setAccount(true)} />}
+                  />
+                  <Route path="/credit-scores" element={<CreditScores />} />
+                  <Route
+                    path="/settings/*"
+                    element={<Settings onAddAccount={() => setAccount(true)} />}
+                  />
+                  <Route path="/support" element={<Support />} />
+                  <Route
+                    path="*"
+                    element={
+                      <Dashboard onAddAccount={() => setAccount(true)} />
+                    }
+                  />
+                </Routes>
+              </div>
+            </RouteErrorBoundary>
           </Suspense>
         </main>
       </div>
@@ -221,7 +254,76 @@ export function Shell() {
       <ReminderDispatcher />
       <GlobalSearch open={search} onClose={() => setSearch(false)} />
       <AddAccount open={account} onClose={() => setAccount(false)} />
+      <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} />
     </div>
+  );
+}
+/**
+ * Expanded: brand link plus a collapse control. Collapsed: the mark itself is
+ * the expand control (hover or focus swaps in the panel icon), so the brand
+ * never disappears. The toggle keeps its tree position across states so focus
+ * stays on it after a keyboard toggle.
+ */
+function SidebarBrandRow({
+  collapsed,
+  onToggle,
+  onClose,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="sidebar-top">
+      {!collapsed && (
+        <NavLink
+          to="/dashboard"
+          aria-label="Marten dashboard"
+          onClick={onClose}
+        >
+          <Brand />
+        </NavLink>
+      )}
+      <IconButton
+        label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={`sidebar-collapse ${collapsed ? "sidebar-expand" : ""}`}
+        aria-expanded={!collapsed}
+        aria-controls="desktop-navigation"
+        onClick={onToggle}
+      >
+        {collapsed && <Brand markOnly />}
+        <PanelLeft size={19} strokeWidth={1.7} />
+      </IconButton>
+      <IconButton
+        label="Close navigation"
+        className="mobile-only"
+        onClick={onClose}
+      >
+        <X size={20} />
+      </IconButton>
+    </div>
+  );
+}
+function SidebarHint({
+  label,
+  enabled,
+  children,
+}: {
+  label: string;
+  enabled: boolean;
+  children: ReactElement;
+}) {
+  if (!enabled) return children;
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tooltip" side="right" sideOffset={10}>
+          {label}
+          <Tooltip.Arrow />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 function SidebarContent({
@@ -229,79 +331,80 @@ function SidebarContent({
   onToggle,
   onClose,
   onSearch,
+  onFeedback,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   onClose: () => void;
   onSearch: () => void;
+  onFeedback: () => void;
 }) {
+  const { pathname } = useLocation();
+  const labels = useSidebarLabels();
+  const hideAmounts = useAmountsHidden();
+  const showLabels = collapsed && labels;
   const data = useData(),
     { signOut } = useAuthActions(),
     task = useTask(),
     { resolvedTheme, setTheme } = useTheme();
   return (
     <>
-      <div className="sidebar-top">
-        <NavLink to="/" aria-label="Marten dashboard" onClick={onClose}>
-          <Brand />
-        </NavLink>
-        <IconButton
-          label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="sidebar-collapse"
-          aria-expanded={!collapsed}
-          aria-controls="desktop-navigation"
-          onClick={onToggle}
-        >
-          <PanelLeft size={19} strokeWidth={1.7} />
-        </IconButton>
-        <IconButton
-          label="Close navigation"
-          className="mobile-only"
-          onClick={onClose}
-        >
-          <X size={20} />
-        </IconButton>
-      </div>
+      <SidebarBrandRow
+        collapsed={collapsed}
+        onToggle={onToggle}
+        onClose={onClose}
+      />
       <nav>
         {nav.map((item) => (
-          <NavLink
-            key={item.path}
-            end={item.path === "/"}
-            to={item.path}
-            onClick={onClose}
-            aria-label={item.label}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              `nav-item ${isActive ? "selected" : ""}`
-            }
-          >
-            <item.icon size={21} strokeWidth={1.7} />
-            <span>{item.label}</span>
-          </NavLink>
+          <SidebarHint key={item.path} label={item.label} enabled={showLabels}>
+            <NavLink
+              end={item.path === "/"}
+              to={item.path}
+              onClick={onClose}
+              aria-label={item.label}
+              className={`nav-item ${pathname === item.path ? "selected" : ""}`}
+            >
+              <item.icon size={21} strokeWidth={1.7} />
+              <span>{item.label}</span>
+            </NavLink>
+          </SidebarHint>
         ))}
       </nav>
       <div className="sidebar-utils">
-        <button
-          type="button"
-          className="nav-item"
-          aria-label="Search"
-          title={collapsed ? "Search" : undefined}
-          onClick={onSearch}
-        >
-          <Search size={21} strokeWidth={1.7} />
-          <span>Search</span>
-          <kbd>⌘ K</kbd>
-        </button>
-        <NavLink
-          to="/settings"
-          onClick={onClose}
-          aria-label="Settings"
-          title={collapsed ? "Settings" : undefined}
-          className={({ isActive }) => `nav-item ${isActive ? "selected" : ""}`}
-        >
-          <Settings2 size={21} strokeWidth={1.7} />
-          <span>Settings</span>
-        </NavLink>
+        <SidebarHint label="Search" enabled={showLabels}>
+          <button
+            type="button"
+            className="nav-item"
+            aria-label="Search"
+            onClick={onSearch}
+          >
+            <Search size={21} strokeWidth={1.7} />
+            <span>Search</span>
+            <kbd>⌘ K</kbd>
+          </button>
+        </SidebarHint>
+        <SidebarHint label="Settings" enabled={showLabels}>
+          <NavLink
+            to="/settings"
+            onClick={onClose}
+            aria-label="Settings"
+            className={`nav-item ${pathname.startsWith("/settings") ? "selected" : ""}`}
+          >
+            <Settings2 size={21} strokeWidth={1.7} />
+            <span>Settings</span>
+          </NavLink>
+        </SidebarHint>
+        <SidebarHint label="Support Marten" enabled={showLabels}>
+          <NavLink
+            to="/support"
+            onClick={onClose}
+            aria-label="Support Marten"
+            className={`nav-item nav-support ${pathname.startsWith("/support") ? "selected" : ""}`}
+          >
+            <Heart size={21} strokeWidth={1.7} />
+            <span>Support Marten</span>
+          </NavLink>
+        </SidebarHint>
       </div>
       <div className="sidebar-spacer" />
       {data.profile?.demo && (
@@ -340,10 +443,34 @@ function SidebarContent({
                 </NavLink>
               </Popover.Close>
               <Popover.Close asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAmountsHidden(!hideAmounts);
+                    onClose();
+                  }}
+                >
+                  {hideAmounts ? <Eye size={16} /> : <EyeOff size={16} />}
+                  {hideAmounts ? "Show amounts" : "Hide amounts"}
+                </button>
+              </Popover.Close>
+              <Popover.Close asChild>
                 <NavLink to="/settings/faq" onClick={onClose}>
                   <CircleHelp size={16} />
                   Help & FAQ
                 </NavLink>
+              </Popover.Close>
+              <Popover.Close asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onFeedback();
+                  }}
+                >
+                  <MessageSquare size={16} />
+                  Send feedback
+                </button>
               </Popover.Close>
               {!isDemoSession() && (
                 <Popover.Close asChild>

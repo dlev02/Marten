@@ -89,12 +89,12 @@ describe("mapped spreadsheet import", () => {
           },
         ],
       }),
-    ).toEqual({ inserted: 2, skipped: 0 });
+    ).toEqual({ inserted: 2, skipped: 0, matched: 0 });
     expect(
       await alice.mutation(api.transactions.importMapped, {
         rows: [row, { ...row, key: "b".repeat(64) }],
       }),
-    ).toEqual({ inserted: 0, skipped: 2 });
+    ).toEqual({ inserted: 0, skipped: 2, matched: 0 });
     const after = await snapshot();
     expect(after.transactions).toHaveLength(2);
     expect(after.merchants).toHaveLength(before.merchants.length + 1);
@@ -150,6 +150,250 @@ describe("mapped spreadsheet import", () => {
       originalName: "FICTIONAL CAFE #100",
       notes: "Original note",
     });
+  });
+});
+describe("Monarch-style imports", () => {
+  test("tags and review state import, and a synced or manual twin is enriched instead of duplicated", async () => {
+    const { t, users, alice } = await fixture();
+    const accountId = await alice.mutation(
+      api.workspace.saveAccount,
+      accountFields,
+    );
+    const metadata = await alice.query(api.workspace.metadata, {});
+    const [originalCategory, fileCategory] = metadata.categories;
+    const merchantId = await t.run((ctx) =>
+      ctx.db.insert("merchants", {
+        userId: users.alice,
+        name: "Amazon",
+        normalizedName: "amazon",
+        color: "#000000",
+        transactionCount: 1,
+      }),
+    );
+    // A purchase already in Marten (here entered by hand) dated a day after
+    // the spreadsheet's row for the same amount.
+    const manualId = await t.run((ctx) =>
+      ctx.db.insert("transactions", {
+        userId: users.alice,
+        accountId,
+        merchantId,
+        categoryId: originalCategory._id,
+        date: "2026-09-11",
+        amountCents: 3279,
+        originalName: "AMAZON MKTPL*534KW6IC2",
+        notes: "",
+        tagIds: [],
+        reviewed: false,
+        hidden: false,
+        pending: false,
+        splits: [],
+        source: "manual",
+        searchText: "amazon",
+        updatedAt: 1,
+        editedFields: [],
+      }),
+    );
+    const rows = [
+      {
+        key: "d".repeat(64),
+        accountId,
+        categoryId: fileCategory._id,
+        categoryMatched: true,
+        merchantName: "Amazon",
+        date: "2026-09-10",
+        amountCents: 3279,
+        originalName: "AMAZON MKTPL*534KW6IC2",
+        notes: "Gift for mom",
+        tags: ["Gifts", "family"],
+        reviewed: true,
+      },
+      {
+        key: "e".repeat(64),
+        accountId,
+        categoryId: fileCategory._id,
+        categoryMatched: true,
+        merchantName: "Amazon",
+        date: "2026-09-01",
+        amountCents: 3279,
+        originalName: "AMAZON",
+        notes: "",
+        tags: ["gifts"],
+        reviewed: false,
+      },
+    ];
+    expect(
+      await alice.mutation(api.transactions.importMapped, { rows }),
+    ).toEqual({ inserted: 1, matched: 1, skipped: 0 });
+    const tags = await t.run((ctx) => ctx.db.query("tags").collect());
+    expect(tags.map((tag) => tag.name).sort()).toEqual(["Gifts", "family"]);
+    const gifts = tags.find((tag) => tag.name === "Gifts")!;
+    const manual = (await t.run((ctx) => ctx.db.get(manualId)))!;
+    expect(manual).toMatchObject({
+      source: "manual",
+      categoryId: fileCategory._id,
+      notes: "Gift for mom",
+      reviewed: true,
+      importKey: `mapped-v1:${"d".repeat(64)}`,
+    });
+    expect(manual.tagIds).toHaveLength(2);
+    expect(manual.editedFields).toEqual(
+      expect.arrayContaining(["notes", "categoryId"]),
+    );
+    const transactions = await t.run((ctx) =>
+      ctx.db.query("transactions").collect(),
+    );
+    expect(transactions).toHaveLength(2);
+    const inserted = transactions.find((tx) => tx._id !== manualId)!;
+    expect(inserted).toMatchObject({
+      source: "csv",
+      date: "2026-09-01",
+      tagIds: [gifts._id],
+      reviewed: false,
+      editedFields: ["categoryId"],
+    });
+    expect(
+      await alice.mutation(api.transactions.importMapped, { rows }),
+    ).toEqual({ inserted: 0, matched: 0, skipped: 2 });
+    expect(await t.run((ctx) => ctx.db.query("tags").collect())).toHaveLength(
+      2,
+    );
+  });
+  test("merging a manual account moves its records and combines spreadsheet twins", async () => {
+    const { t, users, alice, bob } = await fixture();
+    const sourceId = await alice.mutation(api.workspace.saveAccount, {
+      ...accountFields,
+      name: "Imported card",
+    });
+    const targetId = await alice.mutation(api.workspace.saveAccount, {
+      ...accountFields,
+      name: "Connected card",
+    });
+    const metadata = await alice.query(api.workspace.metadata, {});
+    const categoryId = metadata.categories[0]._id;
+    await alice.mutation(api.transactions.importMapped, {
+      rows: [
+        {
+          key: "1".repeat(64),
+          accountId: sourceId,
+          categoryId,
+          categoryMatched: true,
+          merchantName: "Sample Diner",
+          date: "2026-09-05",
+          amountCents: 1000,
+          originalName: "SAMPLE DINER",
+          notes: "Team lunch",
+          tags: ["Trip"],
+          reviewed: true,
+        },
+        {
+          key: "2".repeat(64),
+          accountId: sourceId,
+          categoryId,
+          merchantName: "Sample Grocer",
+          date: "2026-09-06",
+          amountCents: 2000,
+          originalName: "SAMPLE GROCER",
+          notes: "",
+        },
+      ],
+    });
+    const merchantId = await t.run((ctx) =>
+      ctx.db.insert("merchants", {
+        userId: users.alice,
+        name: "Diner",
+        normalizedName: "diner",
+        color: "#000000",
+        transactionCount: 1,
+      }),
+    );
+    const syncedId = await t.run((ctx) =>
+      ctx.db.insert("transactions", {
+        userId: users.alice,
+        accountId: targetId,
+        merchantId,
+        categoryId: metadata.categories[1]._id,
+        date: "2026-09-06",
+        amountCents: 1000,
+        originalName: "SAMPLE DINER",
+        notes: "",
+        tagIds: [],
+        reviewed: false,
+        hidden: false,
+        pending: false,
+        splits: [],
+        source: "manual",
+        searchText: "diner",
+        updatedAt: 1,
+        editedFields: [],
+      }),
+    );
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: sourceId,
+      rows: [
+        { date: "2026-01-01", balanceCents: 100 },
+        { date: "2026-01-02", balanceCents: 200 },
+      ],
+    });
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: targetId,
+      rows: [{ date: "2026-01-02", balanceCents: 999 }],
+    });
+    await expect(
+      bob.mutation(api.workspace.mergeAccounts, { sourceId, targetId }),
+    ).rejects.toThrow("unavailable");
+    await expect(
+      alice.mutation(api.workspace.mergeAccounts, {
+        sourceId,
+        targetId: sourceId,
+      }),
+    ).rejects.toThrow("different account");
+    let done = false,
+      moved = 0,
+      matched = 0;
+    while (!done) {
+      const step = await alice.mutation(api.workspace.mergeAccounts, {
+        sourceId,
+        targetId,
+      });
+      done = step.done;
+      moved += step.moved;
+      matched += step.matched;
+    }
+    // One transaction, the source's three balance days (two dated rows plus
+    // its creation-day snapshot), and one combined spreadsheet twin.
+    expect({ moved, matched }).toEqual({ moved: 4, matched: 1 });
+    expect(await t.run((ctx) => ctx.db.get(sourceId))).toBeNull();
+    const transactions = await t.run((ctx) =>
+      ctx.db.query("transactions").collect(),
+    );
+    expect(transactions).toHaveLength(2);
+    expect(transactions.every((tx) => tx.accountId === targetId)).toBe(true);
+    const synced = transactions.find((tx) => tx._id === syncedId)!;
+    expect(synced).toMatchObject({
+      notes: "Team lunch",
+      reviewed: true,
+      categoryId,
+      importKey: `mapped-v1:${"1".repeat(64)}`,
+    });
+    expect(synced.tagIds).toHaveLength(1);
+    const balances = await t.run((ctx) => ctx.db.query("balances").collect());
+    expect(
+      balances
+        .filter((row) => row.date.startsWith("2026-01"))
+        .map((row) => [row.accountId, row.date, row.balanceCents])
+        .sort((a, b) => String(a[1]).localeCompare(String(b[1]))),
+    ).toEqual([
+      [targetId, "2026-01-01", 100],
+      [targetId, "2026-01-02", 999],
+    ]);
+    // The spreadsheet row that merged away no longer counts for its merchant.
+    const diner = await t.run((ctx) =>
+      ctx.db
+        .query("merchants")
+        .filter((q) => q.eq(q.field("name"), "Sample Diner"))
+        .first(),
+    );
+    expect(diner?.transactionCount).toBe(0);
   });
 });
 describe("account and workspace boundaries", () => {
@@ -234,12 +478,20 @@ describe("account and workspace boundaries", () => {
         statementCents: 300,
       }),
     ).rejects.toThrow("bank manages");
+    // Connected accounts accept older history (such as a Monarch balance
+    // export) but never a future date, and the current balance stays the bank's.
     await expect(
       alice.mutation(api.workspace.importBalances, {
         accountId: id,
+        rows: [{ date: "2999-01-01", balanceCents: 1 }],
+      }),
+    ).rejects.toThrow("future");
+    expect(
+      await alice.mutation(api.workspace.importBalances, {
+        accountId: id,
         rows: [{ date: "2026-01-01", balanceCents: 1 }],
       }),
-    ).rejects.toThrow("manual");
+    ).toBe(1);
     await alice.mutation(api.workspace.saveAccount, {
       id,
       ...accountFields,
@@ -260,7 +512,9 @@ describe("account and workspace boundaries", () => {
           to: "2029-01-01",
         })
       ).rows,
-    ).toHaveLength(0);
+    ).toEqual([
+      expect.objectContaining({ date: "2026-01-01", balanceCents: 1 }),
+    ]);
   });
   test("sample seeding is opt-in, repeatable without duplication and financially coherent", async () => {
     const { alice, bob } = await fixture(true);

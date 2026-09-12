@@ -1,3 +1,12 @@
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
+import {
+  SortableList,
+  SortableItem,
+  SortableHandle,
+} from "../components/folio/SortableList";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Link, useNavigate } from "react-router-dom";
@@ -6,7 +15,6 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
-  GripVertical,
   Plus,
   Settings2,
   WalletCards,
@@ -17,10 +25,10 @@ import { accountNetWorth, useData, useTransactions } from "../lib/data";
 import {
   dateLabel,
   localDate,
-  money,
   monthEnd,
   monthOffset,
   monthStart,
+  message,
 } from "../lib/format";
 import { summarize } from "../lib/reporting";
 import {
@@ -31,7 +39,7 @@ import {
   Loading,
   Modal,
   Panel,
-  useTask,
+  useToast,
 } from "../components/folio/ui";
 import {
   FlowChart,
@@ -48,6 +56,7 @@ const widgetNames: Record<string, string> = {
   cashFlow: "Cash flow",
 };
 export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
+  useAmountsHidden();
   const data = useData(),
     navigate = useNavigate();
   const today = localDate(),
@@ -61,7 +70,8 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
     to: today,
   });
   const [customize, setCustomize] = useState(false),
-    [range, setRange] = useState("6M");
+    [range, setRange] = useState("6M"),
+    [activeSpending, setActiveSpending] = useState<string | null>(null);
   const summary = useMemo(
       () => summarize(monthly.results, data),
       [monthly.results, data],
@@ -114,7 +124,7 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
     return points.filter((p) => p.date >= cutoff);
   }, [history, data.accounts, range, from, sixMonths]);
   const change = chart.length > 1 ? networth - chart[0].value : 0;
-  const upcoming = data.recurring
+  const schedules = data.recurring
     .filter((r) => r.active)
     .flatMap((r) =>
       recurringDates(r.nextDate, r.frequency, today, to).map((date) => ({
@@ -128,6 +138,36 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
         color: data.merchants.find((m) => m._id === r.merchantId)?.color,
       })),
     )
+    .map((r) => ({ ...r, kind: "schedule" as const }));
+  // A card or loan statement is due every month, so it belongs with upcoming items.
+  const statements = data.accounts
+    .filter(
+      (a) =>
+        (a.kind === "credit" || a.kind === "loan") &&
+        !a.closed &&
+        !!a.dueDate &&
+        a.dueDate >= today &&
+        a.dueDate <= to &&
+        a.statementPaidDate !== a.dueDate &&
+        (a.paymentPlan === "minimum"
+          ? a.minimumCents !== undefined
+          : a.statementCents !== undefined || a.minimumCents !== undefined),
+    )
+    .map((a) => ({
+      _id: a._id,
+      kind: "statement" as const,
+      date: a.dueDate!,
+      name: `${a.name} statement`,
+      account:
+        a.paymentPlan === "minimum" ? "Minimum payment" : "Statement balance",
+      color: undefined,
+      logo: a.logoUrl,
+      amountCents:
+        a.paymentPlan === "minimum"
+          ? a.minimumCents!
+          : (a.statementCents ?? a.minimumCents!),
+    }));
+  const upcoming = [...schedules, ...statements]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 4);
   const defaults = [
@@ -187,7 +227,7 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
         </div>
         {history ? (
           chart.length ? (
-            <NetWorthChart data={chart} />
+            <NetWorthChart data={chart} revealKey={range} />
           ) : (
             <Empty
               title="Your history starts here"
@@ -276,7 +316,15 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
                 <small>{dateLabel(r.date, { month: "short" })}</small>
                 <strong>{Number(r.date.slice(8))}</strong>
               </span>
-              <Avatar name={r.name} color={r.color} />
+              <Avatar
+                name={
+                  r.kind === "statement"
+                    ? r.name.replace(/ statement$/, "")
+                    : r.name
+                }
+                color={r.color}
+                logo={r.kind === "statement" ? r.logo : undefined}
+              />
               <span className="row-title">
                 <strong>{r.name}</strong>
                 <small>{r.account}</small>
@@ -318,12 +366,21 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
             <SpendingDonut
               data={summary.spending.filter((s) => s.value > 0)}
               total={summary.expense}
+              active={activeSpending}
+              onHover={setActiveSpending}
               small
             />
-            <div className="spending-legend">
+            <div
+              className="spending-legend"
+              onMouseLeave={() => setActiveSpending(null)}
+            >
               {summary.spending.slice(0, 5).map((s) => (
                 <button
                   key={s.id}
+                  className={activeSpending === s.name ? "active" : ""}
+                  onMouseEnter={() => setActiveSpending(s.name)}
+                  onFocus={() => setActiveSpending(s.name)}
+                  onBlur={() => setActiveSpending(null)}
                   onClick={() => {
                     void navigate("/cash-flow");
                   }}
@@ -402,8 +459,7 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
           <div>
             <h2>Everything starts with an account.</h2>
             <p>
-              Connect Chase, American Express, or Schwab to see your finances
-              together.
+              Connect a bank or add an account to see your finances together.
             </p>
           </div>
           <Button
@@ -439,14 +495,26 @@ function CustomizeDashboard({
   onClose: () => void;
   initial: string[];
 }) {
+  useAmountsHidden();
   const save = useMutation(api.workspace.saveProfile),
-    { run, busy } = useTask();
+    toast = useToast();
   const [order, setOrder] = useState(initial);
-  const [drag, setDrag] = useState<string | null>(null);
+  // Changes apply as they are made; closing the dialog never discards them.
+  function commit(next: string[]) {
+    setOrder(next);
+    if (!next.length) return;
+    return save({ widgets: next })
+      .then(() => true)
+      .catch((error: unknown) => {
+        setOrder(order);
+        toast(message(error), true);
+        return false;
+      });
+  }
   function move(key: string, index: number) {
     const updated = order.filter((w) => w !== key);
     updated.splice(Math.max(0, Math.min(index, updated.length)), 0, key);
-    setOrder(updated);
+    void commit(updated);
   }
   return (
     <Modal
@@ -456,70 +524,70 @@ function CustomizeDashboard({
       description="Choose what you see and arrange it your way."
     >
       <div className="reorder-list">
-        {Object.keys(widgetNames)
-          .sort((a, b) => {
-            const ai = order.indexOf(a),
-              bi = order.indexOf(b);
-            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-          })
-          .map((w) => (
-            <div
-              className="reorder-row"
-              key={w}
-              draggable={order.includes(w)}
-              onDragStart={() => setDrag(w)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (drag) move(drag, order.indexOf(w));
-                setDrag(null);
-              }}
-            >
-              <GripVertical size={18} className="muted" />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={order.includes(w)}
-                  onChange={(e) =>
-                    setOrder((s) =>
-                      e.target.checked ? [...s, w] : s.filter((i) => i !== w),
-                    )
-                  }
-                />
-                {widgetNames[w]}
-              </label>
-              <IconButton
-                label={`Move ${widgetNames[w]} up`}
-                disabled={!order.includes(w) || order.indexOf(w) === 0}
-                onClick={() => move(w, order.indexOf(w) - 1)}
-              >
-                <ArrowUp size={15} />
-              </IconButton>
-              <IconButton
-                label={`Move ${widgetNames[w]} down`}
-                disabled={
-                  !order.includes(w) || order.indexOf(w) === order.length - 1
-                }
-                onClick={() => move(w, order.indexOf(w) + 1)}
-              >
-                <ArrowDown size={15} />
-              </IconButton>
-            </div>
-          ))}
+        <SortableList ids={order} onReorder={commit}>
+          {(sorted) => (
+            <>
+              {Object.keys(widgetNames)
+                .sort((a, b) => {
+                  const ai = sorted.indexOf(a),
+                    bi = sorted.indexOf(b);
+                  return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                })
+                .map((w) => (
+                  <SortableItem
+                    id={w}
+                    name={widgetNames[w]}
+                    disabled={!order.includes(w)}
+                    className="reorder-row"
+                    key={w}
+                  >
+                    <SortableHandle
+                      name={widgetNames[w]}
+                      disabled={!order.includes(w)}
+                    />
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={order.includes(w)}
+                        onChange={(e) =>
+                          void commit(
+                            e.target.checked
+                              ? [...order, w]
+                              : order.filter((i) => i !== w),
+                          )
+                        }
+                      />
+                      {widgetNames[w]}
+                    </label>
+                    <IconButton
+                      label={`Move ${widgetNames[w]} up`}
+                      disabled={!order.includes(w) || order.indexOf(w) === 0}
+                      onClick={() => move(w, order.indexOf(w) - 1)}
+                    >
+                      <ArrowUp size={15} />
+                    </IconButton>
+                    <IconButton
+                      label={`Move ${widgetNames[w]} down`}
+                      disabled={
+                        !order.includes(w) ||
+                        order.indexOf(w) === order.length - 1
+                      }
+                      onClick={() => move(w, order.indexOf(w) + 1)}
+                    >
+                      <ArrowDown size={15} />
+                    </IconButton>
+                  </SortableItem>
+                ))}
+            </>
+          )}
+        </SortableList>
       </div>
       <div className="modal-actions">
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          tone="primary"
-          disabled={busy || !order.length}
-          icon={<Check size={16} />}
-          onClick={() =>
-            void run(async () => {
-              await save({ widgets: order });
-              onClose();
-            }, "Dashboard updated")
-          }
-        >
-          Save changes
+        {!order.length && (
+          <span className="muted">Keep at least one section.</span>
+        )}
+        <Button tone="primary" icon={<Check size={16} />} onClick={onClose}>
+          Done
         </Button>
       </div>
     </Modal>

@@ -1,3 +1,7 @@
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -13,6 +17,7 @@ import {
   EyeOff,
   Landmark,
   Loader2,
+  Merge,
   Pencil,
   Plus,
   RefreshCw,
@@ -22,12 +27,12 @@ import {
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { accountNetWorth, useData } from "../lib/data";
+import { matchAccount } from "../lib/transactionImport";
 import {
   csv,
   dateLabel,
   download,
   localDate,
-  money,
   parseCsv,
   parseMoney,
 } from "../lib/format";
@@ -39,6 +44,7 @@ import {
   Loading,
   Modal,
   Panel,
+  Picker,
   Tabs,
   useTask,
 } from "../components/folio/ui";
@@ -75,8 +81,8 @@ function accountConnection(
   institutions: Pick<Doc<"plaidItems">, "_id" | "status">[],
 ) {
   if (account.manual) return { label: "Manual balance", color: "var(--muted)" };
-  if (account.sophtronConnectionId)
-    return { label: "Sophtron import", color: "var(--muted)" };
+  if (account.simplefinConnectionId)
+    return { label: "SimpleFIN import", color: "var(--muted)" };
   const status = institutions.find(
     (item) => item._id === account.itemId,
   )?.status;
@@ -94,7 +100,9 @@ function accountConnection(
   }
 }
 export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
+  useAmountsHidden();
   const data = useData(),
+    navigate = useNavigate(),
     [params, setParams] = useSearchParams(),
     [period, setPeriod] = useState("6M"),
     [showHidden, setShowHidden] = useState(false),
@@ -189,11 +197,7 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
             icon={<WalletCards size={28} />}
             title="See everything you own and owe"
             description="Add your first account to begin tracking your net worth."
-            action={
-              <Button tone="primary" onClick={onAddAccount}>
-                Add an account
-              </Button>
-            }
+            action={<Button onClick={onAddAccount}>Add an account</Button>}
           />
         </Panel>
       ) : (
@@ -241,11 +245,23 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
             {history === undefined ? (
               <Loading text="Loading balance history…" />
             ) : chart.length ? (
-              <NetWorthChart data={chart} id="accounts-overview" />
+              <NetWorthChart
+                data={chart}
+                id="accounts-overview"
+                revealKey={period}
+              />
             ) : (
               <Empty
                 title="Your history starts here"
-                description="New balance updates will build your net worth chart."
+                description="New balance updates will build your net worth chart. A balance export from another app fills in the past."
+                action={
+                  <Button
+                    icon={<Upload size={15} />}
+                    onClick={() => void navigate("/transactions?import=true")}
+                  >
+                    Import balance history
+                  </Button>
+                }
               />
             )}
             {history && !history.complete && (
@@ -458,8 +474,10 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
               <div className="account-side-note">
                 <RefreshCw size={17} />
                 <p>
-                  {data.accounts.some((account) => account.sophtronConnectionId)
-                    ? "Plaid updates automatically. Import Sophtron updates from Bank connections, or edit manual balances anytime."
+                  {data.accounts.some(
+                    (account) => account.simplefinConnectionId,
+                  )
+                    ? "Plaid updates automatically. SimpleFIN imports daily and on request from Bank connections; edit manual balances anytime."
                     : "Connected accounts update automatically. You can update manual balances anytime."}
                 </p>
               </div>
@@ -487,12 +505,14 @@ function AccountDetail({
   today: string;
   onClose: () => void;
 }) {
+  useAmountsHidden();
   const data = useData();
   const connection = accountConnection(account, data.institutions);
   const navigate = useNavigate(),
     [tab, setTab] = useState("overview"),
     [editing, setEditing] = useState(false),
-    [importing, setImporting] = useState(false);
+    [importing, setImporting] = useState(false),
+    [merging, setMerging] = useState(false);
   const history = useQuery(api.workspace.balanceHistory, {
     accountId: account._id,
     from: rangeStart("1Y", today),
@@ -544,21 +564,21 @@ function AccountDetail({
               ? "Manually updated"
               : connection.label}
           <span>
-            {account.sophtronConnectionId ? "Imported" : "Updated"}{" "}
+            {account.simplefinConnectionId ? "Imported" : "Updated"}{" "}
             {new Date(account.updatedAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
             })}
           </span>
         </div>
-        {account.sophtronConnectionId && (
+        {account.simplefinConnectionId && (
           <div className="account-notice">
-            Sophtron imports are requested in{" "}
-            <a href="/settings/institutions#sophtron">Bank connections</a>.
+            SimpleFIN imports run daily and on request from{" "}
+            <a href="/settings/institutions#simplefin">Bank connections</a>.
             History completeness is unverified; pending activity, holdings, and
             statement minimums are not included.
-            {account.sophtronUpdatedAt
-              ? ` The provider last updated this balance ${new Date(account.sophtronUpdatedAt).toLocaleString()}.`
+            {account.simplefinUpdatedAt
+              ? ` The provider last updated this balance ${new Date(account.simplefinUpdatedAt).toLocaleString()}.`
               : " The provider did not supply a balance update time."}
           </div>
         )}
@@ -658,6 +678,15 @@ function AccountDetail({
             >
               View transactions
             </Button>
+            {account.manual && !account.closed && (
+              <Button
+                className="account-transactions-link"
+                icon={<Merge size={16} />}
+                onClick={() => setMerging(true)}
+              >
+                Merge into another account
+              </Button>
+            )}
           </div>
         ) : (
           <div className="account-detail-content">
@@ -680,14 +709,12 @@ function AccountDetail({
               >
                 Export CSV
               </Button>
-              {account.manual && (
-                <Button
-                  icon={<Upload size={15} />}
-                  onClick={() => setImporting(true)}
-                >
-                  Import CSV
-                </Button>
-              )}
+              <Button
+                icon={<Upload size={15} />}
+                onClick={() => setImporting(true)}
+              >
+                Import CSV
+              </Button>
             </div>
             <p className="muted">
               Past year · {history?.rows.length ?? 0} balance updates
@@ -722,7 +749,111 @@ function AccountDetail({
       {importing && (
         <BalanceImport account={account} onClose={() => setImporting(false)} />
       )}
+      {merging && (
+        <MergeAccount
+          account={account}
+          onClose={() => setMerging(false)}
+          onMerged={() => {
+            setMerging(false);
+            onClose();
+          }}
+        />
+      )}
     </>
+  );
+}
+/**
+ * Folds a manually tracked account into another one. Typical use: history was
+ * imported from a spreadsheet into a manual account, then the same bank
+ * connected and created its own account. Spreadsheet rows that duplicate a
+ * synced purchase enrich it instead of surviving as a second copy.
+ */
+function MergeAccount({
+  account,
+  onClose,
+  onMerged,
+}: {
+  account: Doc<"accounts">;
+  onClose: () => void;
+  onMerged: () => void;
+}) {
+  useAmountsHidden();
+  const data = useData(),
+    merge = useMutation(api.workspace.mergeAccounts),
+    [targetId, setTargetId] = useState(""),
+    [progress, setProgress] = useState(""),
+    { busy, run } = useTask();
+  const targets = data.accounts
+    .filter((a) => a._id !== account._id && !a.closed)
+    .map((a) => ({ value: a._id, label: a.name, group: a.institution }));
+  const target = data.accounts.find((a) => a._id === targetId);
+  async function submit() {
+    if (!target) return;
+    const done = await run(async () => {
+      let moved = 0,
+        matched = 0;
+      for (;;) {
+        const step = await merge({
+          sourceId: account._id,
+          targetId: target._id,
+        });
+        moved += step.moved;
+        matched += step.matched;
+        setProgress(`Moved ${moved} records, combined ${matched} duplicates…`);
+        if (step.done) break;
+      }
+    }, `Merged into ${target.name}`);
+    if (done) onMerged();
+  }
+  return (
+    <Modal
+      open
+      onClose={busy ? () => {} : onClose}
+      title="Merge into another account"
+      description={`Move everything from ${account.name} into one account, then remove ${account.name}.`}
+    >
+      <div className="balance-import">
+        <p>
+          Transactions, balance history, recurring schedules, and saved reports
+          move to the account you choose. A transaction imported from a
+          spreadsheet that matches one already synced there (same amount, within
+          three days) adds its notes, tags, category, and receipts to the synced
+          transaction instead of staying as a duplicate.
+        </p>
+        <div className="account-notice">
+          The chosen account keeps its own current balance and any balance it
+          already has for a given day. This cannot be undone.
+        </div>
+        <Field label="Merge into">
+          <Picker
+            label="Account to merge into"
+            value={targetId}
+            onChange={setTargetId}
+            options={targets}
+            placeholder="Choose an account…"
+            disabled={busy}
+          />
+        </Field>
+        {progress && (
+          <p role="status" className="muted">
+            {progress}
+          </p>
+        )}
+        <div className="modal-actions">
+          <Button onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            tone="danger"
+            disabled={!target || busy}
+            onClick={() => void submit()}
+            icon={busy ? <Loader2 size={16} className="spin" /> : undefined}
+          >
+            {busy ? "Merging…" : `Merge and remove ${account.name}`}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 function BalanceImport({
@@ -732,6 +863,7 @@ function BalanceImport({
   account: Doc<"accounts">;
   onClose: () => void;
 }) {
+  useAmountsHidden();
   const input = useRef<HTMLInputElement>(null),
     [rows, setRows] = useState<{ date: string; balanceCents: number }[]>([]),
     [filename, setFilename] = useState(""),
@@ -749,10 +881,29 @@ function BalanceImport({
         );
       const header = parsed[0].map((h) => h.trim().toLowerCase()),
         di = header.indexOf("date"),
-        bi = header.indexOf("balance");
+        bi = header.indexOf("balance"),
+        ai = header.indexOf("account");
       if (di < 0 || bi < 0)
         throw new Error("Use columns named Date and Balance.");
-      const next = parsed.slice(1).map((values, index) => {
+      // A multi-account export (such as Monarch's) contributes only this
+      // account's rows here; the Transactions import handles every account.
+      const ownRows =
+        ai < 0
+          ? parsed.slice(1)
+          : parsed
+              .slice(1)
+              .filter(
+                (values) =>
+                  matchAccount(values[ai] ?? "", [account]) === account._id,
+              );
+      if (ai >= 0 && !ownRows.length)
+        throw new Error(
+          "No rows in this file belong to this account. To import several accounts at once, use Import on the Transactions page.",
+        );
+      // Monarch lists debts as negative balances; Marten stores the amount owed.
+      const invert =
+        ai >= 0 && (account.kind === "credit" || account.kind === "loan");
+      const next = ownRows.map((values, index) => {
         const date = values[di]?.trim();
         if (
           !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ||
@@ -760,7 +911,8 @@ function BalanceImport({
           new Date(date).toISOString().slice(0, 10) !== date
         )
           throw new Error(`Row ${index + 2}: use YYYY-MM-DD for the date.`);
-        return { date, balanceCents: parseMoney(values[bi] ?? "") };
+        const balanceCents = parseMoney(values[bi] ?? "");
+        return { date, balanceCents: invert ? -balanceCents : balanceCents };
       });
       if (next.length > 5000)
         throw new Error("Import at most 5,000 dates at once.");
@@ -789,7 +941,8 @@ function BalanceImport({
         <p>
           Use a CSV with <strong>Date</strong> and <strong>Balance</strong>{" "}
           columns. Dates should use YYYY-MM-DD and balances should be dollar
-          amounts.
+          amounts. A Monarch Money balance export works too; only rows for this
+          account are used.
         </p>
         <div className="account-notice">
           An imported date replaces its existing historical balance. Your
@@ -839,5 +992,6 @@ function BalanceImport({
   );
 }
 function CheckIcon() {
+  useAmountsHidden();
   return <ArrowRight size={16} />;
 }

@@ -2,6 +2,12 @@
 
 Marten uses Plaid directly from Convex actions. Browser clients receive short-lived Link tokens and safe connection metadata; access tokens and Plaid secrets stay on the server.
 
+## Getting credentials and understanding the Trial
+
+Plaid's free Trial allows **10 Production Items, created in total, for the life of the Plaid team**. An Item is one login at one institution and can hold several accounts (a Chase login with three cards and two bank accounts is one Item). Creating an Item spends a slot permanently: disconnecting or removing it in Marten or in Plaid's dashboard does not return the slot. Reconnecting an existing Item in update mode (Marten's **Reconnect**) does not spend a new one, so repair a broken connection rather than adding the institution again. The Trial includes Transactions, Liabilities, and Investments, which are the products Marten uses. Sandbox is separate: free, fictional institutions and data, no effect on the Trial count, and the only environment automated tests may use.
+
+To obtain credentials, sign up at [dashboard.plaid.com](https://dashboard.plaid.com), start with the Sandbox keys, and apply for Production access (the Trial is the plan you are approved into). Then set `PLAID_CLIENT_ID`, `PLAID_SECRET`, and `PLAID_ENV` on the Convex deployment as described below, and register the site's HTTPS origin as an allowed redirect URI for OAuth institutions such as Chase. Eligibility, approval, OAuth institution availability, and any pricing after the Trial are decided by Plaid. The [README](../README.md#how-plaids-free-trial-works) walks through this for newcomers; [bank provider options](bank-provider-options.md#how-plaids-limit-works) records the sources and the shared-deployment implications.
+
 ## Configuration
 
 Set these environment variables on the intended Convex deployment:
@@ -10,6 +16,7 @@ Set these environment variables on the intended Convex deployment:
 - `PLAID_ENV`: explicitly `sandbox` or `production`. Missing or invalid configuration disables new links; there is no implicit sandbox fallback.
 - `PLAID_REDIRECT_URI`: the OAuth callback URL registered in Plaid's dashboard, when OAuth is enabled. The authenticated Shell mounts `PlaidLinkFlow`, which preserves a short-lived Link token and flow context in session storage and resumes Link when `oauth_state_id` is present. The session is bound to the signed-in user and cleared on completion, cancellation, or expiration. Both new connections and reconnects use this flow.
 - `SITE_URL`: the app's public origin, also used by authentication.
+- `PLAID_ALLOWED_EMAILS` (optional): a comma-separated, case-insensitive list of sign-in emails allowed to link Plaid. When it is set, `plaid.status` reports `restricted: true` and `configured: false` for anyone else, the Add account dialog offers SimpleFIN as the only bank connection, and new Link tokens and token exchanges are refused server-side. Existing connections keep syncing regardless of the list. Leave it unset for a self-hosted deployment where every user may use Plaid.
 
 `CONVEX_SITE_URL` is supplied by Convex. Link requests register `${CONVEX_SITE_URL}/plaid/webhook`. This endpoint validates Plaid's ES256 JWT, key state, issued-at time (at most five minutes old), and SHA-256 of the original request body before scheduling internal work.
 
@@ -39,6 +46,8 @@ Marten currently accepts USD account and transaction values only. Unsupported cu
 
 A six-hour cron scans connections in pages of 25 and schedules catch-up syncs. Verified webhooks normally update them sooner. New Transactions Link requests ask for 730 days of history. Sync also sends `options.days_requested: 730` so Transactions can request that history when first initialized after an investments-first Link. Update-mode Link retains its existing account/consent flow without new-link product initialization parameters. The history actually available depends on Plaid and the institution; these requests do not establish a two-year backfill for an existing connection. One sync loop is bounded to 100 Plaid pages; one connection supports up to 100 shared accounts.
 
+Before inserting a new transaction, ingestion looks for an unlinked spreadsheet row on the same account with the same amount within three days and adopts it: the row gains the Plaid transaction ID, the bank's date and statement text, and `source: "plaid"`, while its merchant, category, notes, tags, receipts, and review state stay. This is how history imported from another app (such as Monarch Money) merges with a later connection. See [importing](importing.md).
+
 Disconnect first stops sync while retaining transaction history, account settings, and cached balances in net worth, then revokes the Item with Plaid. Disconnecting does not mark a bank account closed. Access tokens are cleared after successful revocation. If revocation fails, the connection displays a retryable error and the Disconnect action remains available.
 
 Sample workspaces cannot create Link tokens or exchange live bank connections. The user must explicitly clear sample data and use a personal workspace first.
@@ -52,3 +61,7 @@ On 2026-09-10, the coordinating browser review completed embedded Plaid Sandbox 
 These are fictional Sandbox values. The Chase OAuth popup could not be completed in the in-app browser, so the Sandbox result does not verify OAuth return in a browser, real institution coverage, live credentials, or production operation. OAuth session-boundary behavior is covered separately by unit tests.
 
 Official references: [Link product initialization](https://plaid.com/docs/link/initializing-products/), [duplicate Items](https://plaid.com/docs/link/duplicate-items/), [Transactions pagination](https://plaid.com/docs/errors/transactions/), [cached account balances](https://plaid.com/docs/api/accounts/), [Liabilities](https://plaid.com/docs/api/products/liabilities/), [webhook verification](https://plaid.com/docs/api/webhooks/webhook-verification/), [personal finance categories](https://plaid.com/docs/transactions/pfc-migration/).
+
+### Connecting imported history
+
+Account refresh may adopt an imported manual account in place when its source label, last four digits, type, and currency uniquely match the incoming account in both directions. It never automatically adopts closed accounts or guesses from a mask alone. The original account ID, name, transaction annotations, and older balance history remain; live balances and provider IDs are applied, then the ordinary spreadsheet/posted-transaction matcher handles overlapping history. Uncertain matches retain the existing explicit account-merge path.

@@ -36,7 +36,7 @@ export function initializeDemoContext() {
   context = resolveDemoContext(window.location, () => window.sessionStorage);
   if (context.active && !context.error) {
     const url = new URL(window.location.href);
-    if (url.pathname === "/demo") url.pathname = "/";
+    if (url.pathname === "/demo") url.pathname = "/dashboard";
     url.searchParams.delete("demo");
     window.history.replaceState(window.history.state, "", url);
   }
@@ -72,5 +72,5 @@ export function returnToAccount() {
   } catch {
     // A blocked storage provider has no demo session to preserve.
   }
-  window.location.assign("/");
+  window.location.assign("/dashboard");
 }

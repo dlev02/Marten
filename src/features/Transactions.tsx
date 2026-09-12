@@ -1,3 +1,8 @@
+import { AmountInput } from "../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
 import { CategoryIcon } from "../components/folio/CategoryIcon";
 import {
   transactionDatePresets,
@@ -17,6 +22,7 @@ import {
   Filter,
   MessageSquare,
   MoreHorizontal,
+  Paperclip,
   Plus,
   Receipt,
   Repeat2,
@@ -35,7 +41,7 @@ import {
   useData,
   useTransactions,
 } from "../lib/data";
-import { csv, dateLabel, download, money } from "../lib/format";
+import { csv, dateLabel, download } from "../lib/format";
 import {
   Avatar,
   Button,
@@ -57,7 +63,10 @@ import {
   NewTransaction,
   ImportTransactions,
 } from "./transactions/TransactionForms";
+import { BulkTransactions } from "./transactions/BulkTransactions";
+import { AttachReceipt } from "./transactions/AttachReceipt";
 export function Transactions() {
+  useAmountsHidden();
   const data = useData(),
     [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") ?? ""),
@@ -82,7 +91,9 @@ export function Transactions() {
     ),
     [add, setAdd] = useState(false),
     [importOpen, setImportOpen] = useState(params.get("import") === "true"),
+    [attachOpen, setAttachOpen] = useState(false),
     [selecting, setSelecting] = useState(false),
+    [bulkOpen, setBulkOpen] = useState(false),
     [checked, setChecked] = useState<Set<Id<"transactions">>>(new Set());
   const [columns, setColumns] = useState({
       category: true,
@@ -421,7 +432,7 @@ export function Transactions() {
               <div className="form-grid">
                 <label>
                   Min amount
-                  <input
+                  <AmountInput
                     type="text"
                     inputMode="decimal"
                     value={minimum}
@@ -434,7 +445,7 @@ export function Transactions() {
                 </label>
                 <label>
                   Max amount
-                  <input
+                  <AmountInput
                     type="text"
                     inputMode="decimal"
                     value={maximum}
@@ -510,26 +521,12 @@ export function Transactions() {
               className={`table-tools-mode ${!selecting ? "inactive" : ""}`}
               aria-hidden={!selecting}
             >
-              <Picker
-                label="Bulk category"
-                value=""
-                placeholder="Set category"
+              <Button
                 disabled={busy || !checked.size || !selecting}
-                options={categoryOptions(data)}
-                onChange={(id) =>
-                  void run(
-                    () =>
-                      bulk({
-                        ids: [...checked],
-                        patch: {
-                          categoryId: id as Id<"categories">,
-                          splits: [],
-                        },
-                      }),
-                    "Categories updated",
-                  )
-                }
-              />
+                onClick={() => setBulkOpen(true)}
+              >
+                Edit selected
+              </Button>
               <Button
                 disabled={busy || !checked.size}
                 icon={<CheckCircle2 size={15} />}
@@ -630,6 +627,10 @@ export function Transactions() {
                       <Upload size={16} />
                       Import Excel or CSV
                     </button>
+                    <button onClick={() => setAttachOpen(true)}>
+                      <Paperclip size={16} />
+                      Attach a receipt
+                    </button>
                   </Popover.Content>
                 </Popover.Portal>
               </Popover.Root>
@@ -663,8 +664,8 @@ export function Transactions() {
             >
               <colgroup>
                 <col />
-                {columns.category && <col style={{ width: 190 }} />}
-                {columns.account && <col style={{ width: 210 }} />}
+                {columns.category && <col style={{ width: "25%" }} />}
+                {columns.account && <col style={{ width: "25%" }} />}
                 {columns.tags && <col style={{ width: 150 }} />}
                 <col style={{ width: 124 }} />
                 <col style={{ width: 28 }} />
@@ -812,13 +813,18 @@ export function Transactions() {
                         )}
                         {columns.account && (
                           <td>
-                            <span className="account-cell">
+                            <span
+                              className="account-cell"
+                              title={account?.name}
+                            >
                               <Avatar
                                 name={account?.institution ?? "Account"}
                                 logo={account?.logoUrl}
                                 size="small"
                               />
-                              {account?.name}
+                              <span className="account-label">
+                                {account?.name}
+                              </span>
                             </span>
                           </td>
                         )}
@@ -888,6 +894,13 @@ export function Transactions() {
                 >
                   Clear search and filters
                 </Button>
+              ) : tab === "receipts" ? (
+                <Button
+                  icon={<Paperclip size={16} />}
+                  onClick={() => setAttachOpen(true)}
+                >
+                  Attach receipt
+                </Button>
               ) : (
                 <Button onClick={() => setAdd(true)}>Add transaction</Button>
               )
@@ -902,6 +915,17 @@ export function Transactions() {
             </div>
           )}
       </Panel>
+      {bulkOpen && (
+        <BulkTransactions
+          transactions={result.results.filter((tx) => checked.has(tx._id))}
+          onClose={() => setBulkOpen(false)}
+          onSaved={() => {
+            setBulkOpen(false);
+            setChecked(new Set());
+            setSelecting(false);
+          }}
+        />
+      )}
       <TransactionDrawer
         id={selected as Id<"transactions"> | null}
         onClose={() => openTx(null)}
@@ -920,6 +944,14 @@ export function Transactions() {
         open={add}
         onClose={() => setAdd(false)}
         onCreated={(id) => openTx(id)}
+      />
+      <AttachReceipt
+        open={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        onAttached={(id) => {
+          setAttachOpen(false);
+          setSelected(id);
+        }}
       />
       <ImportTransactions
         open={importOpen}
@@ -942,6 +974,7 @@ function InlineCategory({
   transaction: Doc<"transactions">;
   label: string;
 }) {
+  useAmountsHidden();
   const data = useData(),
     update = useMutation(api.transactions.update),
     { run } = useTask();

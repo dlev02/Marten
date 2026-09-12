@@ -19,15 +19,20 @@ import {
 import { transactionFields } from "./validators";
 import {
   changeMerchantCount,
+  findMatchingTransaction,
   insertTransaction,
   loadRuleContext,
   refreshSearch,
+  unionTags,
   validateTransaction,
   type UserWrite,
   type TransactionFields,
 } from "./lib/transactions";
 import type { Id } from "./_generated/dataModel";
 import { normalize } from "./lib/finance";
+import { saveRecurringForUser } from "./recurring";
+import { matchesRecurringCriteria } from "./lib/recurring";
+import { recurringFields } from "./validators";
 
 const patchValidator = v.object(transactionFields).partial();
 const listArgs = {
@@ -146,7 +151,7 @@ export async function updateOne(
 ) {
   const tx = await owned(ctx, id);
   if (
-    (tx.source === "plaid" || tx.source === "sophtron") &&
+    (tx.source === "plaid" || tx.source === "simplefin") &&
     (patch.accountId !== undefined ||
       patch.amountCents !== undefined ||
       patch.date !== undefined ||
@@ -188,12 +193,103 @@ export const create = userMutation({
   handler: (ctx, fields) => insertTransaction(ctx, fields, "manual"),
 });
 export const bulkUpdate = userMutation({
-  args: { ids: v.array(v.id("transactions")), patch: patchValidator },
+  args: {
+    ids: v.array(v.id("transactions")),
+    patch: patchValidator,
+    tagChange: v.optional(
+      v.object({
+        mode: v.union(
+          v.literal("add"),
+          v.literal("remove"),
+          v.literal("replace"),
+        ),
+        ids: v.array(v.id("tags")),
+      }),
+    ),
+    recurringFrequency: v.optional(recurringFields.frequency),
+  },
   returns: v.number(),
-  handler: async (ctx, { ids, patch }) => {
+  handler: async (ctx, { ids, patch, tagChange, recurringFrequency }) => {
     if (ids.length > 100)
       throw new ConvexError("Select at most 100 transactions.");
-    for (const id of new Set(ids)) await updateOne(ctx, id, patch);
+    if (tagChange) {
+      if (tagChange.ids.length > 100)
+        throw new ConvexError("Choose up to 100 tags.");
+      for (const id of tagChange.ids) await owned(ctx, id);
+    }
+    for (const id of new Set(ids)) {
+      const tx = await owned(ctx, id);
+      const changes = { ...patch };
+      if (tagChange)
+        changes.tagIds =
+          tagChange.mode === "add"
+            ? [...new Set([...tx.tagIds, ...tagChange.ids])]
+            : tagChange.mode === "remove"
+              ? tx.tagIds.filter((id) => !tagChange.ids.includes(id))
+              : [...new Set(tagChange.ids)];
+      await updateOne(ctx, id, changes);
+      if (recurringFrequency) {
+        const next = { ...tx, ...changes };
+        if (next.pending || next.hidden || next.removedFromBank)
+          throw new ConvexError(
+            "Choose visible, posted transactions to create recurring schedules.",
+          );
+        const schedules = await ctx.db
+          .query("recurring")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(500);
+        if (
+          !schedules.some(
+            (schedule) =>
+              schedule.active &&
+              schedule.frequency === recurringFrequency &&
+              matchesRecurringCriteria(schedule, next),
+          )
+        )
+          await saveRecurringForUser(ctx, {
+            merchantId: next.merchantId,
+            accountId: next.accountId,
+            categoryId: next.categoryId,
+            amountCents: next.amountCents,
+            amountToleranceCents: 0,
+            frequency: recurringFrequency,
+            nextDate: next.date,
+            active: true,
+            source: "manual",
+            note: "",
+          });
+      }
+    }
+    return new Set(ids).size;
+  },
+});
+async function removeOne(ctx: UserWrite, id: Id<"transactions">) {
+  const tx = await owned(ctx, id);
+  if (tx.source === "plaid" || tx.source === "simplefin")
+    throw new ConvexError(
+      "Hide a bank transaction to exclude it from reports.",
+    );
+  const attachments = await ctx.db
+    .query("attachments")
+    .withIndex("by_transactionId", (q) => q.eq("transactionId", id))
+    .take(21);
+  for (const a of attachments) {
+    await ctx.storage.delete(a.storageId);
+    await ctx.db.delete(a._id);
+  }
+  await changeMerchantCount(ctx, tx.merchantId, null);
+  await ctx.db.delete(id);
+  await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
+    transactionId: id,
+  });
+}
+export const bulkRemove = userMutation({
+  args: { ids: v.array(v.id("transactions")) },
+  returns: v.number(),
+  handler: async (ctx, { ids }) => {
+    if (!ids.length || ids.length > 100)
+      throw new ConvexError("Select 1 to 100 transactions.");
+    for (const id of new Set(ids)) await removeOne(ctx, id);
     return new Set(ids).size;
   },
 });
@@ -201,24 +297,7 @@ export const remove = userMutation({
   args: { id: v.id("transactions") },
   returns: v.null(),
   handler: async (ctx, { id }) => {
-    const tx = await owned(ctx, id);
-    if (tx.source === "plaid" || tx.source === "sophtron")
-      throw new ConvexError(
-        "Hide a bank transaction to exclude it from reports.",
-      );
-    const attachments = await ctx.db
-      .query("attachments")
-      .withIndex("by_transactionId", (q) => q.eq("transactionId", id))
-      .take(21);
-    for (const a of attachments) {
-      await ctx.storage.delete(a.storageId);
-      await ctx.db.delete(a._id);
-    }
-    await changeMerchantCount(ctx, tx.merchantId, null);
-    await ctx.db.delete(id);
-    await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
-      transactionId: id,
-    });
+    await removeOne(ctx, id);
     return null;
   },
 });
@@ -272,6 +351,45 @@ export const importCsv = userMutation({
     return { inserted, skipped };
   },
 });
+const TAG_COLORS = [
+  "#648981",
+  "#7b9cbd",
+  "#be9b80",
+  "#e89d7c",
+  "#7ba792",
+  "#9a86b8",
+  "#c98f9d",
+  "#8fa3c9",
+];
+/** Finds or creates each named tag once per import batch. */
+async function ensureTags(ctx: UserWrite, names: string[]) {
+  const existing = await ctx.db
+    .query("tags")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(201);
+  if (existing.length > 200)
+    throw new ConvexError("This workspace has too many tags.");
+  const byName = new Map(
+    existing.map((tag) => [tag.name.trim().toLowerCase(), tag._id]),
+  );
+  for (const name of names) {
+    const key = name.trim().toLowerCase();
+    if (byName.has(key)) continue;
+    if (byName.size >= 200)
+      throw new ConvexError(
+        "Importing these tags would exceed 200 tags. Remove unused tags first.",
+      );
+    const id = await ctx.db.insert("tags", {
+      userId: ctx.userId,
+      name: text(name, 60),
+      color: TAG_COLORS[byName.size % TAG_COLORS.length],
+      order: byName.size,
+    });
+    byName.set(key, id);
+  }
+  return (rowNames: string[]) =>
+    rowNames.map((name) => byName.get(name.trim().toLowerCase())!);
+}
 export const importMapped = userMutation({
   args: {
     rows: v.array(
@@ -279,24 +397,45 @@ export const importMapped = userMutation({
         key: v.string(),
         accountId: v.id("accounts"),
         categoryId: v.id("categories"),
+        categoryMatched: v.optional(v.boolean()),
         merchantName: v.string(),
         date: v.string(),
         amountCents: v.number(),
         originalName: v.string(),
         notes: v.string(),
+        tags: v.optional(v.array(v.string())),
+        reviewed: v.optional(v.boolean()),
       }),
     ),
   },
-  returns: v.object({ inserted: v.number(), skipped: v.number() }),
+  returns: v.object({
+    inserted: v.number(),
+    skipped: v.number(),
+    matched: v.number(),
+  }),
   handler: async (ctx, { rows }) => {
     if (rows.length > 100)
       throw new ConvexError("Import at most 100 rows per batch.");
     const ruleContext = await loadRuleContext(ctx);
+    const tagIdsFor = await ensureTags(
+      ctx,
+      rows.flatMap((row) => row.tags ?? []),
+    );
     let inserted = 0,
-      skipped = 0;
-    for (const { key, merchantName, ...fields } of rows) {
+      skipped = 0,
+      matched = 0;
+    for (const {
+      key,
+      merchantName,
+      tags = [],
+      reviewed = false,
+      categoryMatched = false,
+      ...fields
+    } of rows) {
       if (!/^[a-f0-9]{64}$/.test(key))
         throw new ConvexError("Invalid import row key.");
+      if (tags.length > 30)
+        throw new ConvexError("Use at most 30 tags per row.");
       const importKey = `mapped-v1:${key}`;
       const existing = await ctx.db
         .query("transactions")
@@ -306,6 +445,51 @@ export const importMapped = userMutation({
         .unique();
       if (existing) {
         skipped++;
+        continue;
+      }
+      await owned(ctx, fields.accountId);
+      const tagIds = tagIdsFor(tags);
+      // A bank sync or manual entry that already holds this purchase gains the
+      // spreadsheet's notes, tags, category, and review state instead of a twin.
+      const synced = await findMatchingTransaction(
+        ctx,
+        {
+          accountId: fields.accountId,
+          date: fields.date,
+          amountCents: fields.amountCents,
+          originalName: fields.originalName,
+        },
+        (row) => row.source !== "csv" && !row.importKey && !row.removedFromBank,
+      );
+      if (synced) {
+        const editedFields = [...synced.editedFields];
+        const patch: Partial<TransactionFields> = {
+          tagIds: unionTags(synced.tagIds, tagIds),
+          reviewed: synced.reviewed || reviewed,
+        };
+        if (!synced.notes && fields.notes) {
+          patch.notes = fields.notes;
+          if (!editedFields.includes("notes")) editedFields.push("notes");
+        }
+        if (categoryMatched && !editedFields.includes("categoryId")) {
+          await owned(ctx, fields.categoryId);
+          patch.categoryId = fields.categoryId;
+          editedFields.push("categoryId");
+        }
+        const merged = { ...synced, ...patch };
+        await ctx.db.patch(synced._id, {
+          ...patch,
+          editedFields,
+          importKey,
+          updatedAt: Date.now(),
+          searchText: await refreshSearch(ctx, merged),
+        });
+        await ctx.db.insert("activity", {
+          userId: ctx.userId,
+          transactionId: synced._id,
+          message: `Matched a spreadsheet row dated ${fields.date} and added its details instead of importing a duplicate.`,
+        });
+        matched++;
         continue;
       }
       // Merchant creation and transaction insertion share the same atomic batch.
@@ -332,8 +516,8 @@ export const importMapped = userMutation({
         {
           ...fields,
           merchantId,
-          tagIds: [],
-          reviewed: false,
+          tagIds,
+          reviewed,
           hidden: false,
           pending: false,
           splits: [],
@@ -341,10 +525,12 @@ export const importMapped = userMutation({
         "csv",
         importKey,
         ruleContext,
+        // A category the file named is the person's choice; rules keep it.
+        categoryMatched ? ["categoryId"] : [],
       );
       inserted++;
     }
-    return { inserted, skipped };
+    return { inserted, skipped, matched };
   },
 });
 export const attachStored = internalMutation({

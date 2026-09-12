@@ -15,6 +15,7 @@ import {
   normalizeAccount,
   normalizeTransaction,
   bankCents,
+  plaidAllowedFor,
   type PlaidAccount,
   type PlaidItem,
   type SyncPage,
@@ -40,16 +41,22 @@ export const status = userQuery({
   returns: v.object({
     configured: v.boolean(),
     environment: v.union(environment, v.null()),
+    // True when PLAID_ALLOWED_EMAILS is set and excludes the signed-in user.
+    restricted: v.boolean(),
     items: v.array(safeItem),
   }),
   handler: async (ctx) => {
     const config = configuration();
+    const user = await ctx.db.get(ctx.userId);
+    const restricted = !plaidAllowedFor(user?.email);
     const items = await ctx.db
       .query("plaidItems")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .take(100);
     return {
       ...config,
+      configured: config.configured && !restricted,
+      restricted,
       items: items.map(
         ({ _id, institution, status, error, syncedAt, products }) => ({
           _id,
@@ -72,7 +79,11 @@ export const createLinkToken = userAction({
   ): Promise<{ linkToken: string; expiration: string }> => {
     const item: Doc<"plaidItems"> | null = await ctx.runQuery(
       internal.plaidInternal.context,
-      { userId: ctx.userId, ...(args.itemId ? { itemId: args.itemId } : {}) },
+      {
+        userId: ctx.userId,
+        link: true,
+        ...(args.itemId ? { itemId: args.itemId } : {}),
+      },
     );
     if (item?.status === "disconnected")
       throw new ConvexError(
@@ -128,7 +139,10 @@ export const exchangePublicToken = userAction({
   },
   returns: v.object({ itemId: v.id("plaidItems") }),
   handler: async (ctx, args) => {
-    await ctx.runQuery(internal.plaidInternal.context, { userId: ctx.userId });
+    await ctx.runQuery(internal.plaidInternal.context, {
+      userId: ctx.userId,
+      link: true,
+    });
     if (args.publicToken.length > 1000)
       throw new ConvexError("This bank connection token is invalid.");
     const exchange = await publicRequest<{

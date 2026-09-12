@@ -33,7 +33,7 @@
   transition: background 160ms;
 }
 .settings-nav-item:hover {
-  background: var(--hover);
+  background: var(--selected);
   color: var(--text);
 }
 .settings-nav-item.active {
@@ -52,6 +52,12 @@
   gap: 15px;
   margin-bottom: 22px;
   min-height: 62px;
+}
+.category-suggestions {
+  flex-wrap: wrap;
+}
+.category-suggestions > p {
+  flex: 1 1 320px;
 }
 .settings-section-header h2 {
   margin: 0 0 6px;
@@ -639,6 +645,15 @@
 .settings-acknowledge input {
   margin-top: 3px;
 }
+.settings-delete-form {
+  margin-top: 20px;
+}
+.settings-delete-form .field {
+  margin-bottom: 14px;
+}
+.settings-delete-form input {
+  width: 100%;
+}
 @media (max-width: 1100px) {
   .settings-layout {
     grid-template-columns: 145px minmax(0, 1fr);
@@ -748,7 +763,200 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .settings-nav-item {
+  .settings-nav-item,
+  .merchant-logo-options .settings-file-button,
+  .merchant-logo-section .settings-logo-editor {
     transition: none;
+  }
+}
+
+.merchant-logo-section {
+  margin-top: 20px;
+}
+.merchant-logo-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.merchant-logo-section .settings-logo-editor {
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.merchant-logo-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.merchant-logo-options .f-button,
+.merchant-logo-options .settings-file-button {
+  min-height: 38px;
+  font-size: 12px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+/* The upload label mirrors the shared outline button so the three logo actions match. */
+.merchant-logo-options .settings-file-button {
+  background: var(--surface);
+  border: 1px solid var(--strong-border);
+  border-radius: 6px;
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: 0 1px 1px #00000003;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.merchant-logo-options .settings-file-button:hover:not(.is-disabled) {
+  background: var(--hover);
+  border-color: var(--muted);
+}
+.merchant-logo-options .settings-file-button.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.merchant-logo-options .settings-file-button.is-disabled input {
+  cursor: not-allowed;
+}
+.merchant-logo-section .settings-logo-editor {
+  position: relative;
+  padding: 8px;
+  margin: -8px -8px 4px;
+  border: 1px dashed transparent;
+  border-radius: 12px;
+  transition:
+    border-color 160ms,
+    background 160ms;
+}
+.merchant-logo-section.dragging .settings-logo-editor {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.merchant-logo-section.dragging
+  .settings-logo-editor
+  > :not(.merchant-logo-dropzone) {
+  opacity: 0.25;
+  pointer-events: none;
+}
+/* Opaque so the dimmed buttons underneath never collide with the prompt. */
+.merchant-logo-dropzone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  /* Above the positioned upload label and buttons it covers. */
+  z-index: 1;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  pointer-events: none;
+}
+.merchant-logo-section > small {
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.merchant-logo-finder {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--hover);
+}
+.merchant-logo-finder input {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--strong-border);
+  border-radius: 7px;
+  padding: 10px;
+  font-size: 13px;
+}
+.merchant-logo-results {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 12px;
+  padding: 3px;
+}
+.merchant-logo-results > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 5px;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.merchant-logo-results img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  background: white;
+  border-radius: 50%;
+}
+.merchant-logo-results span {
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.merchant-logo-results button[aria-pressed="true"] {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+.merchant-logo-results button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.merchant-website-row {
+  display: flex;
+  gap: 8px;
+}
+.merchant-website-row .f-button {
+  flex: none;
+}
+.merchant-logo-status {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.merchant-logo-error {
+  font-size: 12px;
+  color: var(--negative);
+  line-height: 1.6;
+  margin-top: 12px;
+}
+@media (max-width: 450px) {
+  .merchant-logo-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .merchant-logo-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (pointer: coarse) {
+  .merchant-logo-options .f-button,
+  .merchant-logo-options .settings-file-button,
+  .merchant-website-row .f-button,
+  .merchant-logo-finder input {
+    min-height: 44px;
   }
 }

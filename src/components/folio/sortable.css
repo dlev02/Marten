@@ -1,0 +1,33 @@
+.sortable-list {
+  position: relative;
+}
+.sortable-item {
+  position: relative;
+}
+.sortable-item[data-active-drag] {
+  z-index: 3;
+  background: var(--surface);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 14%);
+  border-radius: 6px;
+  will-change: transform;
+}
+.sortable-handle {
+  touch-action: none;
+  cursor: grab;
+}
+.sortable-handle:active {
+  cursor: grabbing;
+}
+.sortable-handle:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+.sortable-list[data-dragging] .settings-category-group,
+.settings-category-group:has(.sortable-list[data-dragging]) {
+  overflow: visible;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sortable-item {
+    transition: none !important;
+  }
+}

@@ -1,3 +1,4 @@
+import { automaticPaymentsForUser } from "./recurringPayments";
 import { ConvexError } from "convex/values";
 import type { Id, TableNames } from "../_generated/dataModel";
 import { owned, date, type UserRead, type UserMutationCtx } from "./access";
@@ -63,7 +64,7 @@ export function agentData(value: unknown): unknown {
           ([key, item]) =>
             item !== undefined &&
             !omit.has(key) &&
-            !/token|secret|password|credential|^sophtron|^plaid/i.test(key),
+            !/token|secret|password|credential|^simplefin|^plaid/i.test(key),
         )
         .map(([key, item]) => [key, agentData(item)]),
     );
@@ -166,13 +167,23 @@ export async function executeAgentRead(
     }
     case "list_recurring_payments": {
       const args = agentToolSchemas[name].parse(input);
-      return await recurringPaymentsForUser(ctx, {
+      const manual = await recurringPaymentsForUser(ctx, {
         ...args,
         paginationOpts: {
           cursor: args.cursor ?? null,
           numItems: args.pageSize ?? 100,
         },
       });
+      return {
+        ...manual,
+        automaticMatches: await automaticPaymentsForUser(
+          ctx,
+          args.from,
+          args.to,
+        ),
+        statusRule:
+          "Manual paid and unpaid choices in page override automaticMatches. Load every page before calculating unpaid totals.",
+      };
     }
     case "list_forecasts": {
       agentToolSchemas[name].parse(input);

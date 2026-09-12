@@ -249,13 +249,6 @@ export function CreditScores() {
               </div>
             }
           />
-          <div className="credit-empty-details">
-            <p>FICO and VantageScore · 300–850</p>
-            <p>
-              PDFs are read on this device. You review every score before
-              saving.
-            </p>
-          </div>
         </Panel>
       ) : (
         <>

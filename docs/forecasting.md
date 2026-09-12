@@ -35,3 +35,24 @@ Credit-card schedules, investment accounts, non-USD accounts, unassigned schedul
 Saved scenarios belong to their authenticated user and use revision checks to reject stale overwrites. Loading another scenario offers to keep, discard, or save unsaved changes. Resetting a sample workspace removes its saved scenarios.
 
 The implementation is in [the engine](../convex/lib/forecast.ts), [scenario functions](../convex/forecasting.ts), [long-term UI](../src/features/Forecast.tsx), and [cash-runway helper](../src/features/forecast/cashRunway.ts). [Verification](verification.md) records focused arithmetic tests and actual browser save, comparison, export, and responsive checks. [Research](forecasting-research.md) and the [Origin audit](origin-audit.md) explain the product choices.
+
+## Scenario review — September 12, 2026
+
+Independent annuity formulas agree with monthly accumulation at -20%, 0%, 5%,
+and 12% effective annual return, within the rounding difference from monthly
+integer cents. Income/spending replay, earlier retirement, inflation, lower
+returns, added travel, access restrictions, and the savings solver are covered
+by the scenario and engine tests. In the demo, a $10,000 starting balance plus
+12 months of $1,000 surplus and 12 months of $1,000 withdrawals finishes at
+$10,000. Reducing working spending by $100/month finishes at $11,200; both
+scenarios are saved for comparison.
+
+These checks validate arithmetic and deterministic scenarios. They are not a
+historical market backtest or evidence of prediction accuracy. The most useful
+next additions are dated income/spending phases (such as benefits starting
+after retirement and a loan payment ending), and sequence-of-returns stress
+cases. A constant return cannot represent the damage from losses early in
+withdrawal years; see [Schwab's explanation](https://workplace.schwab.com/story/timing-matters-understanding-sequence-returns-risk).
+Those would require explicit new inputs and ledger tests, so they were not
+added during this bounded review. Current inputs assume one working phase and
+one retirement phase; retirement income rises with modeled inflation.

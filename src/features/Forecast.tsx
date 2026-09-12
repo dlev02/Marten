@@ -1,3 +1,7 @@
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "react-router-dom";
@@ -12,16 +16,18 @@ import {
 import { PageHeader } from "../components/folio/PageHeader";
 import { Button, Loading, Modal, Tabs, useTask } from "../components/folio/ui";
 import { Select } from "../components/folio/Select";
-import { dateLabel, localDate, message, money } from "../lib/format";
+import { dateLabel, localDate, message } from "../lib/format";
 import { ForecastAssumptions } from "./forecast/ForecastAssumptions";
 import { ForecastResults } from "./forecast/ForecastResults";
 import { NearTermForecast } from "./forecast/NearTermForecast";
+import { ForecastPreview } from "./forecast/ForecastPreview";
 import "./forecast/forecast.css";
 
 type SavedScenario = Doc<"forecastScenarios">;
 type PendingChange = { type: "load"; id: string } | { type: "fresh" };
 
-export function Forecast() {
+export function Forecast({ onAddAccount }: { onAddAccount: () => void }) {
+  useAmountsHidden();
   const [params, setParams] = useSearchParams();
   const mode = params.get("view") === "near-term" ? "near-term" : "long-term";
   return (
@@ -40,12 +46,17 @@ export function Forecast() {
           { value: "near-term", label: "Near term" },
         ]}
       />
-      {mode === "near-term" ? <NearTermForecast /> : <LongTermForecast />}
+      {mode === "near-term" ? (
+        <NearTermForecast onAddAccount={onAddAccount} />
+      ) : (
+        <LongTermForecast onAddAccount={onAddAccount} />
+      )}
     </div>
   );
 }
 
-function LongTermForecast() {
+function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
+  useAmountsHidden();
   const [today] = useState(localDate);
   const baseline = useQuery(api.forecasting.baseline, { asOfDate: today });
   const scenarios = useQuery(api.forecasting.list, {});
@@ -152,6 +163,9 @@ function LongTermForecast() {
   );
   return (
     <>
+      {!baseline.accounts.length && !scenarios.length && (
+        <ForecastPreview onAddAccount={onAddAccount} />
+      )}
       <div className="forecast-toolbar">
         <div className="forecast-scenario-controls">
           <Select

@@ -8,6 +8,7 @@ import {
   paginationResultValidator,
 } from "convex/server";
 import schema from "./schema";
+import { automaticPaymentsForUser } from "./lib/recurringPayments";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import {
@@ -219,6 +220,24 @@ export const payments = userQuery({
   },
   returns: paginationResultValidator(schema.doc("recurringPayments")),
   handler: recurringPaymentsForUser,
+});
+export const automaticPayments = userQuery({
+  args: { from: v.string(), to: v.string() },
+  returns: v.array(
+    v.object({
+      recurringId: v.id("recurring"),
+      date: v.string(),
+      paid: v.boolean(),
+      transactionId: v.id("transactions"),
+    }),
+  ),
+  handler: async (ctx, { from, to }) => {
+    date(from);
+    date(to);
+    if (from > to || Date.parse(to) - Date.parse(from) > 366 * 86400000)
+      throw new ConvexError("Choose up to one year.");
+    return automaticPaymentsForUser(ctx, from, to);
+  },
 });
 const proposal = v.object({
   ...fields,

@@ -21,7 +21,12 @@
   overflow: visible;
 }
 .money-flow-ribbon {
-  transition: fill-opacity 140ms ease-out;
+  cursor: pointer;
+  stroke-width: 1.5;
+  stroke-opacity: 0;
+  transition:
+    fill-opacity 160ms ease-out,
+    stroke-opacity 160ms ease-out;
 }
 .money-flow-center-bar {
   fill: var(--muted);
@@ -64,6 +69,7 @@
 }
 .money-flow-node {
   outline: none;
+  cursor: pointer;
 }
 .money-flow-node:focus-visible .money-flow-focus {
   stroke: var(--blue);
@@ -215,6 +221,48 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .money-flow-ribbon {
+    transition: none;
+  }
+}
+
+.money-flow-ribbon[data-active="true"] {
+  stroke-opacity: 0.9;
+}
+.money-flow-focus {
+  pointer-events: all;
+  transition:
+    stroke 160ms ease-out,
+    fill 160ms ease-out;
+}
+.money-flow-node[data-active="true"] .money-flow-focus {
+  stroke: var(--blue);
+  fill: var(--hover);
+}
+.money-flow-node foreignObject,
+.money-flow-node-bar {
+  pointer-events: none;
+}
+.money-flow-node-bar {
+  stroke: var(--surface);
+  stroke-width: 1;
+}
+.money-flow-node[data-active="true"] .money-flow-node-bar {
+  stroke: var(--text);
+}
+.money-flow-tooltip {
+  position: fixed;
+  z-index: 50;
+  width: 232px;
+  pointer-events: none;
+  color: var(--text);
+}
+.money-flow-tooltip > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .money-flow-focus,
   .money-flow-ribbon {
     transition: none;
   }

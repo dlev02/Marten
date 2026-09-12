@@ -1,3 +1,8 @@
+import {
+  displayFinancialValue,
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -15,7 +20,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { useData } from "../lib/data";
 import { DatePicker } from "../components/folio/DatePicker";
-import { dateLabel, localDate, message, money } from "../lib/format";
+import { dateLabel, localDate, message } from "../lib/format";
 import {
   Button,
   Empty,
@@ -36,6 +41,10 @@ import {
   units,
 } from "./investments/investmentView";
 import "./investments/investments.css";
+import {
+  InvestmentPreview,
+  InvestmentPreviewChart,
+} from "./investments/InvestmentPreview";
 
 type Overview = FunctionReturnType<typeof api.investments.overview>;
 type Holding = Overview["holdings"][number];
@@ -59,7 +68,9 @@ const allocationColors = [
 function valueLabel(value: number, currency: string) {
   return currency === "USD"
     ? money(value)
-    : `${(value / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
+    : displayFinancialValue(
+        `${(value / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`,
+      );
 }
 function valuedDate(value: string | null) {
   return value
@@ -72,6 +83,7 @@ function valuedDate(value: string | null) {
 }
 
 export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
+  useAmountsHidden();
   const workspace = useData();
   const [params, setParams] = useSearchParams();
   const requestedAccount = params.get("account") ?? "";
@@ -219,6 +231,29 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
     </Link>
   );
 
+  if (overview && !overview.demo && !overview.accounts.length) {
+    return (
+      <>
+        <PageHeader title="Investments" />
+        <InvestmentPreview
+          action={
+            onAddAccount ? (
+              <Button
+                tone="primary"
+                icon={<Plus size={16} />}
+                onClick={onAddAccount}
+              >
+                Add account
+              </Button>
+            ) : (
+              connect
+            )
+          }
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title="Investments">
@@ -292,6 +327,19 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
             <Landmark size={15} /> Sample portfolio · fictional funds, prices,
             and activity
           </div>
+        )}
+        {overview?.accounts.some(
+          (account) =>
+            account.simplefinConnectionId &&
+            (!accountId || account._id === accountId),
+        ) && (
+          <p className="investment-note">
+            SimpleFIN positions update with your bank connection. Unit prices
+            are calculated from position value and quantity. Cost basis, gains
+            and security price history are unavailable here because their
+            meaning or coverage has not been verified. Sync from{" "}
+            <Link to="/settings/institutions#simplefin">Bank connections</Link>.
+          </p>
         )}
         {sampleError && (
           <p className="investment-notice" role="alert">
@@ -399,12 +447,12 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                     valueLabel="Account value"
                   />
                 ) : (
-                  <div className="investment-chart-empty">
-                    <Landmark size={25} />
+                  <div className="investment-chart-empty investment-history-preview">
+                    <InvestmentPreviewChart />
                     <p>
                       {chart.length === 1
                         ? "One valuation saved"
-                        : "History will appear here"}
+                        : "Start building your investment history"}
                     </p>
                     <small>
                       At least two complete account snapshots are needed to show
@@ -607,12 +655,17 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                                 )?.name ?? "Account"}
                               </td>
                               <td className="numeric">
-                                {units(holding.quantity)}
+                                {displayFinancialValue(units(holding.quantity))}
                               </td>
                               <td className="numeric">
                                 {holding.price === null
                                   ? "—"
-                                  : unitPrice(holding.price, holding.currency)}
+                                  : displayFinancialValue(
+                                      unitPrice(
+                                        holding.price,
+                                        holding.currency,
+                                      ),
+                                    )}
                                 <small>{valuedDate(holding.priceDate)}</small>
                               </td>
                               <td className="numeric">
@@ -624,12 +677,14 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                               <td
                                 className={`numeric ${holding.basisCents === null ? "muted" : holding.valueCents >= holding.basisCents ? "positive" : "negative"}`}
                               >
-                                {holding.basisCents === null
-                                  ? "Unavailable"
-                                  : valueLabel(
-                                      holding.valueCents - holding.basisCents,
-                                      holding.currency,
-                                    )}
+                                {holding.simplefinConnectionId
+                                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                                  : holding.basisCents === null
+                                    ? "Unavailable"
+                                    : valueLabel(
+                                        holding.valueCents - holding.basisCents,
+                                        holding.currency,
+                                      )}
                               </td>
                               <td>
                                 <button
@@ -722,7 +777,7 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                                       : securityType(event.subtype)}
                                   {event.quantity !== null &&
                                   event.quantity !== 0
-                                    ? ` · ${units(event.quantity)} units`
+                                    ? ` · ${displayFinancialValue(units(event.quantity))} units`
                                     : ""}
                                   {event.feesCents
                                     ? ` · ${valueLabel(event.feesCents, event.currency)} fees`
@@ -807,6 +862,7 @@ function HoldingDetail({
   onClose: () => void;
   restoreFocus: () => void;
 }) {
+  useAmountsHidden();
   const detailRef = useRef<HTMLDivElement | null>(null);
   const account = accounts.find((row) => row._id === holding?.accountId);
   return (
@@ -853,14 +909,16 @@ function HoldingDetail({
             </div>
             <div>
               <dt>Units held</dt>
-              <dd>{units(holding.quantity)}</dd>
+              <dd>{displayFinancialValue(units(holding.quantity))}</dd>
             </div>
             <div>
               <dt>Institution price</dt>
               <dd>
                 {holding.price === null
                   ? "Not provided"
-                  : unitPrice(holding.price, holding.currency)}
+                  : displayFinancialValue(
+                      unitPrice(holding.price, holding.currency),
+                    )}
               </dd>
             </div>
             <div>
@@ -870,20 +928,24 @@ function HoldingDetail({
             <div>
               <dt>Total cost basis</dt>
               <dd>
-                {holding.basisCents === null
-                  ? "Not provided"
-                  : valueLabel(holding.basisCents, holding.currency)}
+                {holding.simplefinConnectionId
+                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                  : holding.basisCents === null
+                    ? "Not provided"
+                    : valueLabel(holding.basisCents, holding.currency)}
               </dd>
             </div>
             <div>
               <dt>Unrealized gain / loss</dt>
               <dd>
-                {holding.basisCents === null
-                  ? "Unavailable"
-                  : valueLabel(
-                      holding.valueCents - holding.basisCents,
-                      holding.currency,
-                    )}
+                {holding.simplefinConnectionId
+                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                  : holding.basisCents === null
+                    ? "Unavailable"
+                    : valueLabel(
+                        holding.valueCents - holding.basisCents,
+                        holding.currency,
+                      )}
               </dd>
             </div>
             <div>
@@ -909,9 +971,11 @@ function HoldingDetail({
             )}
           </dl>
           <p className="investment-detail-explanation">
-            {holding.basisCents === null
-              ? "The institution did not supply cost basis for this position, so its unrealized gain is unavailable. "
-              : "Unrealized gain compares the current position value with its reported total cost basis. "}
+            {holding.simplefinConnectionId
+              ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+              : holding.basisCents === null
+                ? "The institution did not supply cost basis for this position, so its unrealized gain is unavailable. "
+                : "Unrealized gain compares the current position value with its reported total cost basis. "}
             This is not a time-period return or a tax calculation.
           </p>
           {holding.currency !== "USD" && (

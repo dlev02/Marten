@@ -16,6 +16,13 @@ import { accountKind, avatarPreset } from "./validators";
 import { api, internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import { seedCategories, seedSample } from "./sample";
+import {
+  changeMerchantCount,
+  findMatchingTransaction,
+  refreshSearch,
+  unionTags,
+  type TransactionFields,
+} from "./lib/transactions";
 
 const institutions = schema
   .doc("plaidItems")
@@ -249,6 +256,9 @@ const accountFields = {
   dueDate: v.optional(v.string()),
   statementDate: v.optional(v.string()),
   apy: v.optional(v.number()),
+  paymentPlan: v.optional(
+    v.union(v.literal("statement"), v.literal("minimum")),
+  ),
 };
 const accountInput = v.object(accountFields);
 export async function saveAccountForUser(
@@ -537,16 +547,17 @@ export const importBalances = userMutation({
   },
   returns: v.number(),
   handler: async (ctx, { accountId, rows }) => {
-    const account = await owned(ctx, accountId);
-    if (!account.manual)
-      throw new ConvexError(
-        "Historical balances can be imported for manual accounts.",
-      );
+    await owned(ctx, accountId);
     if (rows.length > 100)
       throw new ConvexError("Import at most 100 balance rows per batch.");
+    // Connected accounts keep today's provider snapshot and current balance;
+    // older dates fill in history the provider never supplied.
+    const today = new Date().toISOString().slice(0, 10);
     for (const row of rows) {
       date(row.date);
       cents(row.balanceCents);
+      if (row.date > today)
+        throw new ConvexError("Balance history cannot be dated in the future.");
       const existing = await ctx.db
         .query("balances")
         .withIndex("by_accountId_and_date", (q) =>
@@ -563,6 +574,155 @@ export const importBalances = userMutation({
         });
     }
     return rows.length;
+  },
+});
+
+/**
+ * Folds a manually tracked account into another account, in bounded steps the
+ * client repeats until `done`. Spreadsheet rows that duplicate a synced
+ * purchase on the target enrich that row and disappear; everything else moves.
+ * Used after connecting a bank whose history was first imported by hand.
+ */
+export const mergeAccounts = userMutation({
+  args: { sourceId: v.id("accounts"), targetId: v.id("accounts") },
+  returns: v.object({
+    done: v.boolean(),
+    moved: v.number(),
+    matched: v.number(),
+  }),
+  handler: async (ctx, { sourceId, targetId }) => {
+    const source = await owned(ctx, sourceId),
+      target = await owned(ctx, targetId);
+    if (sourceId === targetId)
+      throw new ConvexError("Choose a different account to merge into.");
+    if (!source.manual)
+      throw new ConvexError(
+        "Only manually tracked accounts can be merged into another account.",
+      );
+    if (target.closed)
+      throw new ConvexError("Choose an open account to merge into.");
+    let moved = 0,
+      matched = 0;
+    const transactions = await ctx.db
+      .query("transactions")
+      .withIndex("by_userId_and_accountId_and_date", (q) =>
+        q.eq("userId", ctx.userId).eq("accountId", sourceId),
+      )
+      .take(50);
+    for (const row of transactions) {
+      const spreadsheetRow =
+        row.source === "csv" &&
+        !row.plaidTransactionId &&
+        !row.simplefinTransactionId;
+      const synced = spreadsheetRow
+        ? await findMatchingTransaction(
+            ctx,
+            {
+              accountId: targetId,
+              date: row.date,
+              amountCents: row.amountCents,
+              originalName: row.originalName,
+            },
+            (candidate) =>
+              candidate.source !== "csv" &&
+              !candidate.importKey &&
+              !candidate.removedFromBank,
+          )
+        : null;
+      if (!synced) {
+        await ctx.db.patch(row._id, {
+          accountId: targetId,
+          updatedAt: Date.now(),
+        });
+        moved++;
+        continue;
+      }
+      const editedFields = [...synced.editedFields];
+      const patch: Partial<TransactionFields> = {
+        tagIds: unionTags(synced.tagIds, row.tagIds),
+        reviewed: synced.reviewed || row.reviewed,
+      };
+      if (!synced.notes && row.notes) {
+        patch.notes = row.notes;
+        if (!editedFields.includes("notes")) editedFields.push("notes");
+      }
+      if (!editedFields.includes("categoryId")) {
+        patch.categoryId = row.categoryId;
+        editedFields.push("categoryId");
+      }
+      const attachments = await ctx.db
+        .query("attachments")
+        .withIndex("by_transactionId", (q) => q.eq("transactionId", row._id))
+        .take(21);
+      for (const attachment of attachments)
+        await ctx.db.patch(attachment._id, { transactionId: synced._id });
+      const merged = { ...synced, ...patch };
+      await ctx.db.patch(synced._id, {
+        ...patch,
+        editedFields,
+        ...(row.importKey ? { importKey: row.importKey } : {}),
+        attachmentCount:
+          (synced.attachmentCount ?? 0) + attachments.length || undefined,
+        updatedAt: Date.now(),
+        searchText: await refreshSearch(ctx, merged),
+      });
+      const activity = await ctx.db
+        .query("activity")
+        .withIndex("by_transactionId", (q) => q.eq("transactionId", row._id))
+        .take(50);
+      for (const entry of activity)
+        await ctx.db.patch(entry._id, { transactionId: synced._id });
+      await changeMerchantCount(ctx, row.merchantId, null);
+      await ctx.db.delete(row._id);
+      matched++;
+    }
+    if (transactions.length) return { done: false, moved, matched };
+    const balances = await ctx.db
+      .query("balances")
+      .withIndex("by_accountId_and_date", (q) => q.eq("accountId", sourceId))
+      .take(100);
+    for (const row of balances) {
+      const existing = await ctx.db
+        .query("balances")
+        .withIndex("by_accountId_and_date", (q) =>
+          q.eq("accountId", targetId).eq("date", row.date),
+        )
+        .unique();
+      // The target's own snapshot for a day is authoritative.
+      if (existing) await ctx.db.delete(row._id);
+      else await ctx.db.patch(row._id, { accountId: targetId });
+      moved++;
+    }
+    if (balances.length) return { done: false, moved, matched };
+    for (const table of ["recurring", "savedReports"] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(500);
+      for (const row of rows)
+        if (row.accountId === sourceId)
+          await ctx.db.patch(row._id, { accountId: targetId });
+    }
+    const holdings = await ctx.db
+      .query("investmentHoldings")
+      .withIndex("by_userId_and_accountId", (q) =>
+        q.eq("userId", ctx.userId).eq("accountId", sourceId),
+      )
+      .take(100);
+    for (const row of holdings)
+      await ctx.db.patch(row._id, { accountId: targetId });
+    const events = await ctx.db
+      .query("investmentTransactions")
+      .withIndex("by_userId_and_accountId_and_date", (q) =>
+        q.eq("userId", ctx.userId).eq("accountId", sourceId),
+      )
+      .take(100);
+    for (const row of events)
+      await ctx.db.patch(row._id, { accountId: targetId });
+    if (holdings.length || events.length)
+      return { done: false, moved, matched };
+    await ctx.db.delete(sourceId);
+    return { done: true, moved, matched };
   },
 });
 

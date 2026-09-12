@@ -1,6 +1,10 @@
-import { useId, useState } from "react";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
+import { useId, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowRight, MoveDownRight } from "lucide-react";
-import { money } from "../../lib/format";
+
 import {
   buildMoneyFlow,
   condenseMoneyFlow,
@@ -30,9 +34,33 @@ function ribbon(x1: number, y1: number, x2: number, y2: number, size: number) {
 
 /** Pass a fully loaded summarize() result; all amounts are signed integer cents. */
 export function MoneyFlow(summary: MoneyFlowSummary) {
+  useAmountsHidden();
   const chartId = useId();
-  const [active, setActive] = useState<MoneyFlowNode | null>(null);
-  const flow = buildMoneyFlow(summary);
+  const [pointerId, setPointerId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const { earnings, spending, income, expense, savings } = summary;
+  // Hover never participates in reconciliation or layout.
+  const flow = useMemo(
+    () => buildMoneyFlow({ earnings, spending, income, expense, savings }),
+    [earnings, spending, income, expense, savings],
+  );
+  const layout = useMemo(() => {
+    const sourceNodes = condenseMoneyFlow(flow.sources, "inflows");
+    const destinationNodes = condenseMoneyFlow(flow.destinations, "outflows");
+    const height =
+      bandHeight +
+      gap * (Math.max(sourceNodes.length, destinationNodes.length) - 1);
+    return {
+      sourceNodes,
+      destinationNodes,
+      height,
+      sources: flow.total ? place(sourceNodes, flow.total, height) : [],
+      destinations: flow.total
+        ? place(destinationNodes, flow.total, height)
+        : [],
+    };
+  }, [flow]);
   if (!flow.valid)
     return (
       <div className="money-flow-empty">
@@ -50,22 +78,21 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
         </p>
       </div>
     );
-  const sourceNodes = condenseMoneyFlow(flow.sources, "inflows");
-  const destinationNodes = condenseMoneyFlow(flow.destinations, "outflows");
-  const height =
-    bandHeight +
-    gap * (Math.max(sourceNodes.length, destinationNodes.length) - 1);
-  const sources = place(sourceNodes, flow.total, height),
-    destinations = place(destinationNodes, flow.total, height);
+  const { sourceNodes, destinationNodes, height, sources, destinations } =
+    layout;
   const centerY = top + (height - bandHeight) / 2;
-  const hovered = active
-    ? ([
-        ...flow.sources,
-        ...flow.destinations,
-        ...sourceNodes,
-        ...destinationNodes,
-      ].find((node) => node.id === active.id) ?? null)
-    : null;
+  const activeId = pointerId ?? focusId;
+  const hovered = [...sourceNodes, ...destinationNodes].find(
+    (node) => node.id === activeId,
+  );
+  const share = hovered
+    ? `${((hovered.value / flow.total) * 100).toFixed(1)}% of available money`
+    : "";
+  function positionTooltip(x: number, y: number) {
+    if (!tooltipRef.current) return;
+    tooltipRef.current.style.left = `${Math.max(8, Math.min(x + 14, window.innerWidth - 248))}px`;
+    tooltipRef.current.style.top = `${Math.max(8, Math.min(y + 16, window.innerHeight - 100))}px`;
+  }
   return (
     <div className="money-flow">
       <div className="money-flow-heading">
@@ -77,6 +104,18 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
           viewBox={`0 0 760 ${height + top * 2}`}
           role="group"
           aria-labelledby={`${chartId}-title`}
+          onPointerMove={(event) => {
+            if (event.pointerType === "touch") return;
+            // Resolve once at the chart boundary. Moving among a node's label,
+            // hit area and ribbon keeps the same identity and fade in progress.
+            const target = (event.target as Element).closest("[data-flow-id]");
+            const id = target?.getAttribute("data-flow-id");
+            // Preserve the highlight across the whitespace between neighbors.
+            // Leaving the chart clears it; entering another node replaces it.
+            if (id) setPointerId(id);
+            positionTooltip(event.clientX, event.clientY);
+          }}
+          onPointerLeave={() => setPointerId(null)}
         >
           <title id={`${chartId}-title`}>
             Income, refunds, expenses, and money left over
@@ -91,7 +130,12 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
               key={`link:${node.id}`}
               d={ribbon(174, node.y, 375, node.center, node.size)}
               fill={node.color}
-              fillOpacity={hovered && hovered.id !== node.id ? 0.12 : 0.28}
+              fillOpacity={
+                hovered ? (hovered.id === node.id ? 0.55 : 0.1) : 0.28
+              }
+              data-flow-id={node.id}
+              data-active={hovered?.id === node.id}
+              stroke={node.color}
               className="money-flow-ribbon"
             />
           ))}
@@ -100,7 +144,12 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
               key={`link:${node.id}`}
               d={ribbon(385, node.center, 586, node.y, node.size)}
               fill={node.color}
-              fillOpacity={hovered && hovered.id !== node.id ? 0.12 : 0.28}
+              fillOpacity={
+                hovered ? (hovered.id === node.id ? 0.55 : 0.1) : 0.28
+              }
+              data-flow-id={node.id}
+              data-active={hovered?.id === node.id}
+              stroke={node.color}
               className="money-flow-ribbon"
             />
           ))}
@@ -141,25 +190,33 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
                   key={node.id}
                   tabIndex={0}
                   role="img"
-                  aria-label={`${node.name}: ${money(node.value)}. ${node.detail}.`}
-                  onMouseEnter={() => setActive(node)}
-                  onMouseLeave={() => setActive(null)}
-                  onFocus={() => setActive(node)}
-                  onBlur={() => setActive(null)}
+                  aria-label={`${node.name}: ${money(node.value)}. ${((node.value / flow.total) * 100).toFixed(1)}% of available money. ${node.detail}.`}
+                  data-flow-id={node.id}
+                  data-active={hovered?.id === node.id}
+                  onFocus={(event) => {
+                    setFocusId(node.id);
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    positionTooltip(bounds.x + bounds.width / 2, bounds.bottom);
+                  }}
+                  onBlur={() => setFocusId(null)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setFocusId(null);
+                      setPointerId(null);
+                    }
+                  }}
                   className="money-flow-node"
                 >
-                  <title>
-                    {node.name}: {money(node.value)} — {node.detail}
-                  </title>
                   <rect
                     className="money-flow-focus"
                     x={left ? 0 : 580}
-                    y={node.y + node.size / 2 - 19}
+                    y={Math.min(node.y - 3, node.y + node.size / 2 - 19)}
                     width={180}
-                    height={38}
+                    height={Math.max(node.size + 6, 38)}
                     rx={5}
                   />
                   <rect
+                    className="money-flow-node-bar"
                     x={x}
                     y={node.y}
                     width={10}
@@ -207,27 +264,29 @@ export function MoneyFlow(summary: MoneyFlowSummary) {
           total={flow.total}
         />
       </div>
-      <div className="money-flow-insight" aria-live="polite">
-        {hovered ? (
+      <div
+        ref={tooltipRef}
+        className="money-flow-tooltip chart-tooltip"
+        role="tooltip"
+        hidden={!hovered}
+      >
+        {hovered && (
           <>
-            <span
-              className="money-flow-dot"
-              style={{ background: hovered.color }}
-            />
             <strong>{hovered.name}</strong>
-            <span>{hovered.detail}</span>
-            <b>{money(hovered.value)}</b>
-          </>
-        ) : (
-          <>
-            <ArrowRight size={15} />
-            <span>
-              {summary.savings < 0
-                ? `Expenses exceed income by ${money(-summary.savings)}. The shortfall is covered by existing funds or borrowing.`
-                : `${money(summary.savings)} left after expenses.`}
-            </span>
+            <div>
+              <b>{money(hovered.value)}</b>
+            </div>
+            <span>{share}</span>
           </>
         )}
+      </div>
+      <div className="money-flow-insight">
+        <ArrowRight size={15} />
+        <span>
+          {summary.savings < 0
+            ? `Expenses exceed income by ${money(-summary.savings)}. The shortfall is covered by existing funds or borrowing.`
+            : `${money(summary.savings)} left after expenses.`}
+        </span>
       </div>
       <details className="money-flow-details">
         <summary>View all movements</summary>
@@ -257,6 +316,7 @@ function MovementList({
   nodes: MoneyFlowNode[];
   total: number;
 }) {
+  useAmountsHidden();
   return (
     <section className="money-flow-list">
       <h3>{title}</h3>

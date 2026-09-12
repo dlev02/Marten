@@ -1,3 +1,8 @@
+import {
+  useAmountsHidden,
+  displayCompactMoney as compactMoney,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
 import { useId, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, Lightbulb } from "lucide-react";
 import {
@@ -18,13 +23,7 @@ import type {
 } from "../../../convex/lib/forecast";
 import { Button } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
-import {
-  compactMoney,
-  csv,
-  dateLabel,
-  download,
-  money,
-} from "../../lib/format";
+import { csv, dateLabel, download } from "../../lib/format";
 
 const ageLabel = (age: number) =>
   Number.isInteger(age) ? String(age) : age.toFixed(1);
@@ -51,6 +50,7 @@ export function ForecastResults({
   real: boolean;
   onApplySavings: (amount: number) => void;
 }) {
+  useAmountsHidden();
   const gradient = `forecast-${useId().replace(/:/g, "")}`;
   const [selectedYear, setSelectedYear] = useState("");
   const chartData = useMemo(() => {
@@ -200,7 +200,7 @@ export function ForecastResults({
                 interval="preserveStartEnd"
               />
               <YAxis
-                tickFormatter={compactMoney}
+                tickFormatter={(value: number) => compactMoney(value)}
                 orientation="right"
                 width={60}
                 tick={tick}

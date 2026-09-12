@@ -1,7 +1,14 @@
+/* The document must not rubber-band independently of the fixed sidebar.
+   contain still permits elastic overscroll; none disables that displacement. */
+html:has(.app-shell > .demo-banner) {
+  overscroll-behavior-y: none;
+}
+
 .demo-banner {
   position: sticky;
   top: 0;
-  z-index: 24;
+  /* Stay above the fixed desktop sidebar during elastic page overscroll. */
+  z-index: 31;
   display: flex;
   align-items: center;
   justify-content: space-between;

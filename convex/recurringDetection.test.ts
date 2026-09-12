@@ -4,7 +4,7 @@ import { detectRecurringPatterns } from "./lib/recurringDetection";
 
 function rows(dates: string[], amounts: number[] = [1607]) {
   return dates.map((date, i) => ({
-    _id: `transaction-${date}-${i}` as Id<"transactions">,
+    _id: `transaction-${date}-${amounts[i % amounts.length]}-${i}` as Id<"transactions">,
     merchantId: "merchant" as Id<"merchants">,
     accountId: "account" as Id<"accounts">,
     categoryId: "category" as Id<"categories">,
@@ -170,5 +170,69 @@ describe("recurring cadence evidence", () => {
           "2026-08-28",
         ),
       ).toEqual([]);
+  });
+});
+
+describe("real-life recurring histories", () => {
+  test("keeps two creator subscriptions a dollar apart separate", () => {
+    const dates = ["2026-06-10", "2026-07-10", "2026-08-10"];
+    const history = [...rows(dates, [500]), ...rows(dates, [600])];
+    const found = detectRecurringPatterns(history, [], "2026-08-20");
+    expect(found.map((p) => p.amountCents).sort()).toEqual([500, 600]);
+    expect(
+      found.every(
+        (p) => p.frequency === "monthly" && p.amountToleranceCents === 0,
+      ),
+    ).toBe(true);
+  });
+  test("Amazon renewal survives unrelated orders and refunds", () => {
+    const renewals = rows(["2026-06-10", "2026-07-10", "2026-08-10"], [1499]);
+    const orders = rows(
+      ["2026-06-03", "2026-07-21", "2026-08-19"],
+      [4299, 1832, -1499],
+    );
+    const found = detectRecurringPatterns(
+      [...renewals, ...orders],
+      [],
+      "2026-08-20",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      amountCents: 1499,
+      frequency: "monthly",
+      occurrences: 3,
+    });
+  });
+  test("a two-day subscription restart stays on the monthly cadence", () => {
+    const found = detectRecurringPatterns(
+      rows(["2026-05-10", "2026-06-10", "2026-07-10", "2026-08-12"], [2000]),
+      [],
+      "2026-08-20",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      frequency: "monthly",
+      nextDate: "2026-09-10",
+      occurrences: 4,
+    });
+  });
+  test("a moved card does not silently combine two accounts", () => {
+    const old = rows(["2026-04-10", "2026-05-10", "2026-06-10"], [2000]);
+    const fresh = rows(["2026-07-10", "2026-08-10"], [2000]).map((r) => ({
+      ...r,
+      accountId: "new-card" as Id<"accounts">,
+    }));
+    expect(
+      detectRecurringPatterns([...old, ...fresh], [old[0]], "2026-08-20"),
+    ).toEqual([]);
+  });
+  test("an introductory annual price does not invent a future standard price", () => {
+    expect(
+      detectRecurringPatterns(
+        rows(["2025-08-10", "2026-08-10"], [5000, 10000]),
+        [],
+        "2026-08-20",
+      ),
+    ).toEqual([]);
   });
 });

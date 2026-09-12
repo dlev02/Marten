@@ -2,63 +2,12 @@ import type { Id } from "./_generated/dataModel";
 import type { UserWrite } from "./lib/transactions";
 import { normalize } from "./lib/finance";
 
+import { categoryDefinitions } from "./lib/categoryDefaults";
+
 export async function seedCategories(ctx: UserWrite) {
-  const definitions = [
-    [
-      "Income",
-      "income",
-      [
-        ["Paycheck", "💵"],
-        ["Interest", "🌱"],
-        ["Other income", "✨"],
-      ],
-    ],
-    [
-      "Home & bills",
-      "expense",
-      [
-        ["Rent", "🏡"],
-        ["Utilities", "💡"],
-        ["Internet", "🌐"],
-        ["Insurance", "🛡️"],
-      ],
-    ],
-    [
-      "Everyday",
-      "expense",
-      [
-        ["Groceries", "🥑"],
-        ["Restaurants", "🍜"],
-        ["Coffee", "☕"],
-        ["Shopping", "🛍️"],
-        ["Transport", "🚙"],
-        ["Health", "❤️"],
-        ["Uncategorized", "📁"],
-      ],
-    ],
-    [
-      "Lifestyle",
-      "expense",
-      [
-        ["Entertainment", "🎟️"],
-        ["Subscriptions", "🔄"],
-        ["Travel", "✈️"],
-        ["Fitness", "🏋️"],
-        ["Gifts", "🎁"],
-      ],
-    ],
-    [
-      "Transfers",
-      "transfer",
-      [
-        ["Transfer", "↔️"],
-        ["Credit card payment", "💳"],
-      ],
-    ],
-  ] as const;
   const categories: Record<string, Id<"categories">> = {};
   let order = 0;
-  for (const [name, kind, items] of definitions) {
+  for (const [name, kind, items] of categoryDefinitions) {
     const groupId = await ctx.db.insert("groups", {
       userId: ctx.userId,
       name,

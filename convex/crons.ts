@@ -8,6 +8,13 @@ crons.interval(
   internal.plaidInternal.sweep,
   { cursor: null },
 );
+// SimpleFIN Bridge refreshes about daily and expects few requests; one catch-up a day.
+crons.cron(
+  "Catch up SimpleFIN connections",
+  "17 9 * * *",
+  internal.simplefin.sweep,
+  {},
+);
 crons.interval(
   "Deliver opted-in payment reminders",
   { minutes: 15 },

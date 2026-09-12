@@ -1,3 +1,11 @@
+import { AmountInput } from "../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../lib/amountVisibility";
+import { MerchantEditor } from "./settings/Organization";
+import { mergePaymentStatus } from "../../convex/lib/recurringPayments";
+import { AnimatedMoney } from "../components/folio/AnimatedMoney";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -27,7 +35,6 @@ import {
 import {
   dateLabel,
   localDate,
-  money,
   monthEnd,
   monthOffset,
   monthStart,
@@ -56,6 +63,7 @@ import {
   filterRecurring,
   type RecurringFilters,
 } from "../lib/recurringFilters";
+import { CategoryIcon } from "../components/folio/CategoryIcon";
 import "./recurring.css";
 
 type Schedule = Doc<"recurring">;
@@ -74,6 +82,7 @@ const frequencyName = (frequency: Fields["frequency"]) =>
   frequencies.find((f) => f.value === frequency)?.label ?? frequency;
 
 export function Recurring() {
+  useAmountsHidden();
   const [params] = useSearchParams();
   const requestedSearch = params.get("search") ?? "";
   const data = useData();
@@ -112,14 +121,21 @@ export function Recurring() {
   useEffect(() => {
     if (paymentStatus === "CanLoadMore") loadPayments(200);
   }, [paymentStatus, loadPayments]);
+  const automatic = useQuery(api.recurring.automaticPayments, {
+    from: month,
+    to: end,
+  });
   // An absent checkmark means unpaid only after every page has arrived.
-  const paymentsLoaded = paymentStatus === "Exhausted";
+  const paymentsLoaded =
+    paymentStatus === "Exhausted" && automatic !== undefined;
   const paidOccurrences = useMemo(
     () =>
       new Set(
-        payments.filter((p) => p.paid).map((p) => `${p.recurringId}:${p.date}`),
+        mergePaymentStatus(automatic ?? [], payments)
+          .filter((p) => p.paid)
+          .map((p) => `${p.recurringId}:${p.date}`),
       ),
-    [payments],
+    [payments, automatic],
   );
   const today = localDate();
   const allOccurrences = useMemo(
@@ -303,7 +319,9 @@ export function Recurring() {
       <Panel className="recurring-summary">
         <div>
           <span>Planned payments</span>
-          <strong>{paymentsLoaded ? money(planned) : "—"}</strong>
+          <strong>
+            {paymentsLoaded ? <AnimatedMoney cents={planned} /> : "—"}
+          </strong>
           <small>
             {paymentsLoaded
               ? `${expenses.length} ${expenses.length === 1 ? "payment" : "payments"} ${filtering ? "shown" : "this month"}`
@@ -312,13 +330,15 @@ export function Recurring() {
         </div>
         <div>
           <span>Still to pay</span>
-          <strong>{paymentsLoaded ? money(remaining) : "—"}</strong>
+          <strong>
+            {paymentsLoaded ? <AnimatedMoney cents={remaining} /> : "—"}
+          </strong>
           <small>Based on your checkmarks</small>
         </div>
         <div>
           <span>Expected income</span>
           <strong className="positive">
-            {paymentsLoaded ? money(income) : "—"}
+            {paymentsLoaded ? <AnimatedMoney cents={income} /> : "—"}
           </strong>
           <small>Scheduled deposits</small>
         </div>
@@ -494,6 +514,7 @@ export function Recurring() {
                 <span className="row-title">
                   <strong>{recurringName(r, merchant?.name)}</strong>
                   <small>{frequencyName(r.frequency)} · Paused</small>
+                  <RecurringCategory categoryId={r.categoryId} />
                 </span>
                 <span>{money(Math.abs(r.amountCents))}</span>
                 <Pencil size={15} />
@@ -623,8 +644,8 @@ export function Recurring() {
         </section>
       )}
       <p className="recurring-footnote">
-        Checkmarks track what you’ve paid or received. They don’t send payments
-        or change your transactions.{" "}
+        Checkmarks include matching posted transactions and your manual choices.
+        They don’t send payments or change your transactions.{" "}
         <Link to="/settings/preferences#reminders" className="text-link">
           Set up reminders
         </Link>
@@ -646,7 +667,11 @@ export function Recurring() {
         onClose={() => setSuggestions(false)}
         onReview={(draft) => {
           setSuggestions(false);
-          setEditor(draft);
+          setEditor({
+            ...draft,
+            nextDate:
+              "lastDate" in draft ? String(draft.lastDate) : draft.nextDate,
+          });
         }}
       />
       <Modal
@@ -696,6 +721,16 @@ export function Recurring() {
     </>
   );
 }
+function RecurringCategory({ categoryId }: { categoryId: Id<"categories"> }) {
+  useAmountsHidden();
+  const category = useData().categories.find((item) => item._id === categoryId);
+  return (
+    <span className="recurring-category">
+      <CategoryIcon emoji={category?.emoji ?? "📁"} />
+      {category?.name ?? "Uncategorized"}
+    </span>
+  );
+}
 function RecurringRow({
   occurrence: r,
   onEdit,
@@ -703,6 +738,7 @@ function RecurringRow({
   occurrence: Occurrence;
   onEdit: () => void;
 }) {
+  useAmountsHidden();
   const data = useData(),
     setPaid = useMutation(api.recurring.setPaid),
     { run, busy } = useTask();
@@ -733,8 +769,17 @@ function RecurringRow({
         />
         <span className="row-title">
           <strong>{recurringName(r, merchant?.name)}</strong>
-          <small>
-            {frequencyName(r.frequency)} · {account?.name ?? "Account"}
+          <small className="recurring-row-meta">
+            <span>{frequencyName(r.frequency)}</span>
+            {/* Each separator travels with the item after it, so a wrapped line never ends in a dangling dot. */}
+            <span className="recurring-row-meta-part">
+              <span aria-hidden="true">·</span>
+              <span>{account?.name ?? "Account"}</span>
+            </span>
+            <span className="recurring-row-meta-part">
+              <span aria-hidden="true">·</span>
+              <RecurringCategory categoryId={r.categoryId} />
+            </span>
           </small>
         </span>
         <span className={`amount ${incoming ? "positive" : ""}`}>
@@ -762,15 +807,18 @@ export function RecurringEditor({
   initial?: Draft;
   onClose: () => void;
 }) {
+  useAmountsHidden();
   const data = useData(),
     save = useMutation(api.recurring.save),
     remove = useMutation(api.recurring.remove),
     saveMerchant = useMutation(api.settings.saveMerchant),
     { run, busy } = useTask();
+  const [editingMerchant, setEditingMerchant] = useState(false);
   const [merchantId, setMerchantId] = useState<string>(
       initial?.merchantId ?? "",
     ),
     [newMerchant, setNewMerchant] = useState("");
+  const merchant = data.merchants.find((item) => item._id === merchantId);
   const [name, setName] = useState(
     initial?.name ??
       data.merchants.find((m) => m._id === initial?.merchantId)?.name ??
@@ -878,6 +926,15 @@ export function RecurringEditor({
             ]}
           />
         </Field>
+        {merchant && (
+          <button
+            type="button"
+            className="text-link recurring-merchant-edit"
+            onClick={() => setEditingMerchant(true)}
+          >
+            <Pencil size={13} /> Edit merchant and logo
+          </button>
+        )}
         {merchantId === "__new__" && (
           <Field label="Merchant name">
             <input
@@ -892,7 +949,7 @@ export function RecurringEditor({
         )}
         <div className="recurring-form-pair">
           <Field label="Amount">
-            <input
+            <AmountInput
               className="f-input"
               aria-label="Recurring amount"
               inputMode="decimal"
@@ -958,7 +1015,7 @@ export function RecurringEditor({
           </p>
           <div className="recurring-form-pair">
             <Field label="Amount can vary by (±)">
-              <input
+              <AmountInput
                 className="f-input"
                 aria-label="Amount tolerance"
                 inputMode="decimal"
@@ -979,8 +1036,26 @@ export function RecurringEditor({
             </Field>
           </div>
           <p>
-            A transaction match does not mark a bill paid. Checkmarks stay under
-            your control.
+            One matching posted transaction marks an occurrence paid. Ambiguous
+            matches stay unchecked; your manual paid or unpaid choice overrides
+            automatic matching.
+          </p>
+        </details>
+        <details className="recurring-match-settings">
+          <summary>Changes, cancellations & renewals</summary>
+          <p>
+            Changed cards? Update the account on this schedule. Matching does
+            not follow a subscription between accounts automatically.
+          </p>
+          <p>
+            Canceled? Turn off Active schedule to keep it in Paused. Resume it
+            and update the start date when you subscribe again. This does not
+            cancel or restart the service itself.
+          </p>
+          <p>
+            A new price applies to this whole schedule. Future price changes are
+            not scheduled automatically; keep the renewal price in Notes until
+            it takes effect.
           </p>
         </details>
         <Field label="Notes">
@@ -1042,6 +1117,12 @@ export function RecurringEditor({
           </Button>
         </div>
       </Modal>
+      {editingMerchant && merchant && (
+        <MerchantEditor
+          merchant={merchant}
+          onClose={() => setEditingMerchant(false)}
+        />
+      )}
     </Modal>
   );
 }
@@ -1052,6 +1133,7 @@ function StatementReminderEditor({
   initialAccountId: string;
   onClose: () => void;
 }) {
+  useAmountsHidden();
   const data = useData();
   const accounts = data.accounts.filter(
     (account) => account.kind === "credit" && !account.closed,
@@ -1142,7 +1224,7 @@ function StatementReminderEditor({
         </Field>
         <div className="recurring-form-pair">
           <Field label="Statement amount (optional)">
-            <input
+            <AmountInput
               className="f-input"
               aria-label="Reminder statement amount"
               inputMode="decimal"
@@ -1152,7 +1234,7 @@ function StatementReminderEditor({
             />
           </Field>
           <Field label="Minimum payment (optional)">
-            <input
+            <AmountInput
               className="f-input"
               aria-label="Reminder minimum payment"
               inputMode="decimal"
@@ -1209,6 +1291,7 @@ function DetectionReview({
   onClose: () => void;
   onReview: (draft: Draft) => void;
 }) {
+  useAmountsHidden();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!open) return;

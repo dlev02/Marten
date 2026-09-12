@@ -220,7 +220,7 @@ const descriptions: Record<
   list_recurring_payments: {
     title: "Read payment checkmarks",
     description:
-      "Read one page of user payment checkmarks for a date range of up to one year. Continue until isDone before treating a missing checkmark as unpaid. These are tracking records, not bank payment instructions.",
+      "Read one page of manual payment choices plus automatic posted-transaction matches for a date range of up to one year. Load all pages; manual paid and unpaid choices override automaticMatches for the same recurringId and date. These are tracking records, not bank payment instructions.",
     readOnly: true,
   },
   update_recurring: {

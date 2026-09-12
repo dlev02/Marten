@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import "../settings.css";
 import { useAction, useMutation } from "convex/react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
   Combine,
   ImagePlus,
+  Globe,
+  Search,
   Pencil,
   Plus,
   Store,
@@ -28,8 +31,14 @@ import {
   useTask,
 } from "../../components/folio/ui";
 import { OrderControls } from "./Categories";
+import {
+  SortableList,
+  SortableItem,
+} from "../../components/folio/SortableList";
 import { moveItem } from "./ordering";
 import { ColorPicker } from "../../components/folio/ColorPicker";
+import { searchBrandLogos } from "../../lib/brandLogos";
+import { ConvexError } from "convex/values";
 type Merchant = Metadata["merchants"][number];
 export function Merchants() {
   const data = useData(),
@@ -118,7 +127,7 @@ export function Merchants() {
     </>
   );
 }
-function MerchantEditor({
+export function MerchantEditor({
   merchant,
   onClose,
 }: {
@@ -127,18 +136,112 @@ function MerchantEditor({
 }) {
   const task = useTask(),
     save = useMutation(api.settings.saveMerchant),
-    upload = useAction(api.settings.uploadMerchantLogo);
+    upload = useAction(api.settings.uploadMerchantLogo),
+    findWebsiteLogo = useAction(api.merchantLogos.findWebsiteLogo),
+    selectLogo = useMutation(api.merchantLogos.selectLogo);
   const [name, setName] = useState(merchant?.name ?? ""),
     [color, setColor] = useState(merchant?.color ?? "#64748b"),
     [file, setFile] = useState<File | null>(null),
-    [savedId, setSavedId] = useState(merchant?._id);
+    [savedId, setSavedId] = useState(merchant?._id),
+    [logoMode, setLogoMode] = useState<"catalog" | "website" | null>(null),
+    [logoSearch, setLogoSearch] = useState(merchant?.name ?? ""),
+    [website, setWebsite] = useState(""),
+    [finding, setFinding] = useState(false),
+    [logoError, setLogoError] = useState(""),
+    [chosenLogo, setChosenLogo] = useState<{
+      url: string;
+      storageId?: Id<"_storage">;
+    } | null>(null),
+    [filePreview, setFilePreview] = useState<string>(),
+    [dragging, setDragging] = useState(false);
+  // Nested dragenter/dragleave pairs fire for every child; count them so the
+  // drop zone only clears when the pointer really leaves the section.
+  const dragDepth = useRef(0);
+  const logoBusy = finding || task.busy;
+  useEffect(() => {
+    if (!file) {
+      setFilePreview(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setFilePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  /** One validation path for the file input, drag-and-drop, and paste. */
+  function acceptFile(next: File | undefined) {
+    if (!next) return;
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(next.type) ||
+      next.size > 2 * 1024 * 1024
+    ) {
+      setLogoError("Choose a JPEG, PNG, or WebP image up to 2 MB.");
+      return;
+    }
+    setFile(next);
+    setChosenLogo(null);
+    setLogoError("");
+  }
+  const hasFiles = (transfer: DataTransfer | null) =>
+    !!transfer && Array.from(transfer.types).includes("Files");
+  const dragHandlers = {
+    onDragEnter: (event: React.DragEvent) => {
+      if (!hasFiles(event.dataTransfer) || logoBusy) return;
+      event.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (event: React.DragEvent) => {
+      if (!hasFiles(event.dataTransfer) || logoBusy) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      if (!hasFiles(event.dataTransfer)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    },
+    onDrop: (event: React.DragEvent) => {
+      if (!hasFiles(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      if (!logoBusy) acceptFile(event.dataTransfer.files[0]);
+    },
+  };
+  const logos = searchBrandLogos(logoSearch);
+  async function findWebsite() {
+    setFinding(true);
+    setLogoError("");
+    try {
+      const logo = await findWebsiteLogo({ hostname: website });
+      setChosenLogo(logo);
+      setFile(null);
+    } catch (error) {
+      setLogoError(
+        error instanceof ConvexError && typeof error.data === "string"
+          ? error.data
+          : "The website logo couldn’t be loaded. Please try again or choose a catalog logo.",
+      );
+    } finally {
+      setFinding(false);
+    }
+  }
   return (
     <Modal
       open
-      onClose={() => !task.busy && onClose()}
+      onClose={() => !task.busy && !finding && onClose()}
       title={merchant ? "Edit merchant" : "Add merchant"}
     >
       <form
+        onPaste={(event) => {
+          // Cmd+V with an image on the clipboard uploads it; text pastes are untouched.
+          const pasted = Array.from(event.clipboardData.files).find((item) =>
+            item.type.startsWith("image/"),
+          );
+          if (!pasted || logoBusy) return;
+          event.preventDefault();
+          acceptFile(pasted);
+        }}
         onSubmit={(e) => {
           e.preventDefault();
           void task.run(async () => {
@@ -148,7 +251,14 @@ function MerchantEditor({
               color,
             });
             setSavedId(id);
-            if (file)
+            if (chosenLogo)
+              await selectLogo({
+                merchantId: id,
+                ...(chosenLogo.storageId
+                  ? { storageId: chosenLogo.storageId }
+                  : { logoUrl: chosenLogo.url }),
+              });
+            else if (file)
               await upload({
                 merchantId: id,
                 contentType: file.type,
@@ -158,25 +268,6 @@ function MerchantEditor({
           }, "Merchant saved");
         }}
       >
-        <div className="settings-logo-editor">
-          <Avatar
-            name={name || "Merchant"}
-            color={color}
-            logo={merchant?.resolvedLogoUrl}
-            size="large"
-          />
-          <label className="settings-file-button">
-            <ImagePlus size={16} />
-            {file ? file.name : "Choose logo"}
-            <input
-              aria-label="Merchant logo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-        </div>
-        <small className="muted">JPEG, PNG, or WebP, up to 2 MB.</small>
         <Field label="Name">
           <input
             aria-label="Merchant name"
@@ -196,11 +287,173 @@ function MerchantEditor({
             onChange={setColor}
           />
         </Field>
+        <section
+          className={`merchant-logo-section ${dragging ? "dragging" : ""}`}
+          aria-label="Merchant logo"
+          {...dragHandlers}
+        >
+          <span className="merchant-logo-label">Logo</span>
+          <div className="settings-logo-editor">
+            {dragging && (
+              <div className="merchant-logo-dropzone" aria-hidden="true">
+                <ImagePlus size={18} />
+                Drop image to upload
+              </div>
+            )}
+            <Avatar
+              name={name || "Merchant"}
+              color={color}
+              logo={filePreview ?? chosenLogo?.url ?? merchant?.resolvedLogoUrl}
+              size="large"
+            />
+            <div className="merchant-logo-options">
+              <Button
+                type="button"
+                disabled={finding || task.busy}
+                aria-expanded={logoMode === "catalog"}
+                icon={<Search size={15} />}
+                onClick={() => {
+                  setLogoMode(logoMode === "catalog" ? null : "catalog");
+                  setLogoError("");
+                }}
+              >
+                Find a logo
+              </Button>
+              <Button
+                type="button"
+                disabled={finding || task.busy}
+                aria-expanded={logoMode === "website"}
+                icon={<Globe size={15} />}
+                onClick={() => {
+                  setLogoMode(logoMode === "website" ? null : "website");
+                  setLogoError("");
+                }}
+              >
+                From a website
+              </Button>
+              <label
+                className={`settings-file-button ${logoBusy ? "is-disabled" : ""}`}
+              >
+                <ImagePlus size={15} />
+                Upload image
+                <input
+                  aria-label="Merchant logo file"
+                  type="file"
+                  disabled={logoBusy}
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
+                    acceptFile(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+          {(chosenLogo || file) && (
+            <p className="merchant-logo-status" role="status">
+              {file ? file.name : "Logo selected"} · Preview above. Save
+              merchant to apply.
+            </p>
+          )}
+          {logoMode === "catalog" && (
+            <div className="merchant-logo-finder">
+              <label
+                className="merchant-logo-label"
+                htmlFor="merchant-logo-search"
+              >
+                Search the logo catalog
+              </label>
+              <input
+                id="merchant-logo-search"
+                value={logoSearch}
+                onChange={(event) => setLogoSearch(event.target.value)}
+                placeholder="Brand name, e.g. Costco"
+              />
+              <div
+                className="merchant-logo-results"
+                role="group"
+                aria-label="Matching logos"
+              >
+                {logos.slice(0, 60).map((logo) => (
+                  <button
+                    type="button"
+                    key={logo.url}
+                    aria-label={`Use ${logo.name} logo`}
+                    aria-pressed={chosenLogo?.url === logo.url}
+                    onClick={() => {
+                      setChosenLogo({ url: logo.url });
+                      setFile(null);
+                      setLogoError("");
+                    }}
+                  >
+                    <img src={logo.url} alt="" loading="lazy" />
+                    <span>{logo.name}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="settings-helper" role="status">
+                {logos.length
+                  ? `${logos.length > 60 ? "Showing 60 of " : ""}${logos.length} logos. Search stays on this device.`
+                  : "No logos found. Try another name, use a website, or upload an image."}
+              </p>
+            </div>
+          )}
+          {logoMode === "website" && (
+            <div className="merchant-logo-finder">
+              <label
+                className="merchant-logo-label"
+                htmlFor="merchant-logo-website"
+              >
+                Website domain
+              </label>
+              <div className="merchant-website-row">
+                <input
+                  id="merchant-logo-website"
+                  value={website}
+                  onChange={(event) => setWebsite(event.target.value)}
+                  placeholder="costco.com"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  disabled={finding}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      if (website.trim() && !finding) void findWebsite();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  disabled={!website.trim() || finding || task.busy}
+                  onClick={() => void findWebsite()}
+                >
+                  {finding ? "Finding…" : "Find logo"}
+                </Button>
+              </div>
+              <p className="settings-helper">
+                Marten checks this website directly. No third-party logo service
+                is used.
+              </p>
+            </div>
+          )}
+          {logoError && (
+            <p className="merchant-logo-error" role="alert">
+              {logoError}
+            </p>
+          )}
+          <small className="muted">
+            Upload, drop, or paste a JPEG, PNG, or WebP image up to 2 MB.
+          </small>
+        </section>
         <div className="settings-dialog-actions">
-          <Button type="button" onClick={onClose} disabled={task.busy}>
+          <Button
+            type="button"
+            onClick={onClose}
+            disabled={task.busy || finding}
+          >
             Cancel
           </Button>
-          <Button tone="primary" type="submit" disabled={task.busy}>
+          <Button tone="primary" type="submit" disabled={task.busy || finding}>
             Save merchant
           </Button>
         </div>
@@ -322,54 +575,58 @@ export function TagSettings() {
       </div>
       <Panel className="settings-list">
         {tags.length ? (
-          tags.map((tag, index) => (
-            <div
-              key={tag._id}
-              className="settings-tag-row"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                move(e.dataTransfer.getData("text/plain"), tag._id);
-              }}
-            >
-              <OrderControls
-                name={tag.name}
-                first={index === 0}
-                last={index === tags.length - 1}
-                onDrag={(e) => {
-                  e.dataTransfer.setData("text/plain", tag._id);
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                onMove={(direction) =>
-                  move(tag._id, tags[index + direction]._id)
-                }
-              />
-              <span
-                className="settings-tag-symbol"
-                style={{ color: tag.color }}
-              >
-                <Tag size={17} />
-              </span>
-              <button
-                className="settings-name-button"
-                onClick={() => setEditing(tag)}
-              >
-                {tag.name}
-              </button>
-              <IconButton
-                label={`Edit ${tag.name}`}
-                onClick={() => setEditing(tag)}
-              >
-                <Pencil size={15} />
-              </IconButton>
-              <IconButton
-                label={`Delete ${tag.name}`}
-                onClick={() => setDeleting(tag)}
-              >
-                <Trash2 size={15} />
-              </IconButton>
-            </div>
-          ))
+          <SortableList
+            ids={ids}
+            disabled={task.busy}
+            onReorder={(ids) => task.run(() => reorder({ ids }))}
+          >
+            {(order) =>
+              order.map((id, index) => {
+                const tag = tags.find((item) => item._id === id)!;
+                return (
+                  <SortableItem
+                    id={tag._id}
+                    name={tag.name}
+                    key={tag._id}
+                    className="settings-tag-row"
+                  >
+                    <OrderControls
+                      name={tag.name}
+                      first={index === 0}
+                      last={index === tags.length - 1}
+                      onMove={(direction) =>
+                        move(tag._id, tags[index + direction]._id)
+                      }
+                    />
+                    <span
+                      className="settings-tag-symbol"
+                      style={{ color: tag.color }}
+                    >
+                      <Tag size={17} />
+                    </span>
+                    <button
+                      className="settings-name-button"
+                      onClick={() => setEditing(tag)}
+                    >
+                      {tag.name}
+                    </button>
+                    <IconButton
+                      label={`Edit ${tag.name}`}
+                      onClick={() => setEditing(tag)}
+                    >
+                      <Pencil size={15} />
+                    </IconButton>
+                    <IconButton
+                      label={`Delete ${tag.name}`}
+                      onClick={() => setDeleting(tag)}
+                    >
+                      <Trash2 size={15} />
+                    </IconButton>
+                  </SortableItem>
+                );
+              })
+            }
+          </SortableList>
         ) : (
           <Empty
             icon={<Tag size={26} />}

@@ -1,3 +1,7 @@
+import {
+  automaticPaymentsForUser,
+  mergePaymentStatus,
+} from "./lib/recurringPayments";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import {
@@ -248,11 +252,18 @@ async function collectDue(
     throw new ConvexError(
       "Your reminder data exceeds the supported workspace size.",
     );
+  const automatic = await automaticPaymentsForUser(
+    { ...ctx, userId },
+    today,
+    addCalendarDays(today, timing.daysBefore),
+  );
   return dueReminders({
     accounts,
     schedules,
     paid: new Set(
-      payments.filter((p) => p.paid).map((p) => `${p.recurringId}:${p.date}`),
+      mergePaymentStatus(automatic, payments)
+        .filter((p) => p.paid)
+        .map((p) => `${p.recurringId}:${p.date}`),
     ),
     timing,
     now: Date.now(),

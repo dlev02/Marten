@@ -27,6 +27,20 @@ Submitting the code calls `flow: "reset-verification"` with the canonical email 
 
 The request screen uses the same next step for an unknown account. This is a **UI behavior**, not a claim of server-side account-enumeration resistance: the underlying provider can return distinguishable errors for an unknown account. A generic screen alone does not change that API contract.
 
+## Sign-in attempts and session revocation
+
+- Failed password sign-ins are limited by Convex Auth's built-in limiter,
+  configured in [auth.ts](../convex/auth.ts) as ten failures per hour per
+  account, after which one further attempt is allowed every six minutes.
+  Successful sign-ins are not throttled. The sign-in screen shows the
+  provider's message when the limit is reached.
+- Every `userQuery`, `userMutation`, and `userAction` checks that the
+  session named in the token still exists ([access.ts](../convex/lib/access.ts),
+  [sessions.ts](../convex/sessions.ts)). A password reset or account deletion
+  deletes session rows, so tokens issued to other devices stop working on
+  their next request instead of at the token's expiry. Covered by
+  `convex/sessionRevocation.test.ts`.
+
 ## Request limits and failure handling
 
 [resetLimits.ts](../convex/lib/resetLimits.ts) reserves each request against the normalized email address in `resetEmailLimits`:
@@ -37,6 +51,18 @@ The request screen uses the same next step for an unknown account. This is a **U
 - An accepted new request replaces the old code. A later delivery failure can consume the reservation, so repeated retries still respect the limits.
 
 Brevo HTTP errors and network/timeout failures return a safe retry message. Provider response bodies and diagnostics are not returned to the user. Missing mail configuration returns an explicit unavailable message. Requests use a 15-second timeout.
+
+## Deleting your account
+
+Settings → Preferences ends with a **Delete account** section (search: "delete account"). The confirmation dialog requires typing `DELETE` and the sign-in email; the email comparison is case-insensitive and trims whitespace. Anonymous demo guests have no account to delete and are refused.
+
+[accountDeletion.ts](../convex/accountDeletion.ts) records `deletionRequestedAt` on the profile, then schedules the work so the request returns immediately and the browser signs out and returns to the landing page:
+
+1. `revokeBanks` marks each Plaid Item disconnected and calls `/item/remove`. A failed revocation is logged and never blocks deletion; the access token is erased with the row. SimpleFIN keeps no server-side grant, so bridge access continues until the user revokes it at the bridge.
+2. `deleteBatch` removes at most 200 documents per run and reschedules itself: assistant grants with their tokens and pending authorization requests, reminder deliveries, rules, credit scores, transactions, balances, recurring payments, and every other `userId`-owned table (assistant preferences and activity, reminder preferences and verifications, forecast scenarios, investment securities, holdings, transactions, and sync states, attachments and uploads with their stored blobs, activity, recurring items, saved reports, tags, merchants with stored logos, categories, groups, accounts, SimpleFIN connections, Plaid items).
+3. Once nothing owned remains, the profile (and its photo blob) is deleted, followed by the Convex Auth rows: `authSessions` with their `authRefreshTokens` and `authVerifiers`, `authAccounts` with their `authVerificationCodes` and `authRateLimits`, the email's `resetEmailLimits` row, and finally the `users` row.
+
+Requesting deletion twice is refused while the first sweep is in flight. The [deletion tests](../convex/accountDeletion.test.ts) seed two users across every table family, run the scheduled sweep, and check that one user's rows, blobs, and sign-in records are gone while the other user's remain intact.
 
 ## Recorded setup and verification
 

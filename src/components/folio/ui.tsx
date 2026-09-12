@@ -12,10 +12,11 @@ import {
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, Search, X } from "lucide-react";
 import { Button as BaseButton } from "../ui/button";
 import { message } from "../../lib/format";
 import { brandLogo } from "../../lib/brandLogos";
+import { PickerPortalContext } from "./Select";
 
 export const Button = forwardRef<
   HTMLButtonElement,
@@ -119,13 +120,23 @@ export function Modal({
   className?: string;
 }) {
   const returnFocus = useRef<HTMLElement | null>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content
+          ref={setPortalContainer}
           className={`${drawer ? "drawer" : `modal ${wide ? "wide" : ""}`} ${className}`}
           {...(!description ? { "aria-describedby": undefined } : {})}
+          onEscapeKeyDown={(event) => {
+            // Escape cancels an active reorder before it dismisses the dialog.
+            if (portalContainer?.querySelector("[data-active-drag]")) {
+              event.preventDefault();
+            }
+          }}
           onOpenAutoFocus={(event) => {
             returnFocus.current =
               document.activeElement instanceof HTMLElement
@@ -163,7 +174,9 @@ export function Modal({
               {description}
             </Dialog.Description>
           )}
-          {children}
+          <PickerPortalContext.Provider value={portalContainer}>
+            {children}
+          </PickerPortalContext.Provider>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -195,6 +208,8 @@ export function Picker({
   label,
   className = "",
   disabled = false,
+  onCreate,
+  createLabel = "Create new",
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -203,9 +218,15 @@ export function Picker({
   label: string;
   className?: string;
   disabled?: boolean;
+  onCreate?: (search: string) => void;
+  createLabel?: string;
 }) {
   const [open, setOpen] = useState(false),
     [search, setSearch] = useState("");
+  const portalContainer = useContext(PickerPortalContext);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const menuId = useId();
   const selected = options.find((o) => o.value === value);
   const filtered = options.filter((o) =>
     `${o.label} ${o.group ?? ""}`.toLowerCase().includes(search.toLowerCase()),
@@ -226,24 +247,61 @@ export function Picker({
           aria-label={label}
         >
           {selected?.icon}
-          <span className={selected ? "" : "muted"}>
+          <span className={`picker-label ${selected ? "" : "muted"}`}>
             {selected?.label ?? placeholder}
           </span>
           <ChevronDown size={15} />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content className="picker-menu" align="start" sideOffset={5}>
+      <Popover.Portal container={portalContainer}>
+        <Popover.Content
+          className="picker-menu"
+          align="start"
+          sideOffset={5}
+          collisionPadding={12}
+          collisionBoundary={portalContainer}
+          onKeyDown={(event) => {
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+              return;
+            const inSearch = event.target === searchRef.current;
+            if (inSearch && (event.key === "Home" || event.key === "End"))
+              return;
+            const buttons = Array.from(
+              optionsRef.current?.querySelectorAll<HTMLButtonElement>(
+                ".picker-option",
+              ) ?? [],
+            );
+            if (!buttons.length) return;
+            event.preventDefault();
+            const current = buttons.indexOf(
+              document.activeElement as HTMLButtonElement,
+            );
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? buttons.length - 1
+                  : event.key === "ArrowDown"
+                    ? (current + 1) % buttons.length
+                    : current < 0
+                      ? buttons.length - 1
+                      : (current - 1 + buttons.length) % buttons.length;
+            buttons[next].focus({ preventScroll: true });
+            buttons[next].scrollIntoView({ block: "nearest" });
+          }}
+        >
           <div className="picker-search">
             <Search size={16} />
             <input
+              ref={searchRef}
+              aria-controls={menuId}
               aria-label={`Search ${label.toLowerCase()}`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
             />
           </div>
-          <div className="picker-options">
+          <div className="picker-options" id={menuId} ref={optionsRef}>
             {filtered.map((o, i) => (
               <div key={o.value}>
                 {o.group && o.group !== filtered[i - 1]?.group && (
@@ -252,19 +310,36 @@ export function Picker({
                 <button
                   type="button"
                   className="picker-option"
+                  aria-pressed={value === o.value}
                   onClick={() => {
                     onChange(o.value);
                     setOpen(false);
                   }}
                 >
                   {o.icon}
-                  <span>{o.label}</span>
+                  <span className="picker-label">{o.label}</span>
                   {value === o.value && <Check size={15} />}
                 </button>
               </div>
             ))}
             {!filtered.length && (
               <div className="empty-compact muted">No results</div>
+            )}
+            {onCreate && (
+              <button
+                type="button"
+                className="picker-option"
+                onClick={() => {
+                  setOpen(false);
+                  onCreate(search.trim());
+                }}
+              >
+                <Plus size={15} />
+                <span>
+                  {createLabel}
+                  {search.trim() ? ` “${search.trim()}”` : ""}
+                </span>
+              </button>
             )}
           </div>
         </Popover.Content>
@@ -303,11 +378,13 @@ export function Tabs({
 }
 export function Loading({
   text = "Loading your finances…",
+  full = false,
 }: {
   text?: string;
+  full?: boolean;
 }) {
   return (
-    <div className="loading">
+    <div className={`loading ${full ? "full" : ""}`}>
       <Loader2 className="spin" size={22} />
       <span>{text}</span>
     </div>

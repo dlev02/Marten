@@ -1,6 +1,6 @@
-import { useState, type DragEvent } from "react";
+import { useState } from "react";
 import { useMutation } from "convex/react";
-import { ArrowDown, ArrowUp, GripVertical, Pencil, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useData } from "../../lib/data";
@@ -10,38 +10,35 @@ import {
   Field,
   IconButton,
   Modal,
-  Panel,
   Picker,
   Toggle,
   useTask,
 } from "../../components/folio/ui";
+import {
+  SortableList,
+  SortableItem,
+  SortableHandle,
+} from "../../components/folio/SortableList";
 import { moveItem } from "./ordering";
 import { Select } from "../../components/folio/Select";
-import { CategoryIcon } from "../../components/folio/CategoryIcon";
-import categoryIcons from "../../lib/categoryIcons.json";
+import {
+  CategoryIcon,
+  CategoryIconPicker,
+} from "../../components/folio/CategoryIcon";
 export function OrderControls({
   name,
   first,
   last,
   onMove,
-  onDrag,
 }: {
   name: string;
   first: boolean;
   last: boolean;
   onMove: (direction: number) => void;
-  onDrag: (event: DragEvent) => void;
 }) {
   return (
     <span className="settings-order">
-      <button
-        className="settings-grip"
-        aria-label={`Drag to reorder ${name}`}
-        draggable
-        onDragStart={onDrag}
-      >
-        <GripVertical size={16} />
-      </button>
+      <SortableHandle name={name} />
       <span className="settings-order-buttons">
         <IconButton
           label={`Move ${name} up`}
@@ -61,15 +58,11 @@ export function OrderControls({
     </span>
   );
 }
-function dragItem(event: DragEvent, id: string) {
-  event.stopPropagation();
-  event.dataTransfer.setData("text/plain", id);
-  event.dataTransfer.effectAllowed = "move";
-}
 export function Categories() {
   const data = useData(),
     task = useTask(),
-    reorder = useMutation(api.settings.reorder);
+    reorder = useMutation(api.settings.reorder),
+    addSuggestions = useMutation(api.imports.addSuggestedCategories);
   const [category, setCategory] = useState<Doc<"categories"> | "new" | null>(
       null,
     ),
@@ -95,6 +88,24 @@ export function Categories() {
           Add group
         </Button>
       </div>
+      <div className="settings-section-header category-suggestions">
+        <p>
+          Add missing everyday and travel categories, including accommodation,
+          transit, pharmacy, and video games. Your existing categories stay as
+          they are.
+        </p>
+        <Button
+          disabled={task.busy}
+          onClick={() =>
+            void task.run(
+              () => addSuggestions({}),
+              "Suggested categories are up to date",
+            )
+          }
+        >
+          Add suggested categories
+        </Button>
+      </div>
       {(["income", "expense", "transfer"] as const).map((kind) => {
         const groups = data.groups
           .filter((g) => g.kind === kind)
@@ -113,113 +124,121 @@ export function Categories() {
                   : `${data.categories.filter((c) => groups.some((g) => g._id === c.groupId)).length} categories`}
               </span>
             </h3>
-            {groups.map((g, groupIndex) => {
-              const categories = data.categories
-                .filter((c) => c.groupId === g._id)
-                .sort((a, b) => a.order - b.order);
-              return (
-                <Panel key={g._id} className="settings-category-group">
-                  <div
-                    className="settings-group-header"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      reorderList(
-                        groups.map((item) => item._id),
-                        e.dataTransfer.getData("text/plain"),
-                        g._id,
-                      );
-                    }}
-                  >
-                    <OrderControls
+            <SortableList
+              ids={groups.map((g) => g._id)}
+              disabled={task.busy}
+              onReorder={(ids) => task.run(() => reorder({ ids }))}
+            >
+              {(orderedGroups) =>
+                orderedGroups.map((id, groupIndex) => {
+                  const g = groups.find((item) => item._id === id)!;
+                  const categories = data.categories
+                    .filter((c) => c.groupId === g._id)
+                    .sort((a, b) => a.order - b.order);
+                  return (
+                    <SortableItem
+                      id={g._id}
                       name={g.name}
-                      first={groupIndex === 0}
-                      last={groupIndex === groups.length - 1}
-                      onDrag={(e) => dragItem(e, g._id)}
-                      onMove={(direction) =>
-                        reorderList(
-                          groups.map((item) => item._id),
-                          g._id,
-                          groups[groupIndex + direction]._id,
-                        )
-                      }
-                    />
-                    <strong>{g.name}</strong>
-                    <span className="settings-row-spacer" />
-                    <IconButton
-                      label={`Edit ${g.name} group`}
-                      onClick={() => setGroup(g)}
+                      key={g._id}
+                      className="panel settings-category-group"
                     >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label={`Add category to ${g.name}`}
-                      onClick={() => addCategory(g._id)}
-                    >
-                      <Plus size={16} />
-                    </IconButton>
-                  </div>
-                  {categories.map((c, index) => (
-                    <div
-                      key={c._id}
-                      className={`settings-category-row ${c.enabled ? "" : "disabled"}`}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        reorderList(
-                          categories.map((item) => item._id),
-                          e.dataTransfer.getData("text/plain"),
-                          c._id,
-                        );
-                      }}
-                    >
-                      <OrderControls
-                        name={c.name}
-                        first={index === 0}
-                        last={index === categories.length - 1}
-                        onDrag={(e) => dragItem(e, c._id)}
-                        onMove={(direction) =>
-                          reorderList(
-                            categories.map((item) => item._id),
-                            c._id,
-                            categories[index + direction]._id,
-                          )
+                      <div className="settings-group-header">
+                        <OrderControls
+                          name={g.name}
+                          first={groupIndex === 0}
+                          last={groupIndex === groups.length - 1}
+                          onMove={(direction) =>
+                            reorderList(
+                              groups.map((item) => item._id),
+                              g._id,
+                              groups[groupIndex + direction]._id,
+                            )
+                          }
+                        />
+                        <strong>{g.name}</strong>
+                        <span className="settings-row-spacer" />
+                        <IconButton
+                          label={`Edit ${g.name} group`}
+                          onClick={() => setGroup(g)}
+                        >
+                          <Pencil size={14} />
+                        </IconButton>
+                        <IconButton
+                          label={`Add category to ${g.name}`}
+                          onClick={() => addCategory(g._id)}
+                        >
+                          <Plus size={16} />
+                        </IconButton>
+                      </div>
+                      <SortableList
+                        ids={categories.map((c) => c._id)}
+                        disabled={task.busy}
+                        onReorder={(ids) => task.run(() => reorder({ ids }))}
+                      >
+                        {(orderedCategories) =>
+                          orderedCategories.map((id, index) => {
+                            const c = categories.find(
+                              (item) => item._id === id,
+                            )!;
+                            return (
+                              <SortableItem
+                                id={c._id}
+                                name={c.name}
+                                key={c._id}
+                                className={`settings-category-row ${c.enabled ? "" : "disabled"}`}
+                              >
+                                <OrderControls
+                                  name={c.name}
+                                  first={index === 0}
+                                  last={index === categories.length - 1}
+                                  onMove={(direction) =>
+                                    reorderList(
+                                      categories.map((item) => item._id),
+                                      c._id,
+                                      categories[index + direction]._id,
+                                    )
+                                  }
+                                />
+                                <CategoryIcon
+                                  className="settings-category-emoji"
+                                  emoji={c.emoji}
+                                />
+                                <button
+                                  className="settings-name-button"
+                                  onClick={() => setCategory(c)}
+                                >
+                                  {c.name}
+                                </button>
+                                {!c.enabled && (
+                                  <span className="settings-badge">
+                                    Disabled
+                                  </span>
+                                )}
+                                <IconButton
+                                  label={`Edit ${c.name} category`}
+                                  onClick={() => setCategory(c)}
+                                >
+                                  <Pencil size={14} />
+                                </IconButton>
+                              </SortableItem>
+                            );
+                          })
                         }
-                      />
-                      <CategoryIcon
-                        className="settings-category-emoji"
-                        emoji={c.emoji}
-                      />
-                      <button
-                        className="settings-name-button"
-                        onClick={() => setCategory(c)}
-                      >
-                        {c.name}
-                      </button>
-                      {!c.enabled && (
-                        <span className="settings-badge">Disabled</span>
+                      </SortableList>
+                      {!categories.length && (
+                        <button
+                          className="settings-add-row"
+                          onClick={() => addCategory(g._id)}
+                        >
+                          <Plus size={14} />
+                          Add a category
+                        </button>
                       )}
-                      <IconButton
-                        label={`Edit ${c.name} category`}
-                        onClick={() => setCategory(c)}
-                      >
-                        <Pencil size={14} />
-                      </IconButton>
-                    </div>
-                  ))}
-                  {!categories.length && (
-                    <button
-                      className="settings-add-row"
-                      onClick={() => addCategory(g._id)}
-                    >
-                      <Plus size={14} />
-                      Add a category
-                    </button>
-                  )}
-                </Panel>
-              );
-            })}
+                    </SortableItem>
+                  );
+                })
+              }
+            </SortableList>
             {!groups.length && (
               <div className="settings-empty-group">
                 No {kind === "expense" ? "expense" : kind} groups yet.
@@ -297,14 +316,8 @@ function CategoryEditor({
         }}
       >
         <div className="settings-form-grid">
-          <Field label="Icon" hint="Choose below or paste an emoji.">
-            <input
-              aria-label="Category icon"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              maxLength={30}
-              required
-            />
+          <Field label="Icon">
+            <CategoryIconPicker value={emoji} onChange={setEmoji} />
           </Field>
           <Field label="Name">
             <input
@@ -316,26 +329,6 @@ function CategoryEditor({
               autoFocus
             />
           </Field>
-        </div>
-        <div
-          className="category-icon-picker"
-          role="group"
-          aria-label="Suggested category icons"
-        >
-          {categoryIcons.map((icon) => (
-            <button
-              key={icon.emoji}
-              type="button"
-              aria-label={`Use ${icon.name.toLowerCase()} icon`}
-              aria-pressed={
-                emoji.replace(/\uFE0F/g, "") ===
-                icon.emoji.replace(/\uFE0F/g, "")
-              }
-              onClick={() => setEmoji(icon.emoji)}
-            >
-              <CategoryIcon emoji={icon.emoji} />
-            </button>
-          ))}
         </div>
         <Field label="Group">
           <Picker

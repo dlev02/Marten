@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { brandLogo } from "./brandLogos";
 
 describe("local brand resolution", () => {
+  it("recognizes requested fitness and restaurant brands without broad substring matching", () => {
+    expect(brandLogo("Equinox Fitness Club")).toBe("/brands/equinox.png");
+    expect(brandLogo("sweetgreen")).toBe("/brands/sweetgreen.svg");
+    expect(brandLogo("Equinox Consulting")).toBeNull();
+    expect(brandLogo("Tailscale Inc")).toBe(brandLogo("Tailscale"));
+  });
   it("covers the generated catalog beyond the original curated merchants", () => {
     expect(brandLogo("IKEA")).toBe("/brands/catalog/ikea.svg");
     expect(brandLogo("  Airbnb  ")).toBe("/brands/catalog/airbnb.svg");

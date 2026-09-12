@@ -28,3 +28,34 @@ The subsequent September 11 recurring/reminder pass added cadence coverage for o
 Development deployment accepted the schema and functions at 00:39:51 America/Chicago on September 11. TypeScript project checks and affected-file ESLint passed. The five new recurring tests passed; the existing recurring-filter, account and Plaid suites also passed (33 existing tests).
 
 Browser checks used the fictional Morgan QA workspace. Creating “Amazon Prime QA” from a transaction preserved the selected merchant/account/date and displayed the new matching schedule in the drawer. Changing its amount from $53.94 to $16 immediately removed that match from the $53.94 purchase, while Recurring showed the separate $16 monthly schedule with its checkmark still unpaid. A manual card reminder saved September 22, $320 statement and $25 minimum, displayed “Entered by you,” and reopening its editor retained all three values. The reminder layout was inspected in a rendered desktop screenshot. Live bank connectivity is not inferred from this sample-data check; refresh preservation is covered by the backend mutation test above.
+
+## Real-life scenario review — September 12, 2026
+
+Detection now retries an exact-amount cadence when a broad amount cluster
+contains multiple overlapping subscriptions. Two $5/$6 monthly subscriptions
+previously hid each other; they now produce distinct suggestions. Alternating
+one-cent variations still produce one schedule. Tests also cover Amazon orders
+and refunds beside Prime, a restart two days later, a card change, stale canceled
+services, and an introductory annual price doubling.
+
+- Card changes: edit the account on the existing schedule. Detection never
+  silently merges accounts; repeated new-card charges can eventually produce a
+  suggestion requiring review. Editing applies to the whole schedule and may
+  change old automatic matches. Posted transactions stay on their real accounts.
+- Cancellation: pause to keep the saved row in Paused and remove it from the
+  calendar/runway. This is not service cancellation. Actual old charges remain
+  in Transactions; there is no separate dated subscription-lifecycle history.
+- Restart: resume and update the start date as needed. A two-day shift fits
+  the three-day matching window; a paused schedule remains paused until edited.
+- Multiple subscriptions: separate names, amounts, and optional statement text
+  distinguish them. Identical merchant/account/amount/date/text is inherently
+  ambiguous; the app cannot infer which creator was paid.
+- Introductory/future pricing: one $50 charge does not establish that next year's
+  charge is $100. Update the expected amount when the new price takes effect,
+  and record the future price in Notes. There is no effective-dated price field.
+
+Current automatic payment matching (implemented in the existing checkout)
+requires a unique posted-transaction/occurrence match in both directions. Manual
+paid/unpaid choices override it. This supersedes the earlier manual-only
+checkmark description above; neither path sends payments. The shared merchant
+editor is now reachable from each recurring editor and transaction drawer.

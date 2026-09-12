@@ -82,7 +82,9 @@ export function summarize(
             ? -entry.amountCents
             : entry.amountCents),
         count: (previous?.count ?? 0) + 1,
-        color: previous?.color ?? chartColors[groups.size % chartColors.length],
+        color:
+          previous?.color ??
+          `var(--report-chart-${(groups.size % chartColors.length) + 1}, ${chartColors[groups.size % chartColors.length]})`,
       });
     }
   }
@@ -101,4 +103,27 @@ export function summarize(
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => v),
   };
+}
+
+export type ReportKind = "cashflow" | "spending" | "income";
+export type ReportChart = "bar" | "donut" | "treemap" | "sankey";
+/** Chart types offered per report, in the order the in-panel switcher shows them. */
+export const reportCharts: Record<ReportKind, ReportChart[]> = {
+  cashflow: ["bar", "donut", "treemap", "sankey"],
+  spending: ["bar", "donut", "treemap"],
+  income: ["bar", "donut", "treemap"],
+};
+/**
+ * Saved reports persist the chart as free text. Older reports stored "pie";
+ * anything unsupported for the report (unknown values, a sankey on a spending
+ * report) falls back to trend bars so a saved link always opens.
+ */
+export function normalizeReportChart(
+  value: string | undefined,
+  report: ReportKind,
+): ReportChart {
+  const chart = value === "pie" ? "donut" : value;
+  return reportCharts[report].includes(chart as ReportChart)
+    ? (chart as ReportChart)
+    : "bar";
 }

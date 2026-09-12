@@ -1,8 +1,12 @@
 # Architecture and contributor map
 
-Marten is a React/Vite single-page application with Convex as its only application backend. Convex Auth supplies authenticated sessions; Plaid actions import bank data, including [investment holdings and activity](investments.md). An optional Sophtron adapter imports cached personal-provider data. Convex HTTP actions also host the OAuth and MCP endpoints; there is no separate server or database service.
+Marten is a React/Vite single-page application with Convex as its only application backend. Convex Auth supplies authenticated sessions; Plaid actions import bank data, including [investment holdings and activity](investments.md). Each user can also connect their own SimpleFIN Bridge subscription for daily balance and transaction imports, plus validated investment positions when supplied. Convex HTTP actions also host the OAuth and MCP endpoints; there is no separate server or database service.
 
 ## Source map
+
+For visual and interaction contracts, use [DESIGN.md](../DESIGN.md). It maps
+shared controls and design sources; historical concepts remain in `docs/design/`
+as provenance rather than implementation specifications.
 
 | Location                                                                                                                                                                                               | Responsibility                                                                                                              |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
@@ -25,7 +29,37 @@ Marten is a React/Vite single-page application with Convex as its only applicati
 | [`convex/sample.ts`](../convex/sample.ts)                                                                                                                                                              | Default categories and fictional sample data                                                                                |
 | [`convex/_generated`](../convex/_generated)                                                                                                                                                            | CLI-generated API/types/guidelines; regenerate rather than hand-edit                                                        |
 
+Category artwork is a presentation layer: [`categoryIcons.ts`](../src/lib/categoryIcons.ts) resolves portable emoji and aliases into the generated Marten SVG catalog, and `CategoryIcon` chooses the app theme's palette. The category picker shares this search/catalog logic. Stored category emoji and finance behavior do not change. See [assets](assets.md) for regeneration and provenance.
+
 Feature-specific styles stay beside the feature. Shared app styles and theme tokens are in [`src/index.css`](../src/index.css). The visual contract is in [design/system.md](design/system.md).
+
+## Public site and routing
+
+The marketing and policy pages live in `src/site/` and render for everyone,
+signed in or not. `src/App.tsx` checks `publicPaths` (`/`, `/faq`,
+`/privacy`, `/terms`, `/security`, `/about`) before authentication; `/support`
+shows the public donation page to visitors and the in-app Support screen to
+signed-in users. The application itself starts at `/dashboard` (the sidebar,
+demo exit, search catalog, and `/demo` redirect all point there) and
+`/sign-in` is the auth screen (`?signup=1` opens account creation).
+
+Page copy for the documents and FAQ is data in `src/site/content/*.ts`
+(`SiteDocument` and `FaqEntry` shapes) rendered by `DocumentPage` and
+`FaqPage`, so a policy edit is a text change with no layout work. Shared
+facts (URLs, operator, Ko-fi, governing state) sit in `src/site/siteConfig.ts`.
+Product screenshots used by the landing page are captured from the fictional
+demo at 1440×900 in both appearances into `public/site/` (WebP), with the
+Open Graph image at `public/site/og.png`.
+
+Feedback goes through GitHub issue forms: `src/features/Feedback.tsx` builds
+a prefilled `issues/new` URL (template ids match `.github/ISSUE_TEMPLATE`),
+optionally including browser, OS, viewport, theme, page, and build id from
+`src/lib/feedbackReport.ts`; nothing is sent from the backend.
+
+Route errors are caught by `RouteErrorBoundary` inside the Shell and by the
+router's `errorElement`; a stale-chunk error after a deploy reloads once
+(`src/lib/staleChunk.ts`, also wired to Vite's `vite:preloadError`) before
+showing an explanation.
 
 ## Data and trust boundaries
 
@@ -81,7 +115,8 @@ Current financial reporting is USD-only. Do not add unlike currencies or invent 
 - **Review state:** `editedFields` tracks intentional user changes. Automatic rules must respect those fields; an explicitly applied user rule is a deliberate edit.
 - **Receipts:** attachment ownership is checked before storage and again before association. Failed association removes the uploaded blob. Receipt count and deletion paths must remain consistent with the stored attachments.
 - **Notes autosave:** the drawer's notes state belongs to one transaction ID. Writes are serialized, navigation flushes the latest draft, and older reactive server snapshots must not replace unsaved text. Keep the state helper's regression tests when changing this flow.
-- **CSV retries:** `importKey` is derived from the batch and row key so a retry cannot silently create duplicates. New rows pass through the same validators and ordered rules as other manual imports.
+- **CSV retries:** `importKey` is derived from the batch and row key so a retry cannot silently create duplicates. New rows pass through the same validators and ordered rules as other manual imports, except that a category the file named is recorded as an edited field.
+- **One purchase, several sources:** `findMatchingTransaction` (same account, same amount, within three days) is the single place that pairs a spreadsheet row with a bank or manual row. Imports enrich the existing row and give it the import key; Plaid and SimpleFIN ingestion adopt an unlinked spreadsheet row instead of inserting a twin; the account merge does both while moving records. Keep the three call sites on that helper so the definition of “same purchase” cannot drift. See [importing](importing.md).
 
 Shared calculations live in `convex/lib/finance.ts` and `src/lib/reporting.ts`. A screen-specific formula must not diverge from those helpers. Ordered rules run in ascending order; later matching rules can replace earlier actions unless the field is protected as a user edit.
 
@@ -115,4 +150,44 @@ Browser tools in `WebMCPProvider` feature-detect `document.modelContext`, dynami
 
 [Reminders](reminders.md) separate browser display from email delivery. The browser dispatcher uses a service worker for native notices while the tab runs; it is not background push. The server's 15-minute email sweep respects user timing, verification and payment state, and reserves each attempt to avoid duplicate delivery. Activity records omit message contents.
 
-[The Sophtron pilot](sophtron.md) has a separate provider adapter, explicit owner binding and reviewed account import. It uses deployment credentials and preserves annotations through provider-identified posted imports. Its currency, balance sign, mapping cutover and incomplete-history rules must not be inferred from Plaid's different contract.
+[SimpleFIN](simplefin.md) has a separate provider adapter with one connection per user. A pasted setup token is claimed once, the resulting access URL is sealed with `CREDENTIALS_KEY` when present, and reviewed imports preserve annotations through provider-identified posted records. Its account-type review, balance sign inversion, 45-day request windows, mapping cutover, and no-deletion rules must not be inferred from Plaid's different contract.
+
+## Transaction refinements
+
+`convex/lib/recurringPayments.ts` derives one-to-one posted transaction matches
+within a three-day occurrence window. The UI combines `automaticPayments` with
+the paginated manual overrides, with explicit paid/unpaid choices winning.
+Recurring totals, near-term forecasts, and reminder delivery use this same rule;
+agent payment reads return the automatic matches alongside the manual page.
+Both directions of ambiguity are checked across date-range boundaries. Queries
+refuse ranges exceeding 12,000 transactions rather than silently treating
+partial matches as paid. Schedule dates are the first eligible occurrence;
+Find recurring starts a reviewed suggestion at its latest observed charge.
+
+Bulk transaction changes are one authenticated, bounded mutation (100 rows),
+including per-row tag add/remove/replace semantics and deduplicated recurring
+schedules. Unchanged fields are omitted. Bank dates/amounts/accounts remain
+provider-managed; bank rows are hidden instead of deleted. Bulk deletion reuses
+the single-row cleanup path and requires confirmation in the UI.
+
+### Imported destinations
+
+`imports.prepareDestinations` creates owned manual accounts and named categories in bounded, retry-safe preparation batches. Optional `importName` fields retain normalized source labels across renames. Client-only placeholder IDs exist solely in the worker preview; saving revalidates with real owned IDs before computing stable row keys. Workspace subscriptions are reduced to relevant account/category fields so merchant-count updates do not repeat a full-file preview.
+
+`lib/importedAccounts.ts` is the conservative Plaid account-adoption policy: open, unconnected imported manual accounts with a unique name, four-digit mask, type, and currency match keep their original account ID when connected. Ambiguous identity requires explicit mapping/merge. `lib/categoryDefaults.ts` owns default category definitions for new workspaces and the opt-in additive category suggestions.
+
+## Display privacy
+
+`src/lib/amountVisibility.ts` owns the device-local Hide amounts preference,
+initialized before rendering and synchronized across tabs. Financial components
+subscribe with `useAmountsHidden`; presentation uses `displayMoney`,
+`displayCompactMoney` and `displayFinancialValue`. Raw `format.ts` remains pure
+for parsing, calculations and exports. Do not pass a display mask into a mutation
+or use it as an input draft. `AmountInput` omits the actual value from the rendered
+input while hidden and retains the owner's draft for restoration.
+
+This is screen-sharing concealment, not data redaction or an authorization
+boundary. Merchants, account names, dates, counts, proportions and chart shapes
+remain visible. Receipts, user-authored text, exported files and authorized agent
+reads retain their original content. See Preferences → Privacy for the user-facing
+scope and the FAQ/search entry for the direct link.

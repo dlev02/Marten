@@ -170,3 +170,6 @@
     align-items: flex-start;
   }
 }
+.inline-notice.agent-notice {
+  margin: 0 0 20px;
+}

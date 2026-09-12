@@ -1,3 +1,4 @@
+import { importedAccountMatch } from "./lib/importedAccounts";
 import { ConvexError, v } from "convex/values";
 import {
   internalMutation,
@@ -14,12 +15,15 @@ import {
   environment,
   safeError,
   defaultBankCategory,
+  plaidAllowedFor,
+  plaidRestrictedMessage,
 } from "./lib/plaidApi";
 import {
   applyRules,
   changeMerchantCount,
   refreshSearch,
   type TransactionFields,
+  findMatchingTransaction,
 } from "./lib/transactions";
 import { normalize } from "./lib/finance";
 const itemArgs = { itemId: v.id("plaidItems"), version: v.number() };
@@ -58,10 +62,21 @@ async function fenced(
   return item;
 }
 export const context = internalQuery({
-  args: { userId: v.id("users"), itemId: v.optional(v.id("plaidItems")) },
+  args: {
+    userId: v.id("users"),
+    itemId: v.optional(v.id("plaidItems")),
+    // Linking (new tokens and exchanges) honors PLAID_ALLOWED_EMAILS; syncing an
+    // existing connection does not, so a later allowlist change cannot strand data.
+    link: v.optional(v.boolean()),
+  },
   returns: v.union(schema.doc("plaidItems"), v.null()),
   handler: async (ctx, args) => {
     await liveProfile(ctx, args.userId);
+    if (args.link) {
+      const user = await ctx.db.get(args.userId);
+      if (!plaidAllowedFor(user?.email))
+        throw new ConvexError(plaidRestrictedMessage);
+    }
     if (!args.itemId) return null;
     const item = await ctx.db.get(args.itemId);
     if (!item || item.userId !== args.userId)
@@ -168,6 +183,12 @@ export const updateAccounts = internalMutation({
     if (args.accounts.length > 100)
       throw new ConvexError("This connection has too many accounts.");
     const today = new Date().toISOString().slice(0, 10);
+    const ownedAccounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_userId", (q) => q.eq("userId", item.userId))
+      .take(201);
+    if (ownedAccounts.length > 200)
+      throw new ConvexError("This workspace has too many accounts.");
     for (const incoming of args.accounts) {
       const { accountId: plaidAccountId, ...data } = incoming;
       const existing = await ctx.db
@@ -196,20 +217,44 @@ export const updateAccounts = internalMutation({
           itemId: item._id,
           ...(args.logoUrl ? { logoUrl: args.logoUrl } : {}),
         });
-      } else
-        accountId = await ctx.db.insert("accounts", {
-          ...data,
-          userId: item.userId,
-          itemId: item._id,
-          plaidAccountId,
-          institution: item.institution,
-          hidden: false,
-          excludeNetWorth: false,
-          closed: false,
-          manual: false,
-          updatedAt: Date.now(),
-          ...(args.logoUrl ? { logoUrl: args.logoUrl } : {}),
-        });
+      } else {
+        const imported = importedAccountMatch(
+          ownedAccounts,
+          data,
+          args.accounts,
+        );
+        if (imported) {
+          accountId = imported._id;
+          await ctx.db.patch(accountId, {
+            ...balances,
+            itemId: item._id,
+            plaidAccountId,
+            manual: false,
+            institution: item.institution,
+            subtype: data.subtype,
+            ...(args.logoUrl ? { logoUrl: args.logoUrl } : {}),
+          });
+          // The original ID keeps transactions, annotations and balance history attached.
+          imported.manual = false;
+        } else {
+          if (ownedAccounts.length >= 200)
+            throw new ConvexError("This connection would exceed 200 accounts.");
+          accountId = await ctx.db.insert("accounts", {
+            ...data,
+            userId: item.userId,
+            itemId: item._id,
+            plaidAccountId,
+            institution: item.institution,
+            hidden: false,
+            excludeNetWorth: false,
+            closed: false,
+            manual: false,
+            updatedAt: Date.now(),
+            ...(args.logoUrl ? { logoUrl: args.logoUrl } : {}),
+          });
+          ownedAccounts.push((await ctx.db.get(accountId))!);
+        }
+      }
       const snapshot = await ctx.db
         .query("balances")
         .withIndex("by_accountId_and_date", (q) =>
@@ -356,6 +401,50 @@ export const ingestTransactions = internalMutation({
         });
         if (existing.removedFromBank)
           await changeMerchantCount(ctx, null, existing.merchantId);
+        continue;
+      }
+      // A row imported from a spreadsheet (such as a Monarch export) before
+      // this bank connected becomes the bank's row, keeping its annotations.
+      const imported = await findMatchingTransaction(
+        userCtx,
+        {
+          accountId: account._id,
+          date: incoming.date,
+          amountCents: incoming.amountCents,
+          originalName: incoming.name,
+        },
+        (row) =>
+          row.source === "csv" &&
+          !row.plaidTransactionId &&
+          !row.simplefinTransactionId &&
+          !row.removedFromBank,
+      );
+      if (imported) {
+        const fields: TransactionFields = {
+          accountId: imported.accountId,
+          merchantId: imported.merchantId,
+          categoryId: imported.categoryId,
+          date: imported.editedFields.includes("date")
+            ? imported.date
+            : incoming.date,
+          amountCents: imported.amountCents,
+          originalName: incoming.name,
+          notes: imported.notes,
+          tagIds: imported.tagIds,
+          reviewed: imported.reviewed,
+          hidden: imported.hidden,
+          pending: incoming.pending,
+          splits: imported.splits,
+        };
+        await ctx.db.patch(imported._id, {
+          ...fields,
+          source: "plaid",
+          plaidTransactionId: incoming.transactionId,
+          pendingTransactionId: incoming.pendingTransactionId,
+          removedFromBank: false,
+          updatedAt: Date.now(),
+          searchText: await refreshSearch(userCtx, fields),
+        });
         continue;
       }
       const normalizedName = normalize(incoming.merchant);

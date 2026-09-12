@@ -25,7 +25,7 @@ import {
   useTask,
 } from "../../components/folio/ui";
 import "./accounts.css";
-import { SophtronConnection } from "./Sophtron";
+import { SimpleFinConnection } from "./SimpleFin";
 
 export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
   const data = useData(),
@@ -205,7 +205,7 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
           })}
         </div>
       )}
-      <SophtronConnection />
+      <SimpleFinConnection />
       <div className="institution-privacy">
         <ShieldCheck size={19} />
         <p>
