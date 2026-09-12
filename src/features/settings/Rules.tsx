@@ -1,3 +1,8 @@
+import { AmountInput } from "../../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useConvex, useMutation } from "convex/react";
@@ -21,7 +26,7 @@ import {
   merchantOptions,
   type Metadata,
 } from "../../lib/data";
-import { dateLabel, money, parseMoney } from "../../lib/format";
+import { dateLabel, parseMoney } from "../../lib/format";
 import {
   Avatar,
   Button,
@@ -36,6 +41,10 @@ import {
   useTask,
 } from "../../components/folio/ui";
 import { OrderControls } from "./Categories";
+import {
+  SortableList,
+  SortableItem,
+} from "../../components/folio/SortableList";
 import { moveItem } from "./ordering";
 import { Select } from "../../components/folio/Select";
 type RuleFields = Omit<Doc<"rules">, "_id" | "_creationTime" | "userId">;
@@ -91,6 +100,7 @@ function actionLabel(actions: RuleFields["actions"], data: Metadata) {
   return labels.join(" · ");
 }
 export function Rules() {
+  useAmountsHidden();
   const [params] = useSearchParams();
   const requestedSearch = params.get("search") ?? "";
   const data = useData(),
@@ -148,78 +158,91 @@ export function Rules() {
       </div>
       <Panel className="settings-list">
         {filtered.length ? (
-          filtered.map((rule) => {
-            const index = rules.findIndex((r) => r._id === rule._id);
-            return (
-              <div
-                className={`settings-rule-row ${rule.enabled ? "" : "disabled"}`}
-                key={rule._id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  move(e.dataTransfer.getData("text/plain"), rule._id);
-                }}
-              >
-                <OrderControls
-                  name={rule.name}
-                  first={index === 0}
-                  last={index === rules.length - 1}
-                  onDrag={(e) => {
-                    e.dataTransfer.setData("text/plain", rule._id);
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  onMove={(direction) =>
-                    move(rule._id, rules[index + direction]._id)
-                  }
-                />
-                <button
-                  className="settings-rule-body"
-                  onClick={() => setEditing(rule)}
-                >
-                  <strong>{rule.name}</strong>
-                  <span>
-                    {rule.conditions
-                      .map((c) => conditionLabel(c, data))
-                      .join(rule.match === "all" ? " and " : " or ")}
-                  </span>
-                  <small>{actionLabel(rule.actions, data)}</small>
-                </button>
-                <label className="settings-rule-enable">
-                  <input
-                    aria-label={`Enable ${rule.name}`}
-                    type="checkbox"
-                    role="switch"
-                    checked={rule.enabled}
-                    disabled={task.busy}
-                    onChange={(e) =>
-                      void task.run(() =>
-                        save({
-                          id: rule._id,
-                          ...fieldsFor(rule),
-                          enabled: e.target.checked,
-                        }),
-                      )
-                    }
-                  />
-                  <span>{rule.enabled ? "On" : "Off"}</span>
-                </label>
-                <IconButton
-                  type="button"
-                  label={`Edit ${rule.name}`}
-                  onClick={() => setEditing(rule)}
-                >
-                  <Pencil size={15} />
-                </IconButton>
-                <IconButton
-                  type="button"
-                  label={`Delete ${rule.name}`}
-                  onClick={() => setDeleting(rule)}
-                >
-                  <Trash2 size={15} />
-                </IconButton>
-              </div>
-            );
-          })
+          <SortableList
+            ids={filtered.map((rule) => rule._id)}
+            disabled={task.busy}
+            onReorder={(ordered) => {
+              // Preserve hidden rules in their slots when reordering search results.
+              let index = 0;
+              const visible = new Set(ordered);
+              return task.run(() =>
+                reorder({
+                  ids: rules.map((rule) =>
+                    visible.has(rule._id) ? ordered[index++] : rule._id,
+                  ),
+                }),
+              );
+            }}
+          >
+            {(ordered) =>
+              ordered.map((id) => {
+                const rule = rules.find((item) => item._id === id)!;
+                const index = rules.findIndex((r) => r._id === rule._id);
+                return (
+                  <SortableItem
+                    id={rule._id}
+                    name={rule.name}
+                    className={`settings-rule-row ${rule.enabled ? "" : "disabled"}`}
+                    key={rule._id}
+                  >
+                    <OrderControls
+                      name={rule.name}
+                      first={index === 0}
+                      last={index === rules.length - 1}
+                      onMove={(direction) =>
+                        move(rule._id, rules[index + direction]._id)
+                      }
+                    />
+                    <button
+                      className="settings-rule-body"
+                      onClick={() => setEditing(rule)}
+                    >
+                      <strong>{rule.name}</strong>
+                      <span>
+                        {rule.conditions
+                          .map((c) => conditionLabel(c, data))
+                          .join(rule.match === "all" ? " and " : " or ")}
+                      </span>
+                      <small>{actionLabel(rule.actions, data)}</small>
+                    </button>
+                    <label className="settings-rule-enable">
+                      <input
+                        aria-label={`Enable ${rule.name}`}
+                        type="checkbox"
+                        role="switch"
+                        checked={rule.enabled}
+                        disabled={task.busy}
+                        onChange={(e) =>
+                          void task.run(() =>
+                            save({
+                              id: rule._id,
+                              ...fieldsFor(rule),
+                              enabled: e.target.checked,
+                            }),
+                          )
+                        }
+                      />
+                      <span>{rule.enabled ? "On" : "Off"}</span>
+                    </label>
+                    <IconButton
+                      type="button"
+                      label={`Edit ${rule.name}`}
+                      onClick={() => setEditing(rule)}
+                    >
+                      <Pencil size={15} />
+                    </IconButton>
+                    <IconButton
+                      type="button"
+                      label={`Delete ${rule.name}`}
+                      onClick={() => setDeleting(rule)}
+                    >
+                      <Trash2 size={15} />
+                    </IconButton>
+                  </SortableItem>
+                );
+              })
+            }
+          </SortableList>
         ) : (
           <Empty
             icon={<Workflow size={26} />}
@@ -279,6 +302,7 @@ function RuleEditor({
   rule?: Doc<"rules">;
   onClose: () => void;
 }) {
+  useAmountsHidden();
   const data = useData(),
     client = useConvex(),
     task = useTask(),
@@ -543,7 +567,8 @@ function RuleEditor({
                         options={categoryOptions(data)}
                       />
                     ) : (
-                      <input
+                      <AmountInput
+                        sensitive={condition.field === "amount"}
                         aria-label={`Condition ${index + 1} value`}
                         value={condition.value}
                         onChange={(e) =>
@@ -727,7 +752,7 @@ function RuleEditor({
                         options={categoryOptions(data)}
                       />
                       <div>
-                        <input
+                        <AmountInput
                           aria-label={`Split ${index + 1} amount`}
                           value={split.amount}
                           inputMode="decimal"
