@@ -15,7 +15,10 @@ export type ImportMapping = Record<
   | "merchant"
   | "category"
   | "account"
-  | "notes",
+  | "notes"
+  | "tags"
+  | "reviewed"
+  | "id",
   number
 >;
 export type ImportOptions = {
@@ -27,21 +30,42 @@ export type ImportOptions = {
   accountId: string;
   categoryId: string;
   keepDuplicates: boolean;
+  /** Account name in the file → Marten account id chosen in the preview. */
+  accountMap: Record<string, string>;
+  /** Category name in the file → Marten category id ("" keeps the default). */
+  categoryMap: Record<string, string>;
 };
-export type ImportLookup = { _id: string; name: string };
+export type ImportLookup = {
+  _id: string;
+  name: string;
+  mask?: string;
+  importName?: string;
+  kind?: string;
+};
 export type ReadyImportRow = {
   rowNumber: number;
   accountId: string;
   categoryId: string;
+  /** True when the file named a category that maps to a Marten category. */
+  categoryMatched: boolean;
   merchantName: string;
   date: string;
   amountCents: number;
   originalName: string;
   notes: string;
+  tags: string[];
+  reviewed: boolean;
   fingerprint: string;
   warning?: string;
 };
-export const MAX_IMPORT_ROWS = 5000;
+/** A distinct account or category name seen in the file and where it lands. */
+export type ImportNameMatch = {
+  name: string;
+  id: string;
+  rows: number;
+  automatic: boolean;
+};
+export const MAX_IMPORT_ROWS = 50_000;
 const MAX_SHEET_ROWS = MAX_IMPORT_ROWS + 51;
 const normalized = (value: string) =>
   value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -77,7 +101,7 @@ export function readCsv(contents: string): ImportCell[][] {
     rows.push(row);
     row = [];
     if (rows.length > MAX_SHEET_ROWS)
-      throw new Error("Import at most 5,000 transactions per file.");
+      throw new Error("Import at most 50,000 rows per file.");
   }
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -109,7 +133,8 @@ export function readCsv(contents: string): ImportCell[][] {
 }
 
 export async function loadImportSource(file: File): Promise<ImportSource> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Choose a file up to 5 MB.");
+  if (file.size > 25 * 1024 * 1024)
+    throw new Error("Choose a file up to 25 MB.");
   if (/\.csv$/i.test(file.name))
     return {
       name: file.name,
@@ -154,7 +179,7 @@ export async function loadImportSheet(
   );
   if (range.e.r >= MAX_SHEET_ROWS)
     throw new Error(
-      "Use a worksheet with at most 5,000 transactions and 50 header rows.",
+      "Use a worksheet with at most 50,000 rows and 50 header rows.",
     );
   if (range.e.c >= 100)
     throw new Error("Use a worksheet with at most 100 columns.");
@@ -168,12 +193,178 @@ export async function loadImportSheet(
   return { rows, date1904: !!workbook.Workbook?.WBProps?.date1904 };
 }
 
+/**
+ * A small CSV showing every column the importer understands, in Marten's
+ * default convention (expenses positive, income negative). Offered as a
+ * download beside the format guide in the import dialog.
+ */
+export function importTemplateCsv() {
+  const rows = [
+    [
+      "Date",
+      "Description",
+      "Amount",
+      "Merchant",
+      "Category",
+      "Account",
+      "Notes",
+      "Tags",
+      "Reviewed",
+      "Transaction ID",
+    ],
+    [
+      "2026-09-01",
+      "TRADER JOE S #723",
+      "86.27",
+      "Trader Joe's",
+      "Groceries",
+      "Everyday Checking",
+      "Weekly groceries",
+      "",
+      "Reviewed",
+      "",
+    ],
+    [
+      "2026-09-03",
+      "PAYROLL ACME INC",
+      "-2500.00",
+      "Acme Inc",
+      "Paycheck",
+      "Everyday Checking",
+      "",
+      "Income",
+      "",
+      "",
+    ],
+    [
+      "2026-09-04",
+      "AMAZON MKTPL*1A2B3C",
+      "32.79",
+      "Amazon",
+      "Shopping",
+      "Travel Card",
+      "Gift for a friend",
+      "Gifts, Family",
+      "",
+      "order-1A2B3C",
+    ],
+  ];
+  return (
+    rows
+      .map((row) =>
+        row
+          .map((cell) =>
+            /[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell,
+          )
+          .join(","),
+      )
+      .join("\r\n") + "\r\n"
+  );
+}
+export type ExportFormat = "monarch" | "monarch-balances" | null;
+/**
+ * Recognizes exports from other apps so their conventions apply automatically.
+ * Monarch Money's transaction CSV has Date, Merchant, Category, Account,
+ * Original Statement, Notes, Amount, Tags, Owner, Reviewed, Id, with expenses
+ * as negative amounts. Its balance CSV has Date, Balance, Account with one row
+ * per account per day and debts as negative balances.
+ */
+export function detectExportFormat(headers: ImportCell[]): ExportFormat {
+  const keys = new Set(
+    headers.map((h) => normalized(cellText(h)).replace(/[_-]/g, " ")),
+  );
+  const monarch = [
+    "date",
+    "merchant",
+    "category",
+    "account",
+    "original statement",
+    "amount",
+  ];
+  if (monarch.every((key) => keys.has(key))) return "monarch";
+  if (
+    ["date", "balance", "account"].every((key) => keys.has(key)) &&
+    !keys.has("amount")
+  )
+    return "monarch-balances";
+  return null;
+}
+/**
+ * Finds the Marten account a file's account label refers to. Labels such as
+ * "Venture X (...2480)" match by name first, then by name without the suffix,
+ * then by the last digits against the account mask. Ambiguous labels return "".
+ */
+export function matchAccount(label: string, accounts: ImportLookup[]): string {
+  const full = normalized(label);
+  if (!full) return "";
+  const unique = (matches: ImportLookup[]) =>
+    matches.length === 1 ? matches[0]._id : "";
+  const exact = unique(
+    accounts.filter(
+      (a) => normalized(a.name) === full || a.importName === full,
+    ),
+  );
+  if (exact) return exact;
+  const suffix = /^(.*?)\s*\(\s*(?:\.{3}|…)?\s*[x*#•]*(\d{2,})\s*\)$/i.exec(
+    label.trim(),
+  );
+  if (!suffix) return "";
+  const base = normalized(suffix[1]),
+    digits = suffix[2].slice(-4);
+  const byName = unique(accounts.filter((a) => normalized(a.name) === base));
+  if (byName) return byName;
+  const byMask = accounts.filter(
+    (a) => a.mask && a.mask.replace(/\D/g, "").slice(-4) === digits,
+  );
+  if (byMask.length === 1) return byMask[0]._id;
+  return unique(
+    byMask.filter((a) => {
+      const name = normalized(a.name);
+      return name.includes(base) || base.includes(name);
+    }),
+  );
+}
+export function matchCategory(
+  label: string,
+  categories: ImportLookup[],
+): string {
+  const matches = categories.filter(
+    (item) =>
+      normalized(item.name) === normalized(label) ||
+      item.importName === normalized(label),
+  );
+  return matches.length === 1 ? matches[0]._id : "";
+}
+/** Splits a tag cell such as "Travel, Reimbursable" into distinct names. */
+export function parseImportTags(value: ImportCell | undefined): string[] {
+  const names: string[] = [];
+  for (const part of cellText(value).split(/[,;|]/)) {
+    const name = part.trim().replace(/\s+/g, " ");
+    if (!name || names.some((n) => n.toLowerCase() === name.toLowerCase()))
+      continue;
+    if (name.length > 60)
+      throw new Error("Tag names need at most 60 characters.");
+    names.push(name);
+  }
+  if (names.length > 30) throw new Error("Use at most 30 tags per row.");
+  return names;
+}
+export function parseImportReviewed(value: ImportCell | undefined): boolean {
+  return /^(reviewed|yes|true|y|1|x|✓)$/i.test(cellText(value));
+}
 export function suggestMapping(headers: ImportCell[]): ImportMapping {
   const keys = headers.map((h) =>
     normalized(cellText(h)).replace(/[_-]/g, " "),
   );
-  const find = (...names: string[]) =>
-    keys.findIndex((key) => names.includes(key));
+  // Names are listed in priority order, so "description" wins over "merchant"
+  // when a file (such as a Monarch export) has both.
+  const find = (...names: string[]) => {
+    for (const name of names) {
+      const index = keys.indexOf(name);
+      if (index >= 0) return index;
+    }
+    return -1;
+  };
   return {
     date: find(
       "date",
@@ -213,6 +404,9 @@ export function suggestMapping(headers: ImportCell[]): ImportMapping {
     category: find("category", "category name"),
     account: find("account", "account name"),
     notes: find("notes", "note", "memo"),
+    tags: find("tags", "tag", "labels"),
+    reviewed: find("reviewed", "review status"),
+    id: find("id", "transaction id", "external id", "reference"),
   };
 }
 
@@ -304,6 +498,8 @@ export function previewImport(
 ) {
   const valid: ReadyImportRow[] = [],
     rejected: { rowNumber: number; description: string; reason: string }[] = [];
+  const accountNames = new Map<string, ImportNameMatch>(),
+    categoryNames = new Map<string, ImportNameMatch>();
   let duplicates = 0;
   const seen = new Map<string, number>();
   const { mapping } = options;
@@ -311,12 +507,17 @@ export function previewImport(
   const count = sourceRows.filter((row) =>
     row.some((cell) => cellText(cell)),
   ).length;
+  const summary = () => ({
+    accountNames: [...accountNames.values()],
+    categoryNames: [...categoryNames.values()],
+  });
   if (count > MAX_IMPORT_ROWS)
     return {
       valid,
       rejected,
       duplicates,
-      error: "Import at most 5,000 transactions per file.",
+      ...summary(),
+      error: "Import at most 50,000 rows per file.",
     };
   if (
     mapping.date < 0 ||
@@ -329,6 +530,7 @@ export function previewImport(
       valid,
       rejected,
       duplicates,
+      ...summary(),
       error: "Map the date, description, and amount columns to see a preview.",
     };
   if (options.amountMode === "separate" && mapping.debit === mapping.credit)
@@ -336,12 +538,40 @@ export function previewImport(
       valid,
       rejected,
       duplicates,
+      ...summary(),
       error: "Choose different columns for money out and money in.",
     };
+  // Each distinct account or category label resolves once: the preview's
+  // explicit choice wins, otherwise the automatic name match.
+  function resolveAccount(label: string) {
+    const known = accountNames.get(label);
+    if (known) {
+      known.rows++;
+      return known.id;
+    }
+    const chosen = options.accountMap[label];
+    const automatic = chosen === undefined;
+    const id = automatic ? matchAccount(label, accounts) : chosen;
+    accountNames.set(label, { name: label, id, rows: 1, automatic });
+    return id;
+  }
+  function resolveCategory(label: string) {
+    const known = categoryNames.get(label);
+    if (known) {
+      known.rows++;
+      return known.id;
+    }
+    const chosen = options.categoryMap[label];
+    const automatic = chosen === undefined;
+    const id = automatic ? matchCategory(label, categories) : chosen;
+    categoryNames.set(label, { name: label, id, rows: 1, automatic });
+    return id;
+  }
   sourceRows.forEach((row, index) => {
     if (!row.some((cell) => cellText(cell))) return;
     const rowNumber = index + options.headerRow + 1;
-    const originalName = cellText(row[mapping.description]);
+    const originalName =
+      cellText(row[mapping.description]) || cellText(row[mapping.merchant]);
     try {
       if (!originalName || originalName.length > 500)
         throw new Error("Description needs 1–500 characters.");
@@ -377,43 +607,46 @@ export function previewImport(
           throw new Error("Amount is missing.");
         amountCents = debit - credit;
       }
+      // Category names resolve before the account check so every category in
+      // the file is listed even while some rows still need an account.
+      const categoryName = cellText(row[mapping.category]);
+      const matchedCategory = categoryName ? resolveCategory(categoryName) : "";
       const accountName = cellText(row[mapping.account]);
-      const matches = accounts.filter(
-        (item) => normalized(item.name) === normalized(accountName),
-      );
       const accountId = accountName
-        ? matches.length === 1
-          ? matches[0]._id
-          : ""
+        ? resolveAccount(accountName)
         : options.accountId;
       if (!accountId || !accounts.some((a) => a._id === accountId))
         throw new Error(
           accountName
-            ? `Account “${accountName}” does not match one unique Marten account. Rename it in the file, or unmap Account to use the default.`
+            ? `Choose the Marten account for “${accountName}” under Accounts in this file, or unmap Account to use the default.`
             : "Choose a default account.",
         );
-      const categoryName = cellText(row[mapping.category]);
-      const categoryMatches = categories.filter(
-        (item) => normalized(item.name) === normalized(categoryName),
-      );
-      const categoryId =
-        categoryMatches.length === 1
-          ? categoryMatches[0]._id
-          : options.categoryId;
+      const categoryMatched =
+        !!matchedCategory && categories.some((c) => c._id === matchedCategory);
+      const categoryId = categoryMatched ? matchedCategory : options.categoryId;
       if (!categoryId || !categories.some((c) => c._id === categoryId))
         throw new Error("Choose a default category.");
       const notes = cellText(row[mapping.notes]);
       if (notes.length > 10000)
         throw new Error("Notes exceed 10,000 characters.");
-      const base = JSON.stringify([
-        accountId,
-        date,
-        normalized(originalName),
-        amountCents,
-      ]);
+      const tags = parseImportTags(row[mapping.tags]);
+      const reviewed = parseImportReviewed(row[mapping.reviewed]);
+      // A source transaction ID (such as Monarch's) identifies the row on its
+      // own, so two identical purchases with different IDs both import.
+      const externalId = cellText(row[mapping.id]);
+      if (externalId.length > 120)
+        throw new Error("Transaction ID needs at most 120 characters.");
+      const base = externalId
+        ? JSON.stringify(["id", externalId])
+        : JSON.stringify([
+            accountId,
+            date,
+            normalized(originalName),
+            amountCents,
+          ]);
       const occurrence = seen.get(base) ?? 0;
       seen.set(base, occurrence + 1);
-      if (occurrence && !options.keepDuplicates) {
+      if (occurrence && (externalId || !options.keepDuplicates)) {
         duplicates++;
         return;
       }
@@ -421,14 +654,17 @@ export function previewImport(
         rowNumber,
         accountId,
         categoryId,
+        categoryMatched,
         date,
         amountCents,
         originalName,
         merchantName,
         notes,
+        tags,
+        reviewed,
         fingerprint: `${base}:${occurrence}`,
         warning:
-          categoryName && categoryMatches.length !== 1
+          categoryName && !categoryMatched
             ? `“${categoryName}” uses the default category.`
             : undefined,
       });
@@ -440,7 +676,119 @@ export function previewImport(
       });
     }
   });
-  return { valid, rejected, duplicates, error: "" };
+  return { valid, rejected, duplicates, ...summary(), error: "" };
+}
+export type BalanceImportRow = {
+  rowNumber: number;
+  accountId: string;
+  date: string;
+  balanceCents: number;
+};
+/**
+ * Previews a balance-history file with Date, Balance, and Account columns,
+ * such as Monarch Money's balance export. Monarch lists credit cards and loans
+ * as negative balances; Marten stores the amount owed, so those are inverted.
+ */
+export function previewBalanceImport(
+  sheet: ImportSheet,
+  options: {
+    headerRow: number;
+    dateOrder: "mdy" | "dmy";
+    accountMap: Record<string, string>;
+    invertDebts: boolean;
+  },
+  accounts: ImportLookup[],
+) {
+  const headers = sheet.rows[options.headerRow - 1] ?? [];
+  const keys = headers.map((h) =>
+    normalized(cellText(h)).replace(/[_-]/g, " "),
+  );
+  const columns = {
+    date: keys.indexOf("date"),
+    balance: keys.indexOf("balance"),
+    account: keys.indexOf("account"),
+  };
+  const valid: BalanceImportRow[] = [],
+    rejected: { rowNumber: number; description: string; reason: string }[] = [];
+  const accountNames = new Map<string, ImportNameMatch>();
+  const latest = new Map<string, number>();
+  let skipped = 0;
+  const sourceRows = sheet.rows.slice(options.headerRow);
+  if (columns.date < 0 || columns.balance < 0 || columns.account < 0)
+    return {
+      valid,
+      rejected,
+      skipped,
+      accountNames: [],
+      error: "Use columns named Date, Balance, and Account.",
+    };
+  if (sourceRows.length > MAX_IMPORT_ROWS)
+    return {
+      valid,
+      rejected,
+      skipped,
+      accountNames: [],
+      error: "Import at most 50,000 balance rows per file.",
+    };
+  sourceRows.forEach((row, index) => {
+    if (!row.some((cell) => cellText(cell))) return;
+    const rowNumber = index + options.headerRow + 1;
+    const label = cellText(row[columns.account]);
+    try {
+      if (!label) throw new Error("Account is missing.");
+      let match = accountNames.get(label);
+      if (!match) {
+        const chosen = options.accountMap[label];
+        match = {
+          name: label,
+          id: chosen === undefined ? matchAccount(label, accounts) : chosen,
+          rows: 0,
+          automatic: chosen === undefined,
+        };
+        accountNames.set(label, match);
+      }
+      match.rows++;
+      const chosenId = match.id;
+      const account = accounts.find((a) => a._id === chosenId);
+      const date = parseImportDate(
+        row[columns.date],
+        options.dateOrder,
+        sheet.date1904,
+      );
+      let balanceCents = parseImportMoney(row[columns.balance]);
+      if (!account) {
+        skipped++;
+        return;
+      }
+      if (
+        options.invertDebts &&
+        (account.kind === "credit" || account.kind === "loan")
+      )
+        balanceCents = -balanceCents;
+      // One balance per account per day: a later row for the same day wins.
+      const key = `${account._id}:${date}`;
+      const existing = latest.get(key);
+      if (existing !== undefined) {
+        valid[existing].balanceCents = balanceCents;
+        return;
+      }
+      latest.set(key, valid.length);
+      valid.push({ rowNumber, accountId: account._id, date, balanceCents });
+    } catch (error) {
+      rejected.push({
+        rowNumber,
+        description: label,
+        reason: error instanceof Error ? error.message : "Invalid row.",
+      });
+    }
+  });
+  return {
+    valid,
+    rejected,
+    skipped,
+    accountNames: [...accountNames.values()],
+    error: "",
+  };
 }
 
 export async function importRowKey(row: ReadyImportRow) {

@@ -121,18 +121,73 @@ export async function insertTransaction(
   source: "manual" | "csv" | "sample",
   importKey?: string,
   ruleContext?: RuleContext,
+  editedFields: string[] = [],
 ) {
   await validateTransaction(ctx, fields);
-  const applied = await applyRules(ctx, fields, [], ruleContext);
+  const applied = await applyRules(ctx, fields, editedFields, ruleContext);
   const id = await ctx.db.insert("transactions", {
     ...applied,
     userId: ctx.userId,
     source,
     updatedAt: Date.now(),
-    editedFields: [],
+    editedFields,
     searchText: await refreshSearch(ctx, applied),
     ...(importKey ? { importKey } : {}),
   });
   await changeMerchantCount(ctx, null, applied.merchantId);
   return id;
+}
+/** How far apart a bank's posted date and a spreadsheet's date may be for the same purchase. */
+export const MATCH_WINDOW_DAYS = 3;
+export function shiftDate(date: string, days: number) {
+  return new Date(Date.parse(date + "T00:00:00Z") + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
+/**
+ * Finds the transaction on one account that most plausibly is the same
+ * purchase as an incoming row: identical amount, dated within the match
+ * window, nearest date first, then a matching statement description. The
+ * caller's `accept` filter keeps provider rows and spreadsheet rows from
+ * pairing with their own kind, so a bank sync can adopt a spreadsheet row and
+ * a spreadsheet import can enrich a synced row without creating a duplicate.
+ */
+export async function findMatchingTransaction(
+  ctx: UserRead,
+  target: {
+    accountId: Id<"accounts">;
+    date: string;
+    amountCents: number;
+    originalName?: string;
+  },
+  accept: (transaction: Doc<"transactions">) => boolean,
+) {
+  const from = shiftDate(target.date, -MATCH_WINDOW_DAYS),
+    to = shiftDate(target.date, MATCH_WINDOW_DAYS);
+  const nearby = await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_and_accountId_and_date", (q) =>
+      q
+        .eq("userId", ctx.userId)
+        .eq("accountId", target.accountId)
+        .gte("date", from)
+        .lte("date", to),
+    )
+    .take(500);
+  const wanted = normalize(target.originalName ?? "");
+  let best: { row: Doc<"transactions">; score: number } | null = null;
+  for (const row of nearby) {
+    if (row.amountCents !== target.amountCents || !accept(row)) continue;
+    const distance = Math.abs(
+      (Date.parse(row.date) - Date.parse(target.date)) / 86400000,
+    );
+    const score =
+      distance * 2 + (wanted && normalize(row.originalName) === wanted ? 0 : 1);
+    if (!best || score < best.score) best = { row, score };
+  }
+  return best?.row ?? null;
+}
+/** Adds new tag ids to a transaction's list without repeating any. */
+export function unionTags(current: Id<"tags">[], added: Id<"tags">[]) {
+  return [...current, ...added.filter((id) => !current.includes(id))];
 }
