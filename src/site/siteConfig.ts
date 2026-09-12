@@ -5,7 +5,7 @@
  */
 export const site = {
   name: "Marten",
-  operator: "Drew Levinson",
+  operator: "Drew",
   url: "https://martenmoney.com",
   github: "https://github.com/dlev02/marten",
   issues: "https://github.com/dlev02/marten/issues",

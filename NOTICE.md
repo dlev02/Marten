@@ -1,6 +1,6 @@
 # Marten — license and attribution
 
-Marten is copyright © 2026 Drew Levinson and is licensed under the
+Marten is copyright © 2026 Drew ([github.com/dlev02](https://github.com/dlev02)) and is licensed under the
 **GNU Affero General Public License, version 3 or later** (see [LICENSE](LICENSE)).
 
 ## Additional term: attribution (AGPL-3.0 section 7(b))
@@ -10,7 +10,7 @@ following additional requirement, which applies to every copy, fork, hosted
 instance, and derivative work, modified or not:
 
 > You must preserve reasonable attribution to the original author. Specifically,
-> keep the credit **"Built on Marten by Drew Levinson"** with a link to
+> keep the credit **"Built on Marten by Drew"** with a link to
 > https://github.com/dlev02/marten visible to users of the software (for
 > example in an About or Settings screen and in the site footer), and keep this
 > notice, the copyright line, and the original project name in the source and

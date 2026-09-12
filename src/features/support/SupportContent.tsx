@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Bug, Heart, Megaphone } from "lucide-react";
+import { Bug, Check, Heart, Megaphone } from "lucide-react";
 import { GitHubIcon } from "../../site/GitHubIcon";
 import { site } from "../../site/siteConfig";
 import "./support.css";
@@ -42,13 +42,7 @@ export function SupportContent({
   return (
     <div className={`support-content ${compact ? "compact" : ""}`}>
       <div className="support-hero">
-        <div className="support-art" aria-hidden="true">
-          <span className="support-mark" />
-          <span className="support-heart">
-            <Heart size={22} />
-          </span>
-        </div>
-        <div>
+        <div className="support-copy">
           {compact ? (
             <h2>Marten is free. Help keep it that way.</h2>
           ) : (
@@ -73,16 +67,27 @@ export function SupportContent({
             <small>One-time or monthly, any amount. Opens Ko-fi.</small>
           </div>
         </div>
+        <div className="support-art" aria-hidden="true">
+          <span className="support-mark" />
+          <span className="support-heart">
+            <Heart size={22} />
+          </span>
+        </div>
       </div>
       <div className="support-columns">
         <section>
           <h2>What it pays for</h2>
-          <ul>
-            <li>The domain name and email for the hosted site.</li>
-            <li>
-              Time spent on bank-provider quirks, imports, and design polish.
-            </li>
-            <li>Keeping the hosted site free for everyone who signs up.</li>
+          <ul className="support-list">
+            {[
+              "The domain name and email for the hosted site.",
+              "Time spent on bank-provider quirks, imports, and design polish.",
+              "Keeping the hosted site free for everyone who signs up.",
+            ].map((item) => (
+              <li key={item}>
+                <Check size={15} aria-hidden="true" />
+                <span>{item}</span>
+              </li>
+            ))}
           </ul>
         </section>
         <section>

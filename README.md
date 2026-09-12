@@ -160,7 +160,7 @@ Keep signing keys, Plaid secrets, and `CREDENTIALS_KEY` in Convex deployment con
 Marten is free software under the [GNU AGPL v3 or later](LICENSE), with one
 additional term (see [NOTICE.md](NOTICE.md)): **every copy, fork, or hosted
 instance must keep visible credit to the original author** — "Built on Marten
-by Drew Levinson" with a link to this repository — in the app and in its
+by Drew" with a link to this repository — in the app and in its
 documentation. You can run it, change it, self-host it, and share it; changes
 must stay open under the same license, and people using a hosted copy must be
 able to get the source. Renaming it and dropping the credit is not allowed.

@@ -447,9 +447,6 @@ export function Landing() {
                 Create a free account
               </Link>
             </div>
-            <small>
-              The demo is a fictional household. No sign-up, nothing to connect.
-            </small>
           </div>
         </section>
       </div>

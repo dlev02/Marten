@@ -173,7 +173,7 @@ export function SiteLayout({
           </nav>
         </div>
         <div className="site-footer-legal">
-          <span>© 2026 {site.operator}. No ads, no data sales, ever.</span>
+          <span>© 2026 {site.operator}</span>
           <span>
             Marten is not a bank and does not give financial advice. Bank data
             arrives through Plaid or your own SimpleFIN Bridge subscription.
