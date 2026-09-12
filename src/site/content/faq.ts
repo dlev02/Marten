@@ -65,6 +65,13 @@ export const publicFaq: FaqEntry[] = [
       "Yes. Marten is a static React site plus a [Convex](https://www.convex.dev) backend. The [self-hosting guide](https://github.com/dlev02/marten/blob/main/docs/self-hosting.md) takes about ten minutes: create a free Convex project, generate auth keys, set a sealing key, optionally add email and Plaid credentials, and publish the built site on any static host. You then control every credential and every byte of data.",
   },
   {
+    id: "license",
+    question: "What license is Marten under, and can I fork it?",
+    answer:
+      'Marten is released under the GNU AGPL v3 with one added term: any copy, fork, or hosted instance must keep visible credit to the original author ("Built on Marten by Drew Levinson" with a link to the repository). You can run it, change it, self-host it, and share it. Your changes have to stay open under the same license, people using a hosted copy must be able to get the source, and you cannot rename it and drop the credit. Details are in [NOTICE.md](https://github.com/dlev02/marten/blob/main/NOTICE.md).',
+    category: "Hosting & open source",
+  },
+  {
     id: "data-sold",
     category: "Privacy & security",
     question: "Is my data sold or used for ads?",

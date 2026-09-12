@@ -155,6 +155,12 @@ Keep signing keys, Plaid secrets, and `CREDENTIALS_KEY` in Convex deployment con
 - **Source and updates** live at [github.com/dlev02/marten](https://github.com/dlev02/marten). Starring the repository is a nice way to say it is useful, and watching it is the easiest way to hear about releases.
 - **Donations** are optional and never unlock anything. If Marten saves you a subscription and you want to say thanks: [Ko-fi](https://ko-fi.com/dlev384895). GitHub Sponsors may be added later.
 
-## License
+## License and credit
 
-Marten will be released under an open-source license chosen before the public release. Until then, all rights are reserved.
+Marten is free software under the [GNU AGPL v3 or later](LICENSE), with one
+additional term (see [NOTICE.md](NOTICE.md)): **every copy, fork, or hosted
+instance must keep visible credit to the original author** — "Built on Marten
+by Drew Levinson" with a link to this repository — in the app and in its
+documentation. You can run it, change it, self-host it, and share it; changes
+must stay open under the same license, and people using a hosted copy must be
+able to get the source. Renaming it and dropping the credit is not allowed.

@@ -126,7 +126,7 @@ export const termsOfService: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Marten's source code is published at [github.com/dlev02/marten](https://github.com/dlev02/marten) under the license stated in that repository. Anyone can read it, report issues, propose changes, or run their own copy with their own Convex backend and provider accounts. A self-hosted copy is entirely under its operator's control; these terms do not apply to it.",
+          text: "Marten's source code is published at [github.com/dlev02/marten](https://github.com/dlev02/marten) under the GNU AGPL v3 with an attribution term (see NOTICE.md in the repository). Anyone can read it, report issues, propose changes, or run their own copy with their own Convex backend and provider accounts. A self-hosted copy is entirely under its operator's control; these terms do not apply to it.",
         },
       ],
     },
