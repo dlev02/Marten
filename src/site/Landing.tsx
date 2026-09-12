@@ -199,7 +199,9 @@ export function Landing() {
         <section className="hero" data-scene="hero">
           <div className="hero-copy">
             <h1>
-              Your money, <em>in one calm place.</em>
+              Your money,
+              <br />
+              <em>in one calm place.</em>
             </h1>
             <p className="hero-lede">
               Marten is a free, open-source personal finance app. Connect your
