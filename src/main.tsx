@@ -7,6 +7,8 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ToastProvider } from "./components/folio/ui";
 import App from "./App";
+import { RouteErrorScreen } from "./components/folio/RouteErrorBoundary";
+import { reloadForStaleChunk } from "./lib/staleChunk";
 import {
   applyFont,
   readFont,
@@ -25,7 +27,13 @@ const convex = new ConvexReactClient(url);
 const demo = initializeDemoContext();
 applyFont(readFont());
 applyCategoryIconStyle(readCategoryIconStyle());
-const router = createBrowserRouter([{ path: "*", element: <App /> }]);
+// After a deploy, an old tab can request chunks that no longer exist.
+window.addEventListener("vite:preloadError", (event) => {
+  if (reloadForStaleChunk()) event.preventDefault();
+});
+const router = createBrowserRouter([
+  { path: "*", element: <App />, errorElement: <RouteErrorScreen /> },
+]);
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

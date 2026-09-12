@@ -36,15 +36,30 @@ export const parseMoney = (s: string) => {
     throw new Error("Enter an amount with up to two decimal places.");
   return Math.round(Number(value) * 100);
 };
+/**
+ * Turns any thrown value into a sentence a person can act on. Messages the
+ * server wrote on purpose (ConvexError) pass through; everything else, such as
+ * an unexpected server exception or a dropped connection, gets a plain
+ * explanation instead of request IDs or stack text.
+ */
 export const message = (error: unknown) => {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = error instanceof Error ? error.message : String(error ?? "");
   const convex = raw.match(/Uncaught ConvexError: ([\s\S]*?)(?:\n|$)/);
-  return (
-    convex?.[1] ??
-    (raw.includes("InvalidAccountId") || raw.includes("InvalidSecret")
-      ? "The email or password is incorrect."
-      : raw.replace(/^\[CONVEX[^\]]*\]\s*/, "").split("\n")[0])
-  );
+  if (convex?.[1]) return convex[1].trim();
+  if (raw.includes("InvalidAccountId") || raw.includes("InvalidSecret"))
+    return "The email or password is incorrect.";
+  if (
+    /Failed to fetch|NetworkError|Load failed|ECONNREFUSED|offline/i.test(raw)
+  )
+    return "Marten can’t reach the server right now. Check your connection and try again.";
+  if (
+    /\[CONVEX|Server Error|Request ID|Uncaught Error|InternalServerError/i.test(
+      raw,
+    )
+  )
+    return "Something went wrong on the server. Please try again in a moment.";
+  const first = raw.split("\n")[0].trim();
+  return first || "Something went wrong. Please try again.";
 };
 export const csv = (rows: (string | number)[][]) =>
   rows
