@@ -1,3 +1,4 @@
+import { AmountInput } from "../../components/folio/AmountInput";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -149,7 +150,7 @@ export function NewTransaction({
             <div className="form-grid">
               <label>
                 Amount
-                <input
+                <AmountInput
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   inputMode="decimal"

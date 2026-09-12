@@ -193,12 +193,103 @@ export const create = userMutation({
   handler: (ctx, fields) => insertTransaction(ctx, fields, "manual"),
 });
 export const bulkUpdate = userMutation({
-  args: { ids: v.array(v.id("transactions")), patch: patchValidator },
+  args: {
+    ids: v.array(v.id("transactions")),
+    patch: patchValidator,
+    tagChange: v.optional(
+      v.object({
+        mode: v.union(
+          v.literal("add"),
+          v.literal("remove"),
+          v.literal("replace"),
+        ),
+        ids: v.array(v.id("tags")),
+      }),
+    ),
+    recurringFrequency: v.optional(recurringFields.frequency),
+  },
   returns: v.number(),
-  handler: async (ctx, { ids, patch }) => {
+  handler: async (ctx, { ids, patch, tagChange, recurringFrequency }) => {
     if (ids.length > 100)
       throw new ConvexError("Select at most 100 transactions.");
-    for (const id of new Set(ids)) await updateOne(ctx, id, patch);
+    if (tagChange) {
+      if (tagChange.ids.length > 100)
+        throw new ConvexError("Choose up to 100 tags.");
+      for (const id of tagChange.ids) await owned(ctx, id);
+    }
+    for (const id of new Set(ids)) {
+      const tx = await owned(ctx, id);
+      const changes = { ...patch };
+      if (tagChange)
+        changes.tagIds =
+          tagChange.mode === "add"
+            ? [...new Set([...tx.tagIds, ...tagChange.ids])]
+            : tagChange.mode === "remove"
+              ? tx.tagIds.filter((id) => !tagChange.ids.includes(id))
+              : [...new Set(tagChange.ids)];
+      await updateOne(ctx, id, changes);
+      if (recurringFrequency) {
+        const next = { ...tx, ...changes };
+        if (next.pending || next.hidden || next.removedFromBank)
+          throw new ConvexError(
+            "Choose visible, posted transactions to create recurring schedules.",
+          );
+        const schedules = await ctx.db
+          .query("recurring")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(500);
+        if (
+          !schedules.some(
+            (schedule) =>
+              schedule.active &&
+              schedule.frequency === recurringFrequency &&
+              matchesRecurringCriteria(schedule, next),
+          )
+        )
+          await saveRecurringForUser(ctx, {
+            merchantId: next.merchantId,
+            accountId: next.accountId,
+            categoryId: next.categoryId,
+            amountCents: next.amountCents,
+            amountToleranceCents: 0,
+            frequency: recurringFrequency,
+            nextDate: next.date,
+            active: true,
+            source: "manual",
+            note: "",
+          });
+      }
+    }
+    return new Set(ids).size;
+  },
+});
+async function removeOne(ctx: UserWrite, id: Id<"transactions">) {
+  const tx = await owned(ctx, id);
+  if (tx.source === "plaid" || tx.source === "simplefin")
+    throw new ConvexError(
+      "Hide a bank transaction to exclude it from reports.",
+    );
+  const attachments = await ctx.db
+    .query("attachments")
+    .withIndex("by_transactionId", (q) => q.eq("transactionId", id))
+    .take(21);
+  for (const a of attachments) {
+    await ctx.storage.delete(a.storageId);
+    await ctx.db.delete(a._id);
+  }
+  await changeMerchantCount(ctx, tx.merchantId, null);
+  await ctx.db.delete(id);
+  await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
+    transactionId: id,
+  });
+}
+export const bulkRemove = userMutation({
+  args: { ids: v.array(v.id("transactions")) },
+  returns: v.number(),
+  handler: async (ctx, { ids }) => {
+    if (!ids.length || ids.length > 100)
+      throw new ConvexError("Select 1 to 100 transactions.");
+    for (const id of new Set(ids)) await removeOne(ctx, id);
     return new Set(ids).size;
   },
 });
@@ -206,24 +297,7 @@ export const remove = userMutation({
   args: { id: v.id("transactions") },
   returns: v.null(),
   handler: async (ctx, { id }) => {
-    const tx = await owned(ctx, id);
-    if (tx.source === "plaid" || tx.source === "sophtron")
-      throw new ConvexError(
-        "Hide a bank transaction to exclude it from reports.",
-      );
-    const attachments = await ctx.db
-      .query("attachments")
-      .withIndex("by_transactionId", (q) => q.eq("transactionId", id))
-      .take(21);
-    for (const a of attachments) {
-      await ctx.storage.delete(a.storageId);
-      await ctx.db.delete(a._id);
-    }
-    await changeMerchantCount(ctx, tx.merchantId, null);
-    await ctx.db.delete(id);
-    await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
-      transactionId: id,
-    });
+    await removeOne(ctx, id);
     return null;
   },
 });

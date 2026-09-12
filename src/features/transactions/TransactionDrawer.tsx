@@ -1,3 +1,9 @@
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { AmountInput } from "../../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
 import { CategoryIcon } from "../../components/folio/CategoryIcon";
 import {
   useCallback,
@@ -20,7 +26,9 @@ import {
   EyeOff,
   FileText,
   Loader2,
+  MoreHorizontal,
   Paperclip,
+  Pencil,
   Plus,
   Repeat2,
   Scissors,
@@ -30,7 +38,7 @@ import {
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { categoryOptions, merchantOptions, useData } from "../../lib/data";
-import { message, money, parseMoney } from "../../lib/format";
+import { message, parseMoney } from "../../lib/format";
 import { DatePicker } from "../../components/folio/DatePicker";
 import {
   Avatar,
@@ -43,6 +51,8 @@ import {
   useTask,
   useToast,
 } from "../../components/folio/ui";
+import { TagPicker } from "./TagPicker";
+import { MerchantEditor } from "../settings/Organization";
 import { useNotesDraft } from "./useNotesDraft";
 import { RecurringEditor, type RecurringDraft } from "../Recurring";
 import {
@@ -61,6 +71,7 @@ export function TransactionDrawer({
   previous?: () => void;
   next?: () => void;
 }) {
+  useAmountsHidden();
   const detail = useQuery(api.transactions.detail, id ? { id } : "skip");
   const flushRef = useRef<(() => Promise<boolean>) | null>(null);
   const leavingRef = useRef(false);
@@ -128,6 +139,7 @@ function TransactionFields({
   leave: (action: () => void) => Promise<void>;
   leaving: boolean;
 }) {
+  useAmountsHidden();
   const { transaction: tx } = detail,
     data = useData(),
     toast = useToast(),
@@ -142,7 +154,8 @@ function TransactionFields({
     [splitOpen, setSplitOpen] = useState(false),
     [confirmDelete, setConfirmDelete] = useState(false),
     [newMerchant, setNewMerchant] = useState(false),
-    [merchantName, setMerchantName] = useState("");
+    [merchantName, setMerchantName] = useState(""),
+    [editingMerchant, setEditingMerchant] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const [recurringDraft, setRecurringDraft] = useState<RecurringDraft | null>(
     null,
@@ -236,23 +249,41 @@ function TransactionFields({
         >
           {tx.reviewed ? "Reviewed" : "Mark as reviewed"}
         </Button>
-        <Button
-          tone="quiet"
-          icon={tx.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
-          disabled={!canEdit}
-          onClick={() => void patch({ hidden: !tx.hidden })}
-        >
-          {tx.hidden ? "Unhide" : "Hide"}
-        </Button>
-        {tx.source !== "plaid" && tx.source !== "sophtron" && (
-          <IconButton
-            label="Delete transaction"
-            disabled={!canEdit}
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 size={16} />
-          </IconButton>
-        )}
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <IconButton label="More transaction actions" disabled={!canEdit}>
+              <MoreHorizontal size={18} />
+            </IconButton>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="small-menu transaction-more-menu"
+              align="end"
+              sideOffset={6}
+            >
+              <DropdownMenu.Item
+                asChild
+                onSelect={() => void patch({ hidden: !tx.hidden })}
+              >
+                <button type="button">
+                  {tx.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                  {tx.hidden ? "Unhide transaction" : "Hide transaction"}
+                </button>
+              </DropdownMenu.Item>
+              {tx.source !== "plaid" && tx.source !== "simplefin" && (
+                <DropdownMenu.Item
+                  asChild
+                  onSelect={() => setConfirmDelete(true)}
+                >
+                  <button type="button" className="transaction-delete-action">
+                    <Trash2 size={16} />
+                    Delete transaction
+                  </button>
+                </DropdownMenu.Item>
+              )}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
       <div className="transaction-detail-hero">
         <Avatar
@@ -308,20 +339,33 @@ function TransactionFields({
               : void patch({ merchantId: id as Id<"merchants"> })
           }
         />
-        <Link
-          to={`/transactions?merchant=${tx.merchantId}`}
-          className="text-link merchant-transactions-link"
-          onClick={(event) => {
-            event.preventDefault();
-            void leave(() => {
-              onClose();
-              void navigate(`/transactions?merchant=${tx.merchantId}`);
-            });
-          }}
-        >
-          View {merchant?.transactionCount ?? 0}{" "}
-          {merchant?.transactionCount === 1 ? "transaction" : "transactions"}
-        </Link>
+        <div className="merchant-links">
+          <Link
+            to={`/transactions?merchant=${tx.merchantId}`}
+            className="text-link merchant-transactions-link"
+            onClick={(event) => {
+              event.preventDefault();
+              void leave(() => {
+                onClose();
+                void navigate(`/transactions?merchant=${tx.merchantId}`);
+              });
+            }}
+          >
+            View {merchant?.transactionCount ?? 0}{" "}
+            {merchant?.transactionCount === 1 ? "transaction" : "transactions"}
+          </Link>
+          {merchant && (
+            <button
+              type="button"
+              className="text-link merchant-transactions-link"
+              disabled={!canEdit}
+              onClick={() => setEditingMerchant(true)}
+            >
+              <Pencil size={12} />
+              Edit merchant
+            </button>
+          )}
+        </div>
         <div className="original-statement">
           <span>Original statement</span>
           <div>
@@ -339,62 +383,6 @@ function TransactionFields({
             </IconButton>
           </div>
         </div>
-        <Field label="Recurring schedule">
-          {matchingSchedules.length > 0 ? (
-            <>
-              {matchingSchedules.length > 1 && (
-                <p className="muted">
-                  More than one schedule matches. Review their amounts or
-                  statement filters.
-                </p>
-              )}
-              {matchingSchedules.map((schedule) => (
-                <Button
-                  key={schedule._id}
-                  icon={<Repeat2 size={15} />}
-                  onClick={() => setRecurringDraft(schedule)}
-                >
-                  {recurringName(schedule, merchant?.name)}
-                </Button>
-              ))}
-              <small className="muted">
-                Matches this schedule’s details. Payment checkmarks are managed
-                in Recurring.
-              </small>
-            </>
-          ) : (
-            <small className="muted">
-              This transaction doesn’t match a recurring schedule.
-            </small>
-          )}
-          <Button
-            icon={<Plus size={15} />}
-            disabled={
-              tx.pending ||
-              tx.hidden ||
-              !!tx.removedFromBank ||
-              tx.amountCents === 0
-            }
-            onClick={() =>
-              setRecurringDraft({
-                merchantId: tx.merchantId,
-                accountId: tx.accountId,
-                categoryId: tx.categoryId,
-                name: merchant?.name ?? tx.originalName,
-                amountCents: tx.amountCents,
-                amountToleranceCents: 0,
-                statementContains: "",
-                frequency: "monthly",
-                nextDate: tx.date,
-                active: true,
-                source: "manual",
-                note: "",
-              })
-            }
-          >
-            Create a schedule from this transaction
-          </Button>
-        </Field>
         <div className="date-field">
           <label htmlFor={`date-${tx._id}`}>Date</label>
           <DatePicker
@@ -402,7 +390,7 @@ function TransactionFields({
             label="Transaction date"
             value={tx.date}
             disabled={
-              tx.source === "plaid" || tx.source === "sophtron" || !canEdit
+              tx.source === "plaid" || tx.source === "simplefin" || !canEdit
             }
             required
             onChange={(value) => void patch({ date: value })}
@@ -491,41 +479,17 @@ function TransactionFields({
                 )
               );
             })}
-            <Picker
-              label="Add tag"
+            <TagPicker
+              selected={tx.tagIds}
               disabled={!canEdit}
-              value=""
-              options={data.tags
-                .filter((t) => !tx.tagIds.includes(t._id))
-                .map((t) => ({
-                  value: t._id,
-                  label: t.name,
-                  icon: (
-                    <span
-                      className="color-dot"
-                      style={{ background: t.color }}
-                    />
-                  ),
-                }))}
-              placeholder="Add tag"
-              onChange={(id) => setTag(id as Id<"tags">)}
+              onSelect={async (id) => {
+                if (
+                  !(await patch({ tagIds: [...new Set([...tx.tagIds, id])] }))
+                )
+                  throw new Error("The tag could not be applied. Try again.");
+              }}
             />
           </div>
-          {!data.tags.length && (
-            <Link
-              to="/settings/tags"
-              className="text-link small"
-              onClick={(event) => {
-                event.preventDefault();
-                void leave(() => {
-                  onClose();
-                  void navigate("/settings/tags");
-                });
-              }}
-            >
-              Create your first tag
-            </Link>
-          )}
         </Field>
         <Field label="Attachments">
           <div className="attachment-list">
@@ -578,6 +542,65 @@ function TransactionFields({
           </button>
           <small className="muted">JPEG, PNG, WebP, or PDF · up to 5 MB</small>
         </Field>
+        <div className="original-statement recurring-section">
+          <span>Recurring schedule</span>
+          <div className="recurring-section-body">
+            {matchingSchedules.length > 0 ? (
+              <>
+                {matchingSchedules.length > 1 && (
+                  <p className="muted">
+                    More than one schedule matches. Review their amounts or
+                    statement filters.
+                  </p>
+                )}
+                {matchingSchedules.map((schedule) => (
+                  <Button
+                    key={schedule._id}
+                    icon={<Repeat2 size={15} />}
+                    onClick={() => setRecurringDraft(schedule)}
+                  >
+                    {recurringName(schedule, merchant?.name)}
+                  </Button>
+                ))}
+                <small className="muted">
+                  Matches this schedule’s details. Payment checkmarks are
+                  managed in Recurring.
+                </small>
+              </>
+            ) : (
+              <small className="muted">
+                This transaction doesn’t match a recurring schedule.
+              </small>
+            )}
+            <Button
+              icon={<Plus size={15} />}
+              disabled={
+                tx.pending ||
+                tx.hidden ||
+                !!tx.removedFromBank ||
+                tx.amountCents === 0
+              }
+              onClick={() =>
+                setRecurringDraft({
+                  merchantId: tx.merchantId,
+                  accountId: tx.accountId,
+                  categoryId: tx.categoryId,
+                  name: merchant?.name ?? tx.originalName,
+                  amountCents: tx.amountCents,
+                  amountToleranceCents: 0,
+                  statementContains: "",
+                  frequency: "monthly",
+                  nextDate: tx.date,
+                  active: true,
+                  source: "manual",
+                  note: "",
+                })
+              }
+            >
+              Create a schedule from this transaction
+            </Button>
+          </div>
+        </div>
         <section className="activity">
           <button
             onClick={() => setActivityOpen(!activityOpen)}
@@ -610,7 +633,7 @@ function TransactionFields({
                 <li>
                   <span />
                   <div>
-                    {tx.source === "plaid" || tx.source === "sophtron"
+                    {tx.source === "plaid" || tx.source === "simplefin"
                       ? "Transaction imported"
                       : "Transaction added"}
                     <small>
@@ -696,6 +719,12 @@ function TransactionFields({
           </Button>
         </div>
       </Modal>
+      {editingMerchant && merchant && (
+        <MerchantEditor
+          merchant={merchant}
+          onClose={() => setEditingMerchant(false)}
+        />
+      )}
       <Modal
         open={newMerchant}
         onClose={() => setNewMerchant(false)}
@@ -745,6 +774,7 @@ function SplitTransaction({
   tx: Doc<"transactions">;
   save: (splits: Doc<"transactions">["splits"]) => Promise<boolean>;
 }) {
+  useAmountsHidden();
   const data = useData(),
     [rows, setRows] = useState<
       { categoryId: string; amount: string; note: string }[]
@@ -807,7 +837,7 @@ function SplitTransaction({
                 placeholder="Add a note (optional)"
               />
             </div>
-            <input
+            <AmountInput
               aria-label={`Split ${index + 1} amount`}
               className="split-amount"
               value={row.amount}
