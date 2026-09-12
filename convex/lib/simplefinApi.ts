@@ -289,6 +289,7 @@ export type ParsedTransaction = {
   memo: string;
   pending: boolean;
   mcc: string;
+  category?: string;
 };
 export type ParsedAccount = {
   id: string;
@@ -402,6 +403,12 @@ export function parseAccountSet(value: unknown): AccountSet {
       } catch {
         continue;
       }
+      // Extra data is provider-specific and optional; malformed hints must not
+      // prevent otherwise valid transactions from importing.
+      const extra =
+        tx.extra && typeof tx.extra === "object" && !Array.isArray(tx.extra)
+          ? (tx.extra as ProviderObject)
+          : {};
       transactions.push({
         id: txId,
         posted: unixDate(tx.posted),
@@ -411,7 +418,8 @@ export function parseAccountSet(value: unknown): AccountSet {
         payee: string(tx.payee, 120),
         memo: string(tx.memo, 300),
         pending: tx.pending === true,
-        mcc: string(tx.mcc, 4),
+        mcc: parseMcc(tx.mcc) || parseMcc(extra.mcc),
+        category: string(tx.category) || string(extra.category),
       });
     }
     accounts.push({
@@ -467,12 +475,21 @@ export function guessKind(
  * Merchant category codes (ISO 18245) the bridge passes through. Only broad,
  * unambiguous groups map to a default category name; user rules still win.
  */
+function parseMcc(value: unknown): string {
+  const code =
+    typeof value === "number"
+      ? String(value)
+      : typeof value === "string"
+        ? value.trim()
+        : "";
+  return /^\d{4}$/.test(code) ? code : "";
+}
 export function mccCategory(mcc: string): string {
   const code = Number(mcc);
   if (!Number.isInteger(code)) return "";
   if (code === 5411 || code === 5422 || code === 5499) return "Groceries";
   if (code === 5812 || code === 5813 || code === 5814) return "Restaurants";
-  if (code === 5541 || code === 5542 || code === 5983) return "Gas";
+  if (code === 5541 || code === 5542 || code === 5983) return "Fuel";
   if (code === 4121 || code === 4111 || code === 4131) return "Transport";
   if (code >= 3000 && code <= 3299) return "Travel";
   if ((code >= 3501 && code <= 3999) || code === 7011) return "Travel";
@@ -575,7 +592,7 @@ export function normalizeSimplefinTransactions(
       amountCents: -row.amountCents,
       name,
       merchant: merchantDisplayName(row.payee || name),
-      category: mccCategory(row.mcc),
+      category: mccCategory(row.mcc) || row.category || "",
     });
   }
   return { transactions, skippedPending, skippedUnsupported };

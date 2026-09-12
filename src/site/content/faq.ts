@@ -51,6 +51,14 @@ export const publicFaq: FaqEntry[] = [
       "[SimpleFIN Bridge](https://beta-bridge.simplefin.org/) is a small subscription service that connects to your banks once and shares balances and posted transactions with apps you approve. At the time of writing it advertises about $1.50 plus tax per month or $15 plus tax per year for up to 25 institutions and 25 apps; SimpleFIN sets the price and can change it. You buy it directly, link your banks there, create an app connection, and paste the setup token into Marten. Marten imports validated investment positions when SimpleFIN supplies them, including quantities and values; unavailable cost basis, gains, and price history remain unavailable.",
   },
   {
+    id: "simplefin-missing-details",
+    category: "Banks & data",
+    question:
+      "Why are SimpleFIN transactions uncategorized or missing statement dates?",
+    answer:
+      "SimpleFIN does not guarantee transaction categories or provide standard fields for statement balances and payment due dates. Marten uses category hints when supplied, then applies your rules; otherwise a transaction stays Uncategorized. Create a rule for repeat purchases, or choose a category yourself. For payment dates, open Recurring and choose Add statement reminder. Plaid can supply statement details when the bank and connection support its Liabilities product.",
+  },
+  {
     id: "why-not-plaid",
     category: "Banks & data",
     question: "Can I use Plaid on the hosted site?",

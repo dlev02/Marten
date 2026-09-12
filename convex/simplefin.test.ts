@@ -176,6 +176,39 @@ async function fixture(options: { connected?: boolean } = {}) {
 }
 
 describe("SimpleFIN protocol helpers", () => {
+  test("reads optional category hints and accepts only complete merchant codes", () => {
+    const hints = [
+      { mcc: 5411 },
+      { extra: { mcc: "5541" } },
+      { extra: { category: "Coffee" } },
+      { category: "Groceries" },
+      { mcc: "541199" },
+      { extra: ["Groceries"] },
+      {},
+    ];
+    const account = parseAccountSet({
+      accounts: [
+        {
+          ...checking,
+          transactions: hints.map((hint, i) => ({
+            id: `hint-${i}`,
+            posted: day("2026-09-08"),
+            amount: "-10.00",
+            description: "Fictional purchase",
+            ...hint,
+          })),
+        },
+      ],
+    }).accounts[0];
+    expect(
+      normalizeSimplefinTransactions(
+        account,
+        "2026-09-01",
+        "2026-09-30",
+      ).transactions.map((tx) => tx.category),
+    ).toEqual(["Groceries", "Fuel", "Coffee", "Groceries", "", "", ""]);
+  });
+
   test("decodes setup tokens, splits access URLs, and refuses unsafe hosts", () => {
     expect(decodeSetupToken(` ${setupToken} `)).toBe(claimUrl);
     expect(() => decodeSetupToken("not base64!!")).toThrow("SETUP_TOKEN");
@@ -768,4 +801,56 @@ test("SimpleFIN holdings publish through the full import path, keep stable IDs a
   expect(
     await f.t.run((ctx) => ctx.db.query("investmentSecurities").collect()),
   ).toHaveLength(0);
+});
+
+test("SimpleFIN enriches only untouched uncategorized rows when a hint arrives later", async () => {
+  const { t, asUser, userId, remote, importArgs } = await fixture();
+  remote.accounts[0].transactions = Array.from({ length: 5 }, (_, i) => ({
+    id: `late-${i}`,
+    posted: day("2026-09-08"),
+    amount: "-10.00",
+    description: "FICTIONAL PURCHASE",
+    pending: false,
+  }));
+  const fuelId = await t.run(async (ctx) => {
+    const groupId = await ctx.db.insert("groups", {
+      userId,
+      name: "Everyday",
+      kind: "expense",
+      order: 0,
+    });
+    return ctx.db.insert("categories", {
+      userId,
+      groupId,
+      name: "Fuel",
+      emoji: "•",
+      order: 0,
+      enabled: true,
+    });
+  });
+  await asUser.action(api.simplefin.importAccounts, importArgs);
+  const before = await t.run((ctx) => ctx.db.query("transactions").collect());
+  const row = (i: number) =>
+    before.find((tx) => tx.simplefinTransactionId === `late-${i}`)!;
+  await t.run(async (ctx) => {
+    await ctx.db.patch(row(1)._id, { reviewed: true });
+    await ctx.db.patch(row(2)._id, { editedFields: ["categoryId"] });
+    await ctx.db.patch(row(3)._id, {
+      splits: [
+        { categoryId: row(3).categoryId, amountCents: 500 },
+        { categoryId: row(3).categoryId, amountCents: 500 },
+      ],
+    });
+    await ctx.db.patch(row(4)._id, { categoryId: fuelId });
+  });
+  for (const tx of remote.accounts[0].transactions)
+    Object.assign(tx, { mcc: "5541" });
+  await asUser.action(api.simplefin.importAccounts, importArgs);
+  const after = await t.run((ctx) => ctx.db.query("transactions").collect());
+  expect(after).toHaveLength(5);
+  for (let i = 0; i < 5; i++) {
+    expect(after.find((tx) => tx._id === row(i)._id)?.categoryId).toBe(
+      i === 0 || i === 4 ? fuelId : row(i).categoryId,
+    );
+  }
 });

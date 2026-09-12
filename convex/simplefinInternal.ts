@@ -445,7 +445,9 @@ async function defaultCategory(
         groups.some((g) => g._id === c.groupId && g.kind === groupKind),
     );
   if (kind === "expense" && hint) {
-    const hinted = byName(hint, "expense");
+    const hinted =
+      byName(hint, "expense") ??
+      (hint === "Fuel" ? byName("Gas", "expense") : undefined);
     if (hinted) return hinted._id;
   }
   const name = transfer ? "Transfers" : income ? "Income" : "Uncategorized";
@@ -524,11 +526,34 @@ export const ingest = internalMutation({
           throw new ConvexError(
             "This SimpleFIN transaction identity is unavailable.",
           );
+        let categoryId = existing.categoryId;
+        // Only enrich an untouched fallback. Reviewed, split, manually edited,
+        // and already categorized transactions retain their chosen category.
+        if (
+          incoming.category &&
+          !existing.reviewed &&
+          !existing.splits.length &&
+          !existing.splitDraft?.length &&
+          !existing.editedFields.includes("categoryId")
+        ) {
+          const category = await ctx.db.get(existing.categoryId);
+          if (
+            category?.userId === connection.userId &&
+            normalize(category.name) === "uncategorized"
+          ) {
+            categoryId = await defaultCategory(
+              ctx,
+              connection.userId,
+              incoming.name,
+              incoming.category,
+            );
+          }
+        }
         // Retries keep the user's edits, notes, tags, receipts and review state.
         const fields: TransactionFields = {
           accountId: existing.accountId,
           merchantId: existing.merchantId,
-          categoryId: existing.categoryId,
+          categoryId,
           date: existing.editedFields.includes("date")
             ? existing.date
             : incoming.date,

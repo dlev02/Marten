@@ -75,12 +75,27 @@ follows the [SimpleFIN protocol](https://www.simplefin.org/protocol.html):
   link a pending record to its posted version, and missing records are not
   treated as deletions. Merchant names use `payee` when present, cleaned by
   [`merchantNames.ts`](../convex/lib/merchantNames.ts).
-- **Categories**: the bridge passes through merchant category codes (`mcc`).
-  Broad, unambiguous codes map to an existing category name (Groceries,
-  Restaurants, Gas, Transport, Travel, Utilities, Internet, Health,
-  Entertainment, Shopping); obvious transfers and payroll descriptions map to
-  Transfers or Income. Everything else starts uncategorized and runs through the
-  user's ordered rules.
+- **Categories**: SimpleFIN does not guarantee category data. Marten accepts
+  optional four-digit merchant category codes (`mcc`, as a string or number,
+  including `extra.mcc`). Supported codes map to existing expense categories,
+  including Fuel (or a legacy Gas category). Without a supported code, an optional
+  string `category` or `extra.category` can match an enabled expense category by
+  name. Unknown labels do not create categories or imply income. Obvious transfer
+  and payroll descriptions retain their existing handling; user rules run last
+  on new transactions. Missing hints leave transactions Uncategorized.
+  A repeated import can fill an untouched, unreviewed Uncategorized row when a
+  hint arrives; reviewed rows, explicit category edits, splits, and other
+  categories are preserved. Import latest only re-reads its five-day overlap,
+  so this is not a full historical backfill.
+- **Institution logos**: the standard protocol does not promise logos. Marten
+  uses its bundled identification catalog when no logo is supplied; Capital One,
+  Schwab, Fidelity, and American Express have local fallbacks. See [assets](assets.md).
+- **Statement balances and due dates**: SimpleFIN's documented account fields
+  do not include statement balances, minimum payments, or due dates. Marten does
+  not infer them from current balances or payment transactions. Use Recurring →
+  Add statement reminder when these details are unavailable. Plaid can supply
+  them through its Liabilities product for supported institutions and consented
+  connections; SimpleFIN does not offer an equivalent documented endpoint.
 - **Holdings**: the bridge returns a `holdings` array for investment accounts.
   Marten imports a complete array of identifiable positions into Investments,
   preserving fractional quantities and reported market values. Unit price is
