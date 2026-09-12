@@ -72,6 +72,7 @@ function shiftPeriod(
 }
 
 function pattern(rows: Transaction[], today: string) {
+  if (rows.length < 2) return null;
   let best: {
     rows: Transaction[];
     frequency: Frequency;
@@ -205,10 +206,16 @@ export function detectRecurringPatterns(
           ),
       );
       if (similar.length < 2) continue;
-      const found = pattern(similar, today);
+      // A small variation can be one subscription, but two simultaneous $5/$6
+      // subscriptions must not crowd each other out of the cadence test.
+      const found =
+        pattern(similar, today) ??
+        pattern(
+          similar.filter((row) => row.amountCents === amount),
+          today,
+        );
       if (!found) {
-        // Don't rescan a nearly identical failed amount cluster for every cent.
-        for (const row of similar) examinedAmounts.add(row.amountCents);
+        examinedAmounts.add(amount);
         continue;
       }
       for (const row of found.rows) examinedAmounts.add(row.amountCents);
