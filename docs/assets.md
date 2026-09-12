@@ -4,7 +4,7 @@ Marten bundles the following identification icons in `public/brands/`. They are 
 
 `src/lib/brandLogos.ts` exposes `brandLogo(name): string | null`. It matches generated catalog titles and official aliases plus a reviewed list of aliases after Unicode normalization, case folding, trimming, and whitespace normalization. It does not infer a brand from a transaction statement or a substring. Unknown names retain the initials fallback.
 
-The presentation order is an uploaded/provider-supplied logo first, then `brandLogo(name)`, then initials. Local SVGs have a white circular backing and optical padding already included. Render them with `object-fit: contain` and a white avatar background; do not apply the placeholder's colored background or another internal image padding layer.
+The presentation order is an uploaded/provider-supplied logo first, then `brandLogo(name)`, then initials. The reviewed SVGs have a white circular backing and optical padding already included; first-party compact icons retain their original backing. Render them with `object-fit: contain` and a white avatar background; do not apply the placeholder's colored background or another internal image padding layer.
 
 ## Generated catalog
 
@@ -45,7 +45,21 @@ These images come directly from public first-party brand pages. Each original PN
 
 Artwork identifies merchants and institutions; it does not imply affiliation, sponsorship, or endorsement. These icons are separate from the fictional sample transaction values. No Monarch assets are included.
 
-Schwab is not mapped in the local fallback catalog: it was absent from this Simple Icons snapshot, and the public asset endpoints checked during this pass did not return usable artwork. A supplied Schwab logo still takes precedence over initials through the normal account-logo path.
+Capital One, Charles Schwab, Fidelity, and American Express also use unchanged,
+first-party compact icons, bundled locally on September 12, 2026:
+
+| File | Official asset |
+| --- | --- |
+| `capitalone.png` | https://www.capitalone.com/assets/shell/apple-touch-icon.png |
+| `schwab.png` | https://www.schwab.com/themes/custom/sch_beacon_retail/favicons/apple-icon.png |
+| `fidelity.ico` | https://www.fidelity.com/favicon.ico |
+| `americanexpress.ico` | https://www.americanexpress.com/favicon.ico |
+
+These are original brand assets, not CC0 artwork. The Amex icon replaces the
+padded SVG in fallback matching, removing its extra white inset at small sizes.
+Exact aliases include the named banks and common institution-name variants;
+unknown institutions still use initials. Uploaded or provider-supplied images
+retain precedence.
 
 ## Additional reviewed merchants
 

@@ -1,5 +1,25 @@
 # Verification record
 
+## September 12 — SimpleFIN categories and institution logos
+
+- Added optional category/extra-category and numeric/extra MCC parsing, strict
+  four-digit code validation, and Fuel mapping with legacy Gas fallback.
+  Re-import enrichment preserves reviewed rows, explicit category edits, splits,
+  and existing categories. This does not invent categories when hints are absent
+  or backfill all historical transactions. No real provider payload was inspected.
+- Bundled unchanged first-party Capital One, Schwab, Fidelity, and Amex icons;
+  exact-name aliases remain local and unknown brands keep initials. Observed
+  Schwab and Amex in demo account rows in light/dark appearance, inspected the
+  Capital One/Schwab assets, and verified Fidelity/Amex image loading in-browser.
+  Phone/tablet account layouts were not separately retested for these asset changes.
+- All 313 tests across 44 files, lint, typecheck, build, and diff checks passed.
+  Convex development push to `stoic-narwhal-224` succeeded. No production code
+  deployment or transaction recategorization was performed.
+- Confirmed SimpleFIN has no documented statement-balance/minimum/due-date
+  fields; Marten already supports manually entered statement reminders. Plaid
+  Liabilities supplies these fields where supported. Updated SimpleFIN guidance,
+  asset provenance, and public FAQ to describe the limits.
+
 ## September 12 — Support copy and hosting badge
 
 - Folded the voluntary-donation note into the introduction shared by public

@@ -24,3 +24,11 @@ describe("local brand resolution", () => {
     expect(brandLogo("Taylor's neighborhood coffee shop")).toBeNull();
   });
 });
+
+it("institution fallbacks cover SimpleFIN names without substring guesses", () => {
+  expect(brandLogo("Capital One")).toBe("/brands/capitalone.png");
+  expect(brandLogo("Charles Schwab")).toBe("/brands/schwab.png");
+  expect(brandLogo("Fidelity Investments")).toBe("/brands/fidelity.ico");
+  expect(brandLogo("Amex")).toBe("/brands/americanexpress.ico");
+  expect(brandLogo("Fidelity Consulting")).toBeNull();
+});

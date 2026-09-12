@@ -57,6 +57,36 @@ for (const [slug, aliases] of brands) {
 }
 const additionalBrands = [
   {
+    name: "Capital One",
+    aliases: ["Capital One", "Capital One Bank", "Capital One 360"],
+    url: "/brands/capitalone.png",
+  },
+  {
+    name: "Charles Schwab",
+    aliases: [
+      "Charles Schwab",
+      "Schwab",
+      "Charles Schwab Bank",
+      "Charles Schwab & Co., Inc.",
+    ],
+    url: "/brands/schwab.png",
+  },
+  {
+    name: "Fidelity",
+    aliases: [
+      "Fidelity",
+      "Fidelity Investments",
+      "Fidelity NetBenefits",
+      "Fidelity - Investments & Retirement",
+    ],
+    url: "/brands/fidelity.ico",
+  },
+  {
+    name: "American Express",
+    aliases: ["American Express", "Amex", "American Express Bank"],
+    url: "/brands/americanexpress.ico",
+  },
+  {
     name: "Equinox",
     aliases: [
       "Equinox",
@@ -92,11 +122,16 @@ export function brandLogo(name: string): string | null {
 
 const searchableBrands = [
   ...additionalBrands,
-  ...brands.map(([slug, aliases]) => ({
-    name: aliases[0],
-    aliases: [...aliases],
-    url: `/brands/${slug}.svg`,
-  })),
+  ...brands
+    .filter(
+      ([, aliases]) =>
+        !additionalBrands.some((brand) => brand.aliases.includes(aliases[0])),
+    )
+    .map(([slug, aliases]) => ({
+      name: aliases[0],
+      aliases: [...aliases],
+      url: `/brands/${slug}.svg`,
+    })),
   ...(brandCatalog as [string, string[]][])
     .filter(([slug]) => !brands.some(([reviewed]) => reviewed === slug))
     .map(([slug, aliases]) => ({
