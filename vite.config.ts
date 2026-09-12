@@ -22,8 +22,16 @@ function buildIdentifier() {
 }
 
 // https://vitejs.dev/config/
+// Keep local/preview consent pages protected like the deployed static site.
+// This restricts embedding Marten, not the Plaid frames Marten opens itself.
+const securityHeaders = {
+  "Content-Security-Policy": "frame-ancestors 'none'",
+  "X-Frame-Options": "DENY",
+};
 export default defineConfig({
   plugins: [react()],
+  server: { headers: securityHeaders },
+  preview: { headers: securityHeaders },
   define: {
     __MARTEN_BUILD__: JSON.stringify(buildIdentifier()),
   },

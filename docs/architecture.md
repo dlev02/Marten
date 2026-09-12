@@ -39,7 +39,9 @@ The marketing and policy pages live in `src/site/` and render for everyone,
 signed in or not. `src/App.tsx` checks `publicPaths` (`/`, `/faq`,
 `/privacy`, `/terms`, `/security`, `/about`) before authentication; `/support`
 shows the public donation page to visitors and the in-app Support screen to
-signed-in users. The application itself starts at `/dashboard` (the sidebar,
+signed-in users. Netlify and Vite serve all routes with framing denied (`frame-ancestors 'none'` and `X-Frame-Options: DENY`) to protect authenticated consent and settings from disguised embedded clicks. Other static hosts must set equivalent response headers.
+
+The application itself starts at `/dashboard` (the sidebar,
 demo exit, search catalog, and `/demo` redirect all point there) and
 `/sign-in` is the auth screen (`?signup=1` opens account creation).
 
@@ -77,7 +79,7 @@ Saved reports retain account, category, merchant, and tag filters. Every referen
 
 Profile pictures are cropped locally by [`profileCrop.ts`](../src/features/settings/profileCrop.ts) and saved as 512-pixel JPEGs. The browser accepts JPEG, PNG, or WebP sources up to 10 MB and 40 megapixels; only the cropped image reaches the authenticated `uploadProfilePhoto` action, which validates image type/signature and a 1 MB limit. The action creates its own storage ID, and replacing a photo, selecting a built-in avatar, or resetting a sample workspace deletes the previous photo. Preset artwork is bundled in [`profileAvatar.ts`](../src/lib/profileAvatar.ts); profile metadata supplies the saved photo URL to settings and the sidebar.
 
-Private `plaidItems` contain access tokens and cursors. Public status/metadata responses construct a safe view. A browser stores only a short-lived Link token and minimal OAuth flow context; it never stores a Plaid access token or client secret. Webhook requests must pass signature/time/body-hash verification before they schedule internal work.
+Private `plaidItems` contain access tokens and cursors. Public status/metadata responses construct a safe view. A browser stores only a short-lived Link token and minimal OAuth flow context; it never stores a Plaid access token or client secret. Webhook requests must pass signature/time/body-hash verification before they schedule internal work. When `PLAID_ALLOWED_EMAILS` restricts new links, the shared guard requires both a matching email and Convex Auth mailbox verification. Existing sync and disconnect remain owner-gated independently of this allowlist.
 
 ## Planning and investments
 

@@ -48,14 +48,14 @@ export const publicFaq: FaqEntry[] = [
     category: "Banks & data",
     question: "What is SimpleFIN and what does it cost?",
     answer:
-      "[SimpleFIN Bridge](https://beta-bridge.simplefin.org/) is a small subscription service that connects to your banks once and shares balances and posted transactions with apps you approve. At the time of writing it advertises about $1.50 plus tax per month or $15 plus tax per year for up to 25 institutions and 25 apps; SimpleFIN sets the price and can change it. You buy it directly, link your banks there, create an app connection, and paste the setup token into Marten. SimpleFIN does not yet send investment holdings to Marten, so brokerage accounts show balances but not positions.",
+      "[SimpleFIN Bridge](https://beta-bridge.simplefin.org/) is a small subscription service that connects to your banks once and shares balances and posted transactions with apps you approve. At the time of writing it advertises about $1.50 plus tax per month or $15 plus tax per year for up to 25 institutions and 25 apps; SimpleFIN sets the price and can change it. You buy it directly, link your banks there, create an app connection, and paste the setup token into Marten. Marten imports validated investment positions when SimpleFIN supplies them, including quantities and values; unavailable cost basis, gains, and price history remain unavailable.",
   },
   {
     id: "why-not-plaid",
     category: "Banks & data",
     question: "Can I use Plaid on the hosted site?",
     answer:
-      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list; everyone else uses SimpleFIN or spreadsheets and the Plaid option simply isn't shown. If you self-host, you run your own backend, apply for your own Plaid Trial, and your bank data never touches this site at all.",
+      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list of verified email addresses; everyone else uses SimpleFIN or spreadsheets and the Plaid option simply isn't shown. If you self-host, you run your own backend, apply for your own Plaid Trial, and your bank data never touches this site at all.",
   },
   {
     id: "self-host",
@@ -90,7 +90,7 @@ export const publicFaq: FaqEntry[] = [
     category: "Privacy & security",
     question: "Can I delete everything?",
     answer:
-      "You can delete any account, transaction, receipt, rule, report, or scenario inside the app, and disconnect any bank at any time. A sample workspace has a Clear sample workspace button that wipes it. There is not yet a self-service button that deletes your whole account, so for that open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}} from your sign-in address and the operator will remove the account and all its data.",
+      "You can delete any account, transaction, receipt, rule, report, or scenario inside the app, and disconnect any bank at any time. A sample workspace has a Clear sample workspace button that wipes it. To delete your whole account, open **Settings → Preferences → Delete account** and complete the confirmation. You are signed out and your account, files, and financial records are removed from the live database in background batches. Backups age out on the hosting provider’s schedule. Do not post account or financial details in public GitHub issues.",
   },
   {
     id: "import-spreadsheet",

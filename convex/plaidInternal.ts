@@ -74,7 +74,7 @@ export const context = internalQuery({
     await liveProfile(ctx, args.userId);
     if (args.link) {
       const user = await ctx.db.get(args.userId);
-      if (!plaidAllowedFor(user?.email))
+      if (!plaidAllowedFor(user?.email, user?.emailVerificationTime))
         throw new ConvexError(plaidRestrictedMessage);
     }
     if (!args.itemId) return null;

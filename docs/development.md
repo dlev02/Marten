@@ -24,7 +24,7 @@ The current intended development backend is `stoic-narwhal-224.convex.cloud`. Tr
 ## Environment and authentication
 
 | Variable                              | Where it belongs                                        | Meaning                                                                     |
-| ------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                               |
 | `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                            |
 | `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                                |
@@ -33,7 +33,7 @@ The current intended development backend is `stoic-narwhal-224.convex.cloud`. Tr
 | `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                    |
 | `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                    |
 | `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows       |
-| `PLAID_ALLOWED_EMAILS`                | Convex deployment environment                           | Optional comma-separated emails allowed to link Plaid; others use SimpleFIN |
+| `PLAID_ALLOWED_EMAILS`                | Convex deployment environment                           | Optional comma-separated verified emails allowed to link Plaid; others use SimpleFIN |
 | `CREDENTIALS_KEY`                     | Convex deployment environment                           | Optional 32-byte base64 key that seals user-entered provider tokens         |
 | `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config          |
 

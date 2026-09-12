@@ -1,7 +1,8 @@
 /**
  * Facts the public site and in-app support screens share. Keep URLs here so a
  * domain or donation change is one edit. `contactEmail` stays empty until the
- * project mailbox exists; pages fall back to GitHub issues while it is empty.
+ * project mailbox exists; sensitive contact requests use private reporting
+ * while it is empty. Public issues are only for nonsensitive product feedback.
  */
 export const site = {
   name: "Marten",
@@ -23,7 +24,8 @@ export function fillTokens(text: string) {
     .replace(/\{\{SITE_URL\}\}/g, site.url)
     .replace(
       /\{\{CONTACT_EMAIL\}\}/g,
-      site.contactEmail || `[a GitHub issue](${site.newIssue})`,
+      site.contactEmail ||
+        `[GitHub’s private reporting form](${site.security})`,
     )
     .replace(/\{\{GOVERNING_STATE\}\}/g, site.governingState);
 }

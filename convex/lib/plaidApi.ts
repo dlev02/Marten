@@ -27,14 +27,24 @@ export function configuration() {
 /**
  * A public deployment can keep Plaid for its operator's household while every
  * other visitor uses SimpleFIN. Unset means Plaid is open to everyone (self-hosting).
+ * Signup email is self-asserted; a restricted deployment must also require
+ * Convex Auth's mailbox-verification timestamp, never a client-supplied flag.
  */
-export function plaidAllowedFor(email: string | undefined): boolean {
+export function plaidAllowedFor(
+  email: string | undefined,
+  emailVerificationTime: number | undefined,
+): boolean {
   const allowed = (env.PLAID_ALLOWED_EMAILS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
   if (!allowed.length) return true;
-  return !!email && allowed.includes(email.trim().toLowerCase());
+  return (
+    !!email &&
+    allowed.includes(email.trim().toLowerCase()) &&
+    typeof emailVerificationTime === "number" &&
+    Number.isFinite(emailVerificationTime)
+  );
 }
 export const plaidRestrictedMessage =
   "Bank connections on this site use SimpleFIN Bridge. Plaid isn’t available for this account.";

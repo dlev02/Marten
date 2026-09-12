@@ -186,7 +186,7 @@ export const termsOfService: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Questions about these terms: open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}}.",
+          text: "Questions about these terms: open a [GitHub issue](https://github.com/dlev02/marten/issues) or contact us through {{CONTACT_EMAIL}}.",
         },
       ],
     },

@@ -2,6 +2,74 @@
 
 Final assembled-app checks were completed on **September 11, 2026** using fictional Taylor and Morgan workspaces. This record distinguishes automated checks, observed browser behavior, development configuration, and remaining release work.
 
+## September 12 — Production launch configuration follow-through
+
+- Verified production `confident-kiwi-9` directly. Corrected `SITE_URL` to
+  `https://marten.money`; added `PLAID_REDIRECT_URI=https://marten.money/` and
+  a cryptographically random 32-byte base64 `CREDENTIALS_KEY`. Existing keys
+  were preserved and no secret values were written to source or this record.
+- Confirmed the production sender, explicit Plaid production mode, and a
+  two-address household allowlist. Secret presence was checked without
+  exposing values; this does not establish successful live bank consent.
+- Brevo reports `marten.money` verified and authenticated, all required DNS
+  records valid, and `noreply@marten.money` active after domain authentication.
+  No real password-reset message was sent in this pass.
+- `www.marten.money` returns a 301 to the apex. Google DNS over HTTPS resolves
+  the apex to Netlify's `75.2.60.5`; HTTPS at that address returns 200 with
+  certificate validation. The local system/browser resolver returned NXDOMAIN,
+  so ordinary browsing on this machine was not yet confirmed.
+- Validation: all 310 tests in 44 files passed, `npm run lint` (including
+  typecheck), `npm run build`, and `git diff --check` passed. The existing
+  local marketing site rendered and its desktop screenshot was reviewed.
+  This was a release/configuration check, not a new full responsive UI audit.
+
+## September 12 — Codex Security pass and remediation
+
+- Codex Security Standard scan `418563a6-73ee-4fea-a14a-36f61039804d`
+  reviewed current frontend and backend product source, authentication, ownership,
+  provider credentials, uploads, browser/remote agent consent, parsers, exports,
+  and deployment configuration. Independent baseline and architecture reviews
+  were reconciled with parent source checks. Daybreak Blue access was confirmed.
+- Two source-backed findings: missing SPA framing protection (medium), and an
+  email-only Plaid household allowlist accepting an unverified signup address
+  (low; conditional provider quota/cost impact, no existing-user bank disclosure).
+  No cross-owner read/write bypass was identified in reviewed finance operations.
+- Framing: Netlify and Vite local/preview responses now set
+  `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`.
+  An isolated browser at `http://127.0.0.1:5174` received both headers with HTTP 200
+  on `/sign-in`, `/agent-authorize`, and `/settings/preferences`. All three routes
+  were blocked when embedded from an `about:blank` foreign-origin harness;
+  the sign-in and privacy pages remained usable as top-level pages. No real
+  OAuth grant, sign-in, bank consent, or financial record was submitted.
+- Plaid: both status and link/exchange authorization use the shared guard's
+  trusted Auth email-verification timestamp. New regression tests failed before
+  the fix and pass afterward. They cover unverified matching addresses, new and
+  update Link requests, exchange refusal without provider calls, legitimate
+  verified access, verified nonmembers, an unset allowlist, and preserved sync/
+  disconnect access. The real installed Password provider ignores forged signup
+  verification flags; requesting a reset does not verify ownership, while
+  successful redemption of the mocked email code does. All delivery/provider
+  traffic in these tests is mocked and all data fictional.
+- Validation: `npm test` passed **310 tests across 44 files**; `npm run lint`
+  (including typecheck), `npm run build`, and `git diff --check` passed.
+  `convex dev --once` confirmed the selected development deployment and completed
+  successfully. Production backend and public hosting were not changed.
+- Privacy/FAQ copy now describes the existing in-app account deletion and
+  SimpleFIN position imports. Sensitive-contact placeholders fall back to the
+  existing private-reporting URL rather than public issues. Reviewed rendered
+  privacy text at desktop, tablet and phone widths in light/dark appearance;
+  this was a targeted content check, not a full visual redesign audit.
+- Compatibility: on an email-restricted deployment, an existing unverified
+  allowlisted account must complete the emailed password-reset flow before new
+  linking/reconnecting. Existing owned imports and disconnect remain available.
+  Configure working reset email delivery before relying on restricted mode.
+- Limits: source review does not certify production environment values, hosting
+  headers, provider/platform encryption or egress, storage URL lifetime, backup
+  access, dependency advisories, or the absence of every vulnerability. SimpleFIN
+  application-level sealing is optional; Plaid tokens rely on private backend
+  storage/platform controls. Supporting tests were selectively reviewed and run;
+  raster artifacts and historical prose were not comprehensively audited.
+
 ## September 12 — UI verification pass (add-account, recurring, drilldown, reveal, logo drop, error boundary)
 
 - Verified six previously unreviewed UI changes in the fictional demo with the
