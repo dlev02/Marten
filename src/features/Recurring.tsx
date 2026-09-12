@@ -112,14 +112,21 @@ export function Recurring() {
   useEffect(() => {
     if (paymentStatus === "CanLoadMore") loadPayments(200);
   }, [paymentStatus, loadPayments]);
+  const automatic = useQuery(api.recurring.automaticPayments, {
+    from: month,
+    to: end,
+  });
   // An absent checkmark means unpaid only after every page has arrived.
-  const paymentsLoaded = paymentStatus === "Exhausted";
+  const paymentsLoaded =
+    paymentStatus === "Exhausted" && automatic !== undefined;
   const paidOccurrences = useMemo(
     () =>
       new Set(
-        payments.filter((p) => p.paid).map((p) => `${p.recurringId}:${p.date}`),
+        mergePaymentStatus(automatic ?? [], payments)
+          .filter((p) => p.paid)
+          .map((p) => `${p.recurringId}:${p.date}`),
       ),
-    [payments],
+    [payments, automatic],
   );
   const today = localDate();
   const allOccurrences = useMemo(
@@ -623,8 +630,8 @@ export function Recurring() {
         </section>
       )}
       <p className="recurring-footnote">
-        Checkmarks track what you’ve paid or received. They don’t send payments
-        or change your transactions.{" "}
+        Checkmarks include matching posted transactions and your manual choices.
+        They don’t send payments or change your transactions.{" "}
         <Link to="/settings/preferences#reminders" className="text-link">
           Set up reminders
         </Link>
@@ -979,8 +986,26 @@ export function RecurringEditor({
             </Field>
           </div>
           <p>
-            A transaction match does not mark a bill paid. Checkmarks stay under
-            your control.
+            One matching posted transaction marks an occurrence paid. Ambiguous
+            matches stay unchecked; your manual paid or unpaid choice overrides
+            automatic matching.
+          </p>
+        </details>
+        <details className="recurring-match-settings">
+          <summary>Changes, cancellations & renewals</summary>
+          <p>
+            Changed cards? Update the account on this schedule. Matching does
+            not follow a subscription between accounts automatically.
+          </p>
+          <p>
+            Canceled? Turn off Active schedule to keep it in Paused. Resume it
+            and update the start date when you subscribe again. This does not
+            cancel or restart the service itself.
+          </p>
+          <p>
+            A new price applies to this whole schedule. Future price changes are
+            not scheduled automatically; keep the renewal price in Notes until
+            it takes effect.
           </p>
         </details>
         <Field label="Notes">
