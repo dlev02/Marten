@@ -1,0 +1,15 @@
+name: Question
+description: Ask about using or self-hosting Marten.
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Anything that helps answer it — hosted site or self-hosted, which provider, what you have already tried.

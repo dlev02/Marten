@@ -1,0 +1,43 @@
+.feedback-modal .segments {
+  width: 100%;
+}
+.feedback-modal textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 110px;
+}
+.feedback-environment {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--hover);
+  cursor: pointer;
+}
+.feedback-environment input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.feedback-environment strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.feedback-environment small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.feedback-note {
+  font-size: 12px;
+  color: var(--muted);
+}

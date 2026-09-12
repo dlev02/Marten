@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something Marten should do.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What would you like Marten to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What are you trying to do?
+      description: The situation behind the request helps more than a specific design.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: How do you handle this today, in Marten or elsewhere?
