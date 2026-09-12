@@ -7,18 +7,20 @@ import { Button, useTask } from "../components/folio/ui";
 import { PasswordRecovery } from "./PasswordRecovery";
 import "./auth.css";
 import "./demo.css";
-export function Brand() {
+export function Brand({ markOnly = false }: { markOnly?: boolean }) {
   return (
-    <span className="brand">
+    <span className={`brand ${markOnly ? "brand-compact" : ""}`}>
       <span className="brand-mark" aria-hidden="true" />
-      <span>Marten</span>
+      {!markOnly && <span>Marten</span>}
     </span>
   );
 }
 export function AuthScreen() {
   const { signIn } = useAuthActions(),
     { busy, run } = useTask();
-  const [signup, setSignup] = useState(false);
+  const [signup, setSignup] = useState(
+    () => new URLSearchParams(window.location.search).get("signup") === "1",
+  );
   const [recovery, setRecovery] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const emailAvailability = useQuery(api.authEmail.availability, {});
@@ -119,23 +121,30 @@ export function AuthScreen() {
                 <ArrowRight size={17} />
               </Button>
             </form>
-            <a
-              className="auth-demo-link"
-              href="/demo"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Explore demo</span>
-              <span className="auth-demo-label">Sample data</span>
-              <span className="sr-only">
-                (opens in a new tab, no account needed)
-              </span>
-            </a>
-            <p className="auth-switch">
-              {signup ? "Already have an account?" : "New to Marten?"}{" "}
-              <button className="text-link" onClick={() => setSignup(!signup)}>
-                {signup ? "Sign in" : "Create account"}
+            <div className="auth-alternatives">
+              <button
+                type="button"
+                className="auth-alternative"
+                onClick={() => setSignup(!signup)}
+              >
+                {signup ? "Sign in instead" : "Create account"}
+                <ArrowRight size={15} aria-hidden="true" />
               </button>
+              <a
+                className="auth-alternative"
+                href="/demo"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Explore demo
+                <ArrowRight size={15} aria-hidden="true" />
+                <span className="sr-only">
+                  (fictional data, opens in a new tab, no account needed)
+                </span>
+              </a>
+            </div>
+            <p className="auth-alternatives-note">
+              Fictional demo data · No account needed
             </p>
           </>
         )}

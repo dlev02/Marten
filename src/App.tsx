@@ -5,13 +5,17 @@ import { AuthScreen, Onboarding } from "./features/Auth";
 import { Shell } from "./features/Shell";
 import { DemoStartup } from "./features/Demo";
 import { isDemoSession } from "./lib/demo";
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { publicPaths, visitorOnlyPaths } from "./site/paths";
 import { WebMCPProvider } from "./features/agents/WebMCPProvider";
 const AgentAuthorize = lazy(() =>
   import("./features/agents/AgentAuthorize").then((module) => ({
     default: module.AgentAuthorize,
   })),
+);
+const Site = lazy(() =>
+  import("./site/Site").then((module) => ({ default: module.Site })),
 );
 function Workspace() {
   const data = useData();
@@ -34,14 +38,29 @@ function Workspace() {
 }
 export default function App() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  if (isLoading) return <Loading />;
-  return isAuthenticated ? (
-    <DataProvider>
-      <Workspace />
-    </DataProvider>
-  ) : isDemoSession() ? (
-    <DemoStartup authenticated={false} />
-  ) : (
-    <AuthScreen />
-  );
+  const { pathname } = useLocation();
+  // The marketing and policy pages render for everyone, signed in or not.
+  if (publicPaths.has(pathname))
+    return (
+      <Suspense fallback={<Loading full />}>
+        <Site />
+      </Suspense>
+    );
+  if (isLoading) return <Loading full />;
+  if (isAuthenticated) {
+    if (pathname === "/sign-in") return <Navigate to="/dashboard" replace />;
+    return (
+      <DataProvider>
+        <Workspace />
+      </DataProvider>
+    );
+  }
+  if (isDemoSession()) return <DemoStartup authenticated={false} />;
+  if (visitorOnlyPaths.has(pathname))
+    return (
+      <Suspense fallback={<Loading full />}>
+        <Site />
+      </Suspense>
+    );
+  return <AuthScreen />;
 }
