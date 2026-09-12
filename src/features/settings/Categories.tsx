@@ -95,6 +95,24 @@ export function Categories() {
           Add group
         </Button>
       </div>
+      <div className="settings-section-header category-suggestions">
+        <p>
+          Add missing everyday and travel categories, including accommodation,
+          transit, pharmacy, and video games. Your existing categories stay as
+          they are.
+        </p>
+        <Button
+          disabled={task.busy}
+          onClick={() =>
+            void task.run(
+              () => addSuggestions({}),
+              "Suggested categories are up to date",
+            )
+          }
+        >
+          Add suggested categories
+        </Button>
+      </div>
       {(["income", "expense", "transfer"] as const).map((kind) => {
         const groups = data.groups
           .filter((g) => g.kind === kind)
@@ -297,14 +315,8 @@ function CategoryEditor({
         }}
       >
         <div className="settings-form-grid">
-          <Field label="Icon" hint="Choose below or paste an emoji.">
-            <input
-              aria-label="Category icon"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              maxLength={30}
-              required
-            />
+          <Field label="Icon">
+            <CategoryIconPicker value={emoji} onChange={setEmoji} />
           </Field>
           <Field label="Name">
             <input
@@ -316,26 +328,6 @@ function CategoryEditor({
               autoFocus
             />
           </Field>
-        </div>
-        <div
-          className="category-icon-picker"
-          role="group"
-          aria-label="Suggested category icons"
-        >
-          {categoryIcons.map((icon) => (
-            <button
-              key={icon.emoji}
-              type="button"
-              aria-label={`Use ${icon.name.toLowerCase()} icon`}
-              aria-pressed={
-                emoji.replace(/\uFE0F/g, "") ===
-                icon.emoji.replace(/\uFE0F/g, "")
-              }
-              onClick={() => setEmoji(icon.emoji)}
-            >
-              <CategoryIcon emoji={icon.emoji} />
-            </button>
-          ))}
         </div>
         <Field label="Group">
           <Picker

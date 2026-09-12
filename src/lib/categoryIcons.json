@@ -1,107 +1,833 @@
 [
   {
     "emoji": "💵",
-    "name": "Dollar banknote",
-    "file": "dollar-banknote.svg"
+    "name": "Paychecks",
+    "group": "Money",
+    "keywords": "salary income pay cash wages employee contract labor",
+    "aliases": [],
+    "file": "marten/paychecks.svg",
+    "darkFile": "marten/paychecks-dark.svg"
   },
   {
     "emoji": "🌱",
-    "name": "Seedling",
-    "file": "seedling.svg"
+    "name": "Interest & growth",
+    "group": "Money",
+    "keywords": "interest savings investing investments returns dividends",
+    "aliases": [],
+    "file": "marten/interest-and-growth.svg",
+    "darkFile": "marten/interest-and-growth-dark.svg"
   },
   {
-    "emoji": "✨",
-    "name": "Sparkles",
-    "file": "sparkles.svg"
+    "emoji": "💰",
+    "name": "Other income",
+    "group": "Money",
+    "keywords": "money bonus miscellaneous income pouch",
+    "aliases": [
+      "✨"
+    ],
+    "file": "marten/other-income.svg",
+    "darkFile": "marten/other-income-dark.svg"
   },
   {
-    "emoji": "🏡",
-    "name": "House with garden",
-    "file": "house-with-garden.svg"
+    "emoji": "💼",
+    "name": "Business income",
+    "group": "Money",
+    "keywords": "work freelance consulting business income",
+    "aliases": [],
+    "file": "marten/business-income.svg",
+    "darkFile": "marten/business-income-dark.svg"
   },
   {
-    "emoji": "💡",
-    "name": "Light bulb",
-    "file": "light-bulb.svg"
+    "emoji": "🛒",
+    "name": "Resale",
+    "group": "Money",
+    "keywords": "resale ebay mercari selling marketplace online sales",
+    "aliases": [],
+    "file": "marten/resale.svg",
+    "darkFile": "marten/resale-dark.svg"
   },
   {
-    "emoji": "🌐",
-    "name": "Globe with meridians",
-    "file": "globe-with-meridians.svg"
+    "emoji": "🪙",
+    "name": "Cash back & rewards",
+    "group": "Money",
+    "keywords": "daily cash cashback rewards points rebates",
+    "aliases": [],
+    "file": "marten/cash-back-and-rewards.svg",
+    "darkFile": "marten/cash-back-and-rewards-dark.svg"
   },
   {
-    "emoji": "🛡️",
-    "name": "Shield",
-    "file": "shield.svg"
+    "emoji": "🧾",
+    "name": "Reimbursements",
+    "group": "Money",
+    "keywords": "reimbursement reimbursements refund friends family shared expenses",
+    "aliases": [],
+    "file": "marten/reimbursements.svg",
+    "darkFile": "marten/reimbursements-dark.svg"
   },
   {
-    "emoji": "🥑",
-    "name": "Avocado",
-    "file": "avocado.svg"
+    "emoji": "🏧",
+    "name": "Cash & ATM",
+    "group": "Money",
+    "keywords": "cash atm withdrawal withdrawals cash machine",
+    "aliases": [],
+    "file": "marten/cash-and-atm.svg",
+    "darkFile": "marten/cash-and-atm-dark.svg"
   },
   {
-    "emoji": "🍜",
-    "name": "Steaming bowl",
-    "file": "steaming-bowl.svg"
+    "emoji": "🏦",
+    "name": "Banking & fees",
+    "group": "Money",
+    "keywords": "financial fees banking charges accounts bank",
+    "aliases": [],
+    "file": "marten/banking-and-fees.svg",
+    "darkFile": "marten/banking-and-fees-dark.svg"
   },
   {
-    "emoji": "☕",
-    "name": "Hot beverage",
-    "file": "hot-beverage.svg"
+    "emoji": "🏛️",
+    "name": "Taxes",
+    "group": "Money",
+    "keywords": "tax taxes government civic property income tax",
+    "aliases": [],
+    "file": "marten/taxes.svg",
+    "darkFile": "marten/taxes-dark.svg"
   },
   {
-    "emoji": "🛍️",
-    "name": "Shopping bags",
-    "file": "shopping-bags.svg"
+    "emoji": "📆",
+    "name": "Loan payments",
+    "group": "Money",
+    "keywords": "loan repayment payments student debt financing",
+    "aliases": [],
+    "file": "marten/loan-payments.svg",
+    "darkFile": "marten/loan-payments-dark.svg"
   },
   {
-    "emoji": "🚙",
-    "name": "Sport utility vehicle",
-    "file": "sport-utility-vehicle.svg"
+    "emoji": "⚖️",
+    "name": "Balance & legal",
+    "group": "Money",
+    "keywords": "balance adjustments financial legal services law accounting",
+    "aliases": [],
+    "file": "marten/balance-and-legal.svg",
+    "darkFile": "marten/balance-and-legal-dark.svg"
   },
   {
-    "emoji": "❤️",
-    "name": "Red heart",
-    "file": "red-heart.svg"
-  },
-  {
-    "emoji": "📁",
-    "name": "File folder",
-    "file": "file-folder.svg"
-  },
-  {
-    "emoji": "🎟️",
-    "name": "Admission tickets",
-    "file": "admission-tickets.svg"
-  },
-  {
-    "emoji": "🔄",
-    "name": "Counterclockwise arrows button",
-    "file": "counterclockwise-arrows-button.svg"
-  },
-  {
-    "emoji": "✈️",
-    "name": "Airplane",
-    "file": "airplane.svg"
-  },
-  {
-    "emoji": "🏋️",
-    "name": "Person lifting weights",
-    "file": "person-lifting-weights.svg"
-  },
-  {
-    "emoji": "🎁",
-    "name": "Wrapped gift",
-    "file": "wrapped-gift.svg"
+    "emoji": "🖋️",
+    "name": "Checks",
+    "group": "Money",
+    "keywords": "check cheque checks payment paper",
+    "aliases": [],
+    "file": "marten/checks.svg",
+    "darkFile": "marten/checks-dark.svg"
   },
   {
     "emoji": "↔️",
-    "name": "Left-right arrow",
-    "file": "left-right-arrow.svg"
+    "name": "Transfers",
+    "group": "Money",
+    "keywords": "transfer exchange movement between accounts",
+    "aliases": [
+      "🔁"
+    ],
+    "file": "marten/transfers.svg",
+    "darkFile": "marten/transfers-dark.svg"
   },
   {
     "emoji": "💳",
     "name": "Credit card",
-    "file": "credit-card.svg"
+    "group": "Money",
+    "keywords": "credit card payment banking",
+    "aliases": [],
+    "file": "marten/credit-card.svg",
+    "darkFile": "marten/credit-card-dark.svg"
+  },
+  {
+    "emoji": "🐷",
+    "name": "Savings",
+    "group": "Money",
+    "keywords": "savings fund emergency goals piggy bank",
+    "aliases": [],
+    "file": "marten/savings.svg",
+    "darkFile": "marten/savings-dark.svg"
+  },
+  {
+    "emoji": "🏡",
+    "name": "Home",
+    "group": "Home & bills",
+    "keywords": "home house rent mortgage housing bnb",
+    "aliases": [
+      "🏠"
+    ],
+    "file": "marten/home.svg",
+    "darkFile": "marten/home-dark.svg"
+  },
+  {
+    "emoji": "💡",
+    "name": "Utilities",
+    "group": "Home & bills",
+    "keywords": "utilities electricity energy light bulb",
+    "aliases": [],
+    "file": "marten/utilities.svg",
+    "darkFile": "marten/utilities-dark.svg"
+  },
+  {
+    "emoji": "🌐",
+    "name": "Internet",
+    "group": "Home & bills",
+    "keywords": "internet cable network broadband wifi globe",
+    "aliases": [],
+    "file": "marten/internet.svg",
+    "darkFile": "marten/internet-dark.svg"
+  },
+  {
+    "emoji": "📱",
+    "name": "Phone",
+    "group": "Home & bills",
+    "keywords": "phone mobile cell telephone plan",
+    "aliases": [],
+    "file": "marten/phone.svg",
+    "darkFile": "marten/phone-dark.svg"
+  },
+  {
+    "emoji": "⚡",
+    "name": "Gas & electric",
+    "group": "Home & bills",
+    "keywords": "gas electric electricity power energy utilities",
+    "aliases": [],
+    "file": "marten/gas-and-electric.svg",
+    "darkFile": "marten/gas-and-electric-dark.svg"
+  },
+  {
+    "emoji": "💧",
+    "name": "Water",
+    "group": "Home & bills",
+    "keywords": "water plumbing utility bill",
+    "aliases": [],
+    "file": "marten/water.svg",
+    "darkFile": "marten/water-dark.svg"
+  },
+  {
+    "emoji": "🗑️",
+    "name": "Waste & recycling",
+    "group": "Home & bills",
+    "keywords": "trash garbage waste recycling disposal",
+    "aliases": [],
+    "file": "marten/waste-and-recycling.svg",
+    "darkFile": "marten/waste-and-recycling-dark.svg"
+  },
+  {
+    "emoji": "🔨",
+    "name": "Home improvement",
+    "group": "Home & bills",
+    "keywords": "home improvement repairs hardware renovation tools diy",
+    "aliases": [],
+    "file": "marten/home-improvement.svg",
+    "darkFile": "marten/home-improvement-dark.svg"
+  },
+  {
+    "emoji": "🪑",
+    "name": "Furniture",
+    "group": "Home & bills",
+    "keywords": "furniture housewares decor chair home furnishing",
+    "aliases": [],
+    "file": "marten/furniture.svg",
+    "darkFile": "marten/furniture-dark.svg"
+  },
+  {
+    "emoji": "🧹",
+    "name": "Cleaning",
+    "group": "Home & bills",
+    "keywords": "cleaning laundry housekeeping car wash supplies",
+    "aliases": [],
+    "file": "marten/cleaning.svg",
+    "darkFile": "marten/cleaning-dark.svg"
+  },
+  {
+    "emoji": "🏢",
+    "name": "Office rent",
+    "group": "Home & bills",
+    "keywords": "office rent business commercial workplace",
+    "aliases": [],
+    "file": "marten/office-rent.svg",
+    "darkFile": "marten/office-rent-dark.svg"
+  },
+  {
+    "emoji": "🛡️",
+    "name": "Insurance",
+    "group": "Home & bills",
+    "keywords": "insurance security protection business insurance",
+    "aliases": [],
+    "file": "marten/insurance.svg",
+    "darkFile": "marten/insurance-dark.svg"
+  },
+  {
+    "emoji": "🥑",
+    "name": "Groceries",
+    "group": "Food & drink",
+    "keywords": "groceries grocery food supermarket produce market",
+    "aliases": [
+      "🍏",
+      "🍞"
+    ],
+    "file": "marten/groceries.svg",
+    "darkFile": "marten/groceries-dark.svg"
+  },
+  {
+    "emoji": "🍜",
+    "name": "Dining",
+    "group": "Food & drink",
+    "keywords": "restaurants restaurant bars dining food dinner takeaway meals",
+    "aliases": [
+      "🍽️",
+      "🍔"
+    ],
+    "file": "marten/dining.svg",
+    "darkFile": "marten/dining-dark.svg"
+  },
+  {
+    "emoji": "☕",
+    "name": "Coffee & tea",
+    "group": "Food & drink",
+    "keywords": "coffee tea cafe drinks coffee shops",
+    "aliases": [],
+    "file": "marten/coffee-and-tea.svg",
+    "darkFile": "marten/coffee-and-tea-dark.svg"
+  },
+  {
+    "emoji": "🥡",
+    "name": "Meal delivery",
+    "group": "Food & drink",
+    "keywords": "meal delivery takeout takeaway food delivery",
+    "aliases": [],
+    "file": "marten/meal-delivery.svg",
+    "darkFile": "marten/meal-delivery-dark.svg"
+  },
+  {
+    "emoji": "🍱",
+    "name": "Meal prep kits",
+    "group": "Food & drink",
+    "keywords": "meal prep kits bento lunch prepared food cooking",
+    "aliases": [],
+    "file": "marten/meal-prep-kits.svg",
+    "darkFile": "marten/meal-prep-kits-dark.svg"
+  },
+  {
+    "emoji": "🍫",
+    "name": "Snacks & vending",
+    "group": "Food & drink",
+    "keywords": "vending machines snacks candy chocolate sweets convenience",
+    "aliases": [],
+    "file": "marten/snacks-and-vending.svg",
+    "darkFile": "marten/snacks-and-vending-dark.svg"
+  },
+  {
+    "emoji": "🏪",
+    "name": "Convenience store",
+    "group": "Food & drink",
+    "keywords": "convenience store corner shop minimart quick mart",
+    "aliases": [],
+    "file": "marten/convenience-store.svg",
+    "darkFile": "marten/convenience-store-dark.svg"
+  },
+  {
+    "emoji": "🍷",
+    "name": "Bars & drinks",
+    "group": "Food & drink",
+    "keywords": "bar bars drinks alcohol wine beer nightlife",
+    "aliases": [],
+    "file": "marten/bars-and-drinks.svg",
+    "darkFile": "marten/bars-and-drinks-dark.svg"
+  },
+  {
+    "emoji": "🚙",
+    "name": "Car payments",
+    "group": "Transport",
+    "keywords": "car auto transport vehicle payment loan business auto expenses",
+    "aliases": [
+      "🚗"
+    ],
+    "file": "marten/car-payments.svg",
+    "darkFile": "marten/car-payments-dark.svg"
+  },
+  {
+    "emoji": "⛽",
+    "name": "Fuel",
+    "group": "Transport",
+    "keywords": "gas gasoline fuel petrol station refuel",
+    "aliases": [],
+    "file": "marten/fuel.svg",
+    "darkFile": "marten/fuel-dark.svg"
+  },
+  {
+    "emoji": "🚇",
+    "name": "Subway & trains",
+    "group": "Transport",
+    "keywords": "public transit subway metro train trains rail commuter",
+    "aliases": [
+      "🚃",
+      "🚊"
+    ],
+    "file": "marten/subway-and-trains.svg",
+    "darkFile": "marten/subway-and-trains-dark.svg"
+  },
+  {
+    "emoji": "🚕",
+    "name": "Rideshare & taxis",
+    "group": "Transport",
+    "keywords": "rideshare ride shares taxi uber lyft cab business auto",
+    "aliases": [
+      "🚖"
+    ],
+    "file": "marten/rideshare-and-taxis.svg",
+    "darkFile": "marten/rideshare-and-taxis-dark.svg"
+  },
+  {
+    "emoji": "🛴",
+    "name": "Scooters",
+    "group": "Transport",
+    "keywords": "scooters scooter micromobility rideshare electric",
+    "aliases": [],
+    "file": "marten/scooters.svg",
+    "darkFile": "marten/scooters-dark.svg"
+  },
+  {
+    "emoji": "🚌",
+    "name": "Bus",
+    "group": "Transport",
+    "keywords": "bus buses public transit transport coach",
+    "aliases": [],
+    "file": "marten/bus.svg",
+    "darkFile": "marten/bus-dark.svg"
+  },
+  {
+    "emoji": "🚲",
+    "name": "Cycling",
+    "group": "Transport",
+    "keywords": "cycling bicycle bike biking transport",
+    "aliases": [],
+    "file": "marten/cycling.svg",
+    "darkFile": "marten/cycling-dark.svg"
+  },
+  {
+    "emoji": "🅿️",
+    "name": "Parking & tolls",
+    "group": "Transport",
+    "keywords": "parking tolls garage meter",
+    "aliases": [],
+    "file": "marten/parking-and-tolls.svg",
+    "darkFile": "marten/parking-and-tolls-dark.svg"
+  },
+  {
+    "emoji": "🔧",
+    "name": "Car maintenance",
+    "group": "Transport",
+    "keywords": "car maintenance mechanic repair service auto",
+    "aliases": [],
+    "file": "marten/car-maintenance.svg",
+    "darkFile": "marten/car-maintenance-dark.svg"
+  },
+  {
+    "emoji": "✈️",
+    "name": "Flights",
+    "group": "Travel",
+    "keywords": "flights airplane travel holiday vacation airline",
+    "aliases": [],
+    "file": "marten/flights.svg",
+    "darkFile": "marten/flights-dark.svg"
+  },
+  {
+    "emoji": "🏨",
+    "name": "Stays",
+    "group": "Travel",
+    "keywords": "hostels hotels airbnb bnbs accommodation lodging stays rooms vacation rental",
+    "aliases": [],
+    "file": "marten/stays.svg",
+    "darkFile": "marten/stays-dark.svg"
+  },
+  {
+    "emoji": "☂️",
+    "name": "Travel insurance",
+    "group": "Travel",
+    "keywords": "travel insurance protection umbrella coverage",
+    "aliases": [],
+    "file": "marten/travel-insurance.svg",
+    "darkFile": "marten/travel-insurance-dark.svg"
+  },
+  {
+    "emoji": "📲",
+    "name": "eSIM & roaming",
+    "group": "Travel",
+    "keywords": "e sim esim e-sim travel roaming data mobile phone",
+    "aliases": [],
+    "file": "marten/esim-and-roaming.svg",
+    "darkFile": "marten/esim-and-roaming-dark.svg"
+  },
+  {
+    "emoji": "🧳",
+    "name": "Travel planning",
+    "group": "Travel",
+    "keywords": "travel subscriptions planning wanderlog roame luggage packing itinerary",
+    "aliases": [],
+    "file": "marten/travel-planning.svg",
+    "darkFile": "marten/travel-planning-dark.svg"
+  },
+  {
+    "emoji": "🗺️",
+    "name": "Tours & activities",
+    "group": "Travel",
+    "keywords": "tours activities fun money experiences sightseeing attractions excursions",
+    "aliases": [],
+    "file": "marten/tours-and-activities.svg",
+    "darkFile": "marten/tours-and-activities-dark.svg"
+  },
+  {
+    "emoji": "🏞️",
+    "name": "Souvenirs",
+    "group": "Travel",
+    "keywords": "shopping souvenirs keepsakes postcards travel memories",
+    "aliases": [],
+    "file": "marten/souvenirs.svg",
+    "darkFile": "marten/souvenirs-dark.svg"
+  },
+  {
+    "emoji": "🛍️",
+    "name": "Shopping",
+    "group": "Shopping",
+    "keywords": "misc shopping retail stores purchases shopping bags",
+    "aliases": [],
+    "file": "marten/shopping.svg",
+    "darkFile": "marten/shopping-dark.svg"
+  },
+  {
+    "emoji": "👕",
+    "name": "Clothing",
+    "group": "Shopping",
+    "keywords": "clothing clothes apparel shoes wardrobe fashion",
+    "aliases": [],
+    "file": "marten/clothing.svg",
+    "darkFile": "marten/clothing-dark.svg"
+  },
+  {
+    "emoji": "🖥️",
+    "name": "Electronics",
+    "group": "Shopping",
+    "keywords": "electronics computer laptop monitor hardware technology",
+    "aliases": [],
+    "file": "marten/electronics.svg",
+    "darkFile": "marten/electronics-dark.svg"
+  },
+  {
+    "emoji": "📦",
+    "name": "Postage & shipping",
+    "group": "Shopping",
+    "keywords": "postage shipping parcel package online orders amazon delivery mail",
+    "aliases": [],
+    "file": "marten/postage-and-shipping.svg",
+    "darkFile": "marten/postage-and-shipping-dark.svg"
+  },
+  {
+    "emoji": "🌿",
+    "name": "Herbs & edibles",
+    "group": "Shopping",
+    "keywords": "herbs herbal edibles botanicals plants",
+    "aliases": [],
+    "file": "marten/herbs-and-edibles.svg",
+    "darkFile": "marten/herbs-and-edibles-dark.svg"
+  },
+  {
+    "emoji": "👑",
+    "name": "Personal",
+    "group": "Shopping",
+    "keywords": "personal treats self care accessories",
+    "aliases": [],
+    "file": "marten/personal.svg",
+    "darkFile": "marten/personal-dark.svg"
+  },
+  {
+    "emoji": "🛁",
+    "name": "Toiletries",
+    "group": "Health & care",
+    "keywords": "toiletries hygiene bath bathroom personal care soap",
+    "aliases": [],
+    "file": "marten/toiletries.svg",
+    "darkFile": "marten/toiletries-dark.svg"
+  },
+  {
+    "emoji": "❤️",
+    "name": "Health",
+    "group": "Health & care",
+    "keywords": "health medical wellness care",
+    "aliases": [],
+    "file": "marten/health.svg",
+    "darkFile": "marten/health-dark.svg"
+  },
+  {
+    "emoji": "🏋️",
+    "name": "Fitness & gym",
+    "group": "Health & care",
+    "keywords": "fitness gym weights exercise workout sports strength",
+    "aliases": [
+      "💪"
+    ],
+    "file": "marten/fitness-and-gym.svg",
+    "darkFile": "marten/fitness-and-gym-dark.svg"
+  },
+  {
+    "emoji": "💊",
+    "name": "Pharmacy",
+    "group": "Health & care",
+    "keywords": "pharmacy medication medicine prescriptions drugstore vitamins",
+    "aliases": [],
+    "file": "marten/pharmacy.svg",
+    "darkFile": "marten/pharmacy-dark.svg"
+  },
+  {
+    "emoji": "✂️",
+    "name": "Haircuts",
+    "group": "Health & care",
+    "keywords": "haircuts haircut hairdresser barber salon grooming comb",
+    "aliases": [
+      "🪮"
+    ],
+    "file": "marten/haircuts.svg",
+    "darkFile": "marten/haircuts-dark.svg"
+  },
+  {
+    "emoji": "🦷",
+    "name": "Dental",
+    "group": "Health & care",
+    "keywords": "dentist dental teeth orthodontist tooth",
+    "aliases": [],
+    "file": "marten/dental.svg",
+    "darkFile": "marten/dental-dark.svg"
+  },
+  {
+    "emoji": "🩺",
+    "name": "Doctor visits",
+    "group": "Health & care",
+    "keywords": "medical doctor visits clinic appointments healthcare hospital",
+    "aliases": [],
+    "file": "marten/doctor-visits.svg",
+    "darkFile": "marten/doctor-visits-dark.svg"
+  },
+  {
+    "emoji": "👓",
+    "name": "Vision",
+    "group": "Health & care",
+    "keywords": "vision optician glasses eye exams contacts",
+    "aliases": [],
+    "file": "marten/vision.svg",
+    "darkFile": "marten/vision-dark.svg"
+  },
+  {
+    "emoji": "🎟️",
+    "name": "Entertainment",
+    "group": "Leisure",
+    "keywords": "entertainment cinema movies music events tickets admission",
+    "aliases": [],
+    "file": "marten/entertainment.svg",
+    "darkFile": "marten/entertainment-dark.svg"
+  },
+  {
+    "emoji": "🎮",
+    "name": "Gaming",
+    "group": "Leisure",
+    "keywords": "gaming video games consoles playstation xbox nintendo steam",
+    "aliases": [],
+    "file": "marten/gaming.svg",
+    "darkFile": "marten/gaming-dark.svg"
+  },
+  {
+    "emoji": "🎭",
+    "name": "Theater",
+    "group": "Leisure",
+    "keywords": "theater theatre performances shows musical broadway live",
+    "aliases": [],
+    "file": "marten/theater.svg",
+    "darkFile": "marten/theater-dark.svg"
+  },
+  {
+    "emoji": "📺",
+    "name": "Streaming services",
+    "group": "Leisure",
+    "keywords": "streaming services subscriptions tv television movies netflix",
+    "aliases": [],
+    "file": "marten/streaming-services.svg",
+    "darkFile": "marten/streaming-services-dark.svg"
+  },
+  {
+    "emoji": "🍿",
+    "name": "Movies & virtual events",
+    "group": "Leisure",
+    "keywords": "virtual movies events cinema popcorn entertainment",
+    "aliases": [],
+    "file": "marten/movies-and-virtual-events.svg",
+    "darkFile": "marten/movies-and-virtual-events-dark.svg"
+  },
+  {
+    "emoji": "🎳",
+    "name": "Bowling & activities",
+    "group": "Leisure",
+    "keywords": "activities bowling recreation fun games leisure",
+    "aliases": [],
+    "file": "marten/bowling-and-activities.svg",
+    "darkFile": "marten/bowling-and-activities-dark.svg"
+  },
+  {
+    "emoji": "🎧",
+    "name": "Music & audio",
+    "group": "Leisure",
+    "keywords": "music audio headphones podcasts concerts listening",
+    "aliases": [],
+    "file": "marten/music-and-audio.svg",
+    "darkFile": "marten/music-and-audio-dark.svg"
+  },
+  {
+    "emoji": "🏕️",
+    "name": "Outdoors",
+    "group": "Leisure",
+    "keywords": "outdoors camping hiking hiking gear nature recreation tent",
+    "aliases": [],
+    "file": "marten/outdoors.svg",
+    "darkFile": "marten/outdoors-dark.svg"
+  },
+  {
+    "emoji": "🐾",
+    "name": "Pets",
+    "group": "Leisure",
+    "keywords": "pets pet dog cat veterinary vet animal food care",
+    "aliases": [],
+    "file": "marten/pets.svg",
+    "darkFile": "marten/pets-dark.svg"
+  },
+  {
+    "emoji": "📚",
+    "name": "Books & learning",
+    "group": "Learning & work",
+    "keywords": "education educational material textbooks books classes courses training school",
+    "aliases": [
+      "🏫"
+    ],
+    "file": "marten/books-and-learning.svg",
+    "darkFile": "marten/books-and-learning-dark.svg"
+  },
+  {
+    "emoji": "🎓",
+    "name": "Student loans",
+    "group": "Learning & work",
+    "keywords": "student loans tuition university college education graduation",
+    "aliases": [],
+    "file": "marten/student-loans.svg",
+    "darkFile": "marten/student-loans-dark.svg"
+  },
+  {
+    "emoji": "🧩",
+    "name": "APIs & development",
+    "group": "Learning & work",
+    "keywords": "apis api development developer programming code tools integrations",
+    "aliases": [],
+    "file": "marten/apis-and-development.svg",
+    "darkFile": "marten/apis-and-development-dark.svg"
+  },
+  {
+    "emoji": "🧠",
+    "name": "AI assistants",
+    "group": "Learning & work",
+    "keywords": "ai assistants artificial intelligence models chatgpt claude assistant tools",
+    "aliases": [],
+    "file": "marten/ai-assistants.svg",
+    "darkFile": "marten/ai-assistants-dark.svg"
+  },
+  {
+    "emoji": "🔲",
+    "name": "Digital services & apps",
+    "group": "Learning & work",
+    "keywords": "digital services apps software applications subscriptions",
+    "aliases": [],
+    "file": "marten/digital-services-and-apps.svg",
+    "darkFile": "marten/digital-services-and-apps-dark.svg"
+  },
+  {
+    "emoji": "🕸️",
+    "name": "Website domains",
+    "group": "Learning & work",
+    "keywords": "website domains hosting domain web url dns",
+    "aliases": [],
+    "file": "marten/website-domains.svg",
+    "darkFile": "marten/website-domains-dark.svg"
+  },
+  {
+    "emoji": "📎",
+    "name": "Office supplies",
+    "group": "Learning & work",
+    "keywords": "office supplies business expenses stationery supplies projects",
+    "aliases": [],
+    "file": "marten/office-supplies.svg",
+    "darkFile": "marten/office-supplies-dark.svg"
+  },
+  {
+    "emoji": "📣",
+    "name": "Advertising",
+    "group": "Learning & work",
+    "keywords": "advertising promotion marketing business ads",
+    "aliases": [],
+    "file": "marten/advertising.svg",
+    "darkFile": "marten/advertising-dark.svg"
+  },
+  {
+    "emoji": "🎗️",
+    "name": "Charity",
+    "group": "Family & giving",
+    "keywords": "charity charitable donations giving nonprofit support",
+    "aliases": [],
+    "file": "marten/charity.svg",
+    "darkFile": "marten/charity-dark.svg"
+  },
+  {
+    "emoji": "🎁",
+    "name": "Gifts",
+    "group": "Family & giving",
+    "keywords": "gifts presents birthday holiday giving",
+    "aliases": [],
+    "file": "marten/gifts.svg",
+    "darkFile": "marten/gifts-dark.svg"
+  },
+  {
+    "emoji": "⚽",
+    "name": "Sports & child activities",
+    "group": "Family & giving",
+    "keywords": "child activities sports soccer football kids recreation",
+    "aliases": [],
+    "file": "marten/sports-and-child-activities.svg",
+    "darkFile": "marten/sports-and-child-activities-dark.svg"
+  },
+  {
+    "emoji": "🧸",
+    "name": "Child care",
+    "group": "Family & giving",
+    "keywords": "child care childcare daycare babysitting baby children kids toys",
+    "aliases": [
+      "👶"
+    ],
+    "file": "marten/child-care.svg",
+    "darkFile": "marten/child-care-dark.svg"
+  },
+  {
+    "emoji": "🔄",
+    "name": "Subscriptions",
+    "group": "Everyday",
+    "keywords": "subscriptions subscription recurring repeat memberships renewals",
+    "aliases": [],
+    "file": "marten/subscriptions.svg",
+    "darkFile": "marten/subscriptions-dark.svg"
+  },
+  {
+    "emoji": "📁",
+    "name": "General",
+    "group": "Everyday",
+    "keywords": "other uncategorized general miscellaneous filing folder organization",
+    "aliases": [
+      "❓",
+      "💲"
+    ],
+    "file": "marten/general.svg",
+    "darkFile": "marten/general-dark.svg"
   }
 ]

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "assets:categories": "node scripts/generate-category-icons.mjs",
     "assets:brands": "node scripts/generate-brand-catalog.mjs",
     "predev": "npm run assets:brands",
     "prebuild": "npm run assets:brands",
