@@ -1,9 +1,13 @@
-import { useEffect, useId, useState, type CSSProperties } from "react";
+import { AmountInput } from "../../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { Plane, Plus, Trash2 } from "lucide-react";
 import type { ForecastInputs, TravelPlan } from "../../../convex/lib/forecast";
 import { Button, IconButton } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
-import { money } from "../../lib/format";
 
 /** Keep a blank/in-progress input local; commit only valid numeric values. */
 export function PlanNumber({
@@ -25,6 +29,7 @@ export function PlanNumber({
   max?: number;
   step?: number;
 }) {
+  useAmountsHidden();
   const id = useId();
   const displayValue = dollars ? value / 100 : value;
   const [draft, setDraft] = useState(String(displayValue));
@@ -34,7 +39,8 @@ export function PlanNumber({
       <label htmlFor={id}>{label}</label>
       <div className="plan-number-input">
         {dollars && <span aria-hidden="true">$</span>}
-        <input
+        <AmountInput
+          sensitive={dollars}
           id={id}
           type="number"
           inputMode="decimal"
@@ -79,15 +85,38 @@ function PlanSlider({
   step?: number;
   suffix?: string;
 }) {
+  useAmountsHidden();
+  // The thumb follows the pointer immediately; the projection recomputes on a
+  // short trailing delay so a drag does not re-run the model every pixel.
+  const [draft, setDraft] = useState<number | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => {
+    setDraft(null);
+  }, [value]);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  const shown = draft ?? value;
   const fill = Math.max(
     0,
-    Math.min(100, ((value - min) / Math.max(1, max - min)) * 100),
+    Math.min(100, ((shown - min) / Math.max(1, max - min)) * 100),
   );
+  function drag(next: number) {
+    setDraft(next);
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      onChange(next);
+    }, 90);
+  }
   return (
     <div className="plan-slider">
       <PlanNumber
         label={label}
-        value={value}
+        value={shown}
         onChange={onChange}
         min={min}
         max={max}
@@ -97,13 +126,13 @@ function PlanSlider({
       <input
         type="range"
         aria-label={`${label} slider`}
-        aria-valuetext={`${value}${suffix === "%" ? "%" : ` ${suffix}`}`}
+        aria-valuetext={`${shown}${suffix === "%" ? "%" : ` ${suffix}`}`}
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={shown}
         style={{ "--range-fill": `${fill}%` } as CSSProperties}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => drag(Number(event.target.value))}
       />
       <div className="plan-slider-bounds" aria-hidden="true">
         <span>
@@ -126,6 +155,7 @@ export function ForecastAssumptions({
   inputs: ForecastInputs;
   onChange: (inputs: ForecastInputs) => void;
 }) {
+  useAmountsHidden();
   const set = <K extends keyof ForecastInputs>(
     key: K,
     value: ForecastInputs[K],

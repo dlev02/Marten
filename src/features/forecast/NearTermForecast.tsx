@@ -1,5 +1,12 @@
+import { AmountInput } from "../../components/folio/AmountInput";
+import {
+  useAmountsHidden,
+  displayCompactMoney as compactMoney,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
+import { mergePaymentStatus } from "../../../convex/lib/recurringPayments";
 import { useEffect, useId, useMemo, useState } from "react";
-import { usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowDownLeft, ArrowUpRight, Info } from "lucide-react";
 import {
@@ -16,8 +23,9 @@ import { api } from "../../../convex/_generated/api";
 import { Button, Empty, Loading } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
 import { useData } from "../../lib/data";
-import { compactMoney, dateLabel, localDate, money } from "../../lib/format";
+import { dateLabel, localDate } from "../../lib/format";
 import { cashRunway, runwayDate, type RunwayHorizon } from "./cashRunway";
+import { ForecastPreview } from "./ForecastPreview";
 import "./nearTerm.css";
 
 const tick = {
@@ -28,7 +36,12 @@ const tick = {
 const shortDate = (date: string) =>
   dateLabel(date, { month: "short", day: "numeric" });
 
-export function NearTermForecast() {
+export function NearTermForecast({
+  onAddAccount,
+}: {
+  onAddAccount: () => void;
+}) {
+  useAmountsHidden();
   const data = useData();
   const allowanceId = useId();
   const [days, setDays] = useState<RunwayHorizon>(90);
@@ -64,8 +77,9 @@ export function NearTermForecast() {
   useEffect(() => {
     if (status === "CanLoadMore") loadMore(200);
   }, [status, loadMore]);
+  const automatic = useQuery(api.recurring.automaticPayments, { from, to });
   const forecast = useMemo(() => {
-    if (status !== "Exhausted") return null;
+    if (status !== "Exhausted" || automatic === undefined) return null;
     try {
       return {
         result: cashRunway({
@@ -73,7 +87,7 @@ export function NearTermForecast() {
           days,
           accounts: data.accounts,
           schedules: data.recurring,
-          payments,
+          payments: mergePaymentStatus(automatic, payments),
           accountId: accountId || undefined,
           dailySpendingCents,
         }),
@@ -95,6 +109,7 @@ export function NearTermForecast() {
     data.accounts,
     data.recurring,
     payments,
+    automatic,
     accountId,
     dailySpendingCents,
   ]);
@@ -109,19 +124,7 @@ export function NearTermForecast() {
     data.accounts.find((account) => account._id === id)?.name ?? "Account";
 
   if (!accounts.length) {
-    return (
-      <section className="near-term panel">
-        <Empty
-          title="Add a cash account to see your runway"
-          description="This view starts with the current balance of your open USD checking and savings accounts."
-          action={
-            <Link className="text-button" to="/accounts">
-              View accounts
-            </Link>
-          }
-        />
-      </section>
-    );
+    return <ForecastPreview nearTerm onAddAccount={onAddAccount} />;
   }
   return (
     <div className="near-term">
@@ -174,7 +177,7 @@ export function NearTermForecast() {
           <label htmlFor={allowanceId}>Extra spending per day</label>
           <div className="near-term-allowance">
             <span aria-hidden="true">$</span>
-            <input
+            <AmountInput
               id={allowanceId}
               inputMode="decimal"
               value={allowance}
@@ -292,7 +295,7 @@ export function NearTermForecast() {
                       minTickGap={45}
                     />
                     <YAxis
-                      tickFormatter={compactMoney}
+                      tickFormatter={(value: number) => compactMoney(value)}
                       orientation="right"
                       width={63}
                       tick={tick}

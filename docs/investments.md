@@ -2,7 +2,7 @@
 
 The Investments page shows cached investment account value, current holdings,
 reported cost basis, allocation by account or security type, and investment
-activity. It uses existing Plaid connections and the explicitly labeled sample
+activity. It uses existing Plaid connections, SimpleFIN position snapshots, and the explicitly labeled sample
 workspace. It does not place trades or fetch live quotes.
 
 ## Financial meaning
@@ -71,3 +71,35 @@ leases, ownership, complete history coverage, sample reconciliation, all-page
 publication, and later-page failures. See [the verification
 record](verification.md) for observed command and browser results. Mocked provider
 tests do not establish a real brokerage connection or real institution coverage.
+
+## SimpleFIN position coverage
+
+The base [SimpleFIN protocol](https://www.simplefin.org/protocol.html) does not
+specify holdings. Marten accepts the Bridge extension's `id`, `description`,
+`symbol`, `shares`, `market_value`, and `currency` when a complete array validates.
+It derives unit price from market value divided by nonzero quantity;
+`purchase_price` is never used as a current quote. `cost_basis` is not assumed to
+mean total rather than per-share basis, and `created` is not a quote timestamp.
+The UI explicitly leaves basis, gains and security price history unavailable.
+
+The same bank sync publishes each complete account snapshot atomically under
+the connection's lease and ownership checks. IDs remain stable. Missing or
+malformed arrays, invalid/duplicate positions, and provider errors preserve the
+last positions. A valid empty array removes the previous SimpleFIN positions.
+When an account moves to SimpleFIN, the overview excludes preserved Plaid
+positions for that account to avoid double counting. Account balances remain
+the sole source of net worth. SimpleFIN investment activity is not imported into
+the investment activity table. Sync SimpleFIN through Bank connections.
+
+Validation uses fictional provider fixtures, including full import/sync and
+malformed-snapshot rollback. Real brokerage coverage has not been verified.
+
+## Gain/loss review — September 12, 2026
+
+Traced Plaid `institution_value` and `cost_basis` through `normalizePosition`
+into `investmentMetrics`: gain is reported value minus reported total basis.
+The [current Plaid reference](https://plaid.com/docs/api/products/investments/)
+confirms that `cost_basis` is total acquisition cost, not per-share cost. Demo
+values come from the fictional investment sample. No gain arithmetic changes
+were needed; existing tests cover incomplete basis and excluded currencies.
+This review does not establish live institution accuracy or portfolio returns.
