@@ -94,7 +94,7 @@
   display: flex;
   gap: 16px;
   align-items: center;
-  padding: 16px 23px;
+  padding: 13px 23px;
   border-bottom: 1px solid var(--border);
 }
 .recurring-list > div:last-child .recurring-row {
@@ -118,9 +118,28 @@
 }
 .recurring-row .row-title small {
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 12px;
   color: var(--muted);
+}
+/* Frequency, account, and category share one muted line; it wraps on phones without overflowing.
+   The selector matches `.recurring-row .row-title small` in specificity so `display: flex` wins. */
+.recurring-row .row-title .recurring-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  line-height: 1.5;
+  min-width: 0;
+}
+.recurring-row-meta > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.recurring-row-meta-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .recurring-row .amount {
   text-align: right;
@@ -543,19 +562,13 @@
   }
   .recurring-row {
     gap: 12px;
-    padding: 16px 14px;
+    padding: 13px 14px;
   }
   .recurring-row-detail {
     gap: 11px;
   }
   .recurring-row-edit {
     display: none;
-  }
-  .recurring-row .row-title small {
-    max-width: 155px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .recurring-calendar-day {
     min-height: 80px;
@@ -614,4 +627,27 @@
   .recurring-row-edit {
     transition: none;
   }
+}
+
+.recurring-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  min-width: 0;
+}
+.recurring-category .category-icon {
+  font-size: 12px;
+  width: 15px;
+  height: 15px;
+}
+
+.recurring-merchant-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 12px;
+  min-height: 32px;
 }
