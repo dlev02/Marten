@@ -23,6 +23,17 @@ Final assembled-app checks were completed on **September 11, 2026** using fictio
   local marketing site rendered and its desktop screenshot was reviewed.
   This was a release/configuration check, not a new full responsive UI audit.
 
+- Release follow-through: PR #2 merged and Netlify published the matching
+  `main` revision. Convex production deployment completed with schema validation
+  and no index deletions. Plaid's existing application showed one connection;
+  the operator confirmed the application, and its dashboard saved and rechecked
+  `https://marten.money/` under Allowed redirect URIs.
+- Runtime verification caught a missing Netlify build variable: the deployed
+  entry bundle threw before rendering because `VITE_CONVEX_URL` was absent.
+  Set that public build variable to `https://confident-kiwi-9.convex.cloud` for
+  all deploy contexts. Future Git builds must retain it; HTTP 200 and a successful
+  hosting build alone do not establish that the app rendered.
+
 ## September 12 — Codex Security pass and remediation
 
 - Codex Security Standard scan `418563a6-73ee-4fea-a14a-36f61039804d`
