@@ -1,4 +1,9 @@
 import {
+  useAmountsHidden,
+  displayCompactMoney as compactMoney,
+  displayMoney as money,
+} from "../../lib/amountVisibility";
+import {
   Bar,
   Cell,
   ComposedChart,
@@ -10,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { compactMoney, money } from "../../lib/format";
+
 import { useReducedMotion } from "../../lib/useReducedMotion";
 
 type Period = {
@@ -28,6 +33,7 @@ export function CashFlowTimeline({
   selectedIndex: number;
   onSelect: (index: number) => void;
 }) {
+  useAmountsHidden();
   const reduced = useReducedMotion();
   const chart = data.map((period) => ({ ...period, outflow: -period.expense }));
   return (
@@ -92,7 +98,7 @@ export function CashFlowTimeline({
               }}
             />
             <YAxis
-              tickFormatter={compactMoney}
+              tickFormatter={(value: number) => compactMoney(value)}
               tick={{ fontSize: 11, fill: "var(--muted)" }}
               width={58}
               axisLine={false}
