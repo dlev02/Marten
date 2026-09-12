@@ -48,7 +48,10 @@ export const status = userQuery({
   handler: async (ctx) => {
     const config = configuration();
     const user = await ctx.db.get(ctx.userId);
-    const restricted = !plaidAllowedFor(user?.email);
+    const restricted = !plaidAllowedFor(
+      user?.email,
+      user?.emailVerificationTime,
+    );
     const items = await ctx.db
       .query("plaidItems")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))

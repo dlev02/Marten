@@ -279,7 +279,7 @@ and changing totals. Right-align comparable amounts, preserve signs, and use
 
 The public site adds locally bundled **Bricolage Grotesque Variable** through
 `--font-display`, with weight 520, tracking −0.028em, and optical/width axes set
-in `.site h1/h2/h3`. Its hero scales from 40px to 78px; body copy is 16px/1.55.
+in `.site h1/h2/h3`. Its hero scales from 40px to 76px; body copy is 16px/1.55.
 These are marketing roles. Keep DM Sans in app headings, forms, and charts.
 Do not apply the app's compact density to a reading page.
 

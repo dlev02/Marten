@@ -23,9 +23,22 @@ Do not print keys, passwords, recovery codes, or complete mail payloads in logs 
 
 [PasswordRecovery](../src/features/PasswordRecovery.tsx) normalizes the email and calls the Password provider with `flow: "reset"`. [passwordReset.ts](../convex/lib/passwordReset.ts) generates eight uniformly distributed decimal digits, sends them through Brevo's transactional email endpoint, and sets a 15-minute expiry.
 
-Submitting the code calls `flow: "reset-verification"` with the canonical email and new password. Verification requires an exact match with the account's canonical email. A code cannot reset another account, noncanonical spellings cannot redeem it, and successful verification consumes the code. The password is replaced and the auth library invalidates other session records. This does not introduce a live session lookup on every backend request; do not describe it as instant revocation of every already-issued access JWT before that token expires.
+Submitting the code calls `flow: "reset-verification"` with the canonical email and new password. Verification requires an exact match with the account's canonical email. A code cannot reset another account, noncanonical spellings cannot redeem it, and successful verification consumes the code. The password is replaced and the auth library invalidates other session records. Marten's authenticated wrappers also check session existence on every request, so a deleted session's access token stops authorizing application operations before its JWT expires.
 
 The request screen uses the same next step for an unknown account. This is a **UI behavior**, not a claim of server-side account-enumeration resistance: the underlying provider can return distinguishable errors for an unknown account. A generic screen alone does not change that API contract.
+
+## Restricted Plaid access
+
+When `PLAID_ALLOWED_EMAILS` is set, matching the email alone is insufficient.
+The shared Plaid guard also requires Convex Auth's server-recorded
+`emailVerificationTime`. Signup ignores caller-supplied verification flags.
+Completing the existing emailed password-reset flow establishes this proof;
+requesting a reset does not. Configure email delivery before relying on this
+restricted mode. Existing unverified allowed accounts must complete that flow
+before adding or reconnecting banks. Existing owned connections can still sync
+and disconnect. Reminder verification is a separate setting and does not mark
+the Auth email verified. An unset allowlist retains unrestricted self-hosted
+behavior.
 
 ## Sign-in attempts and session revocation
 

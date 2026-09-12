@@ -136,7 +136,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "If you find a vulnerability, please report it privately rather than in a public issue: use [GitHub's private security advisory](https://github.com/dlev02/marten/security/advisories/new) for the repository, or email {{CONTACT_EMAIL}}. Include steps to reproduce. You will get a reply from the operator, a fix as quickly as one person can manage, and credit if you want it. Please do not access other people's data while testing.",
+          text: "If you find a vulnerability, please report it privately rather than in a public issue: use [GitHub's private security advisory](https://github.com/dlev02/marten/security/advisories/new) for the repository, or contact us through {{CONTACT_EMAIL}}. Include steps to reproduce. You will get a reply from the operator, a fix as quickly as one person can manage, and credit if you want it. Please do not access other people's data while testing.",
         },
       ],
     },

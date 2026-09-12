@@ -92,7 +92,7 @@ touched development; the next steps set up production.
 ### Environment variables
 
 | Variable                              | Required                          | Where it belongs                             | Meaning                                                                                                                                                                               |
-| ------------------------------------- | --------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------- | --------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_CONVEX_URL`                     | Required                          | Netlify build environment (and `.env.local`) | Public Convex client URL, `https://<name>.convex.cloud`. Not a secret.                                                                                                                |
 | `CONVEX_DEPLOYMENT`                   | Local only                        | `.env.local`, written by the Convex CLI      | Which deployment the CLI targets. Never needed on Netlify.                                                                                                                            |
 | `JWT_PRIVATE_KEY`, `JWKS`             | Required                          | Convex deployment                            | Convex Auth signing keys, set by the `@convex-dev/auth` initializer. Do not regenerate them on a live deployment: it signs everyone out.                                              |
@@ -103,7 +103,7 @@ touched development; the next steps set up production.
 | `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Optional                          | Convex deployment                            | Your Plaid credentials. Both are needed; the secret must match `PLAID_ENV`.                                                                                                           |
 | `PLAID_ENV`                           | Optional (with Plaid credentials) | Convex deployment                            | `sandbox` or `production`, explicitly. Unset or invalid hides Plaid entirely.                                                                                                         |
 | `PLAID_REDIRECT_URI`                  | Optional                          | Convex deployment                            | The redirect URI registered in Plaid's dashboard; required for OAuth banks such as Chase, American Express, and Schwab.                                                               |
-| `PLAID_ALLOWED_EMAILS`                | Optional                          | Convex deployment                            | Comma-separated account emails allowed to see Plaid. When set, everyone else sees only SimpleFIN and manual options. Leave unset on a private household deployment.                   |
+| `PLAID_ALLOWED_EMAILS`                | Optional                          | Convex deployment                            | Comma-separated verified account emails allowed to see Plaid. Complete an emailed password reset once to verify an allowed account. When set, everyone else sees only SimpleFIN and manual options. Leave unset on a private household deployment. |
 | `AGENT_APP_ORIGIN`                    | Optional                          | Convex deployment                            | Frontend origin for remote MCP consent when it differs from `SITE_URL`.                                                                                                               |
 | `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                | —                                            | Do not set these yourself.                                                                                                                                                            |
 
@@ -112,11 +112,11 @@ paste a new SimpleFIN token, though their imported history stays.
 
 A minimal production setup, in one go:
 
-```sh
+   ```sh
 npx convex env set --prod CREDENTIALS_KEY "$(openssl rand -base64 32)"
 npx convex env set --prod AUTH_BREVO_KEY "..."
 npx convex env set --prod AUTH_EMAIL_FROM "marten@your-domain.example"
-```
+   ```
 
 Plaid variables can wait until you have Trial credentials; the site works with
 SimpleFIN, spreadsheets, and manual accounts in the meantime.
@@ -140,9 +140,9 @@ expects. You do not need to add redirect rules by hand.
 To build somewhere other than Netlify, run the same build with the variable
 set and host the `dist` folder with an SPA fallback:
 
-```sh
+   ```sh
 VITE_CONVEX_URL=https://<name>.convex.cloud npm run build
-```
+   ```
 
 ## 5. Custom domain and HTTPS
 
@@ -203,14 +203,24 @@ updating them to the domain you will actually use:
   `convex/crons.ts`; the Convex dashboard shows their logs.
 - Back up the Convex deployment from the dashboard before schema changes.
 
+## Browser framing protection
+
+Serve every HTML route with `Content-Security-Policy: frame-ancestors 'none'`
+and `X-Frame-Options: DENY`. The included Netlify configuration and Vite
+local/preview servers set both headers. When using another static host, configure
+them there too; a meta tag cannot enforce `frame-ancestors`. This prevents other
+sites from disguising clicks on Marten's consent and settings pages and does not
+stop Marten from opening Plaid's own frames. Verify the actual response headers
+at the final origin after deployment.
+
 ## Troubleshooting
 
 | Symptom                                                        | Check                                                                                                                                                                                                                                                                             |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sign-in or sign-up fails, or the session is rejected           | `SITE_URL` on the **production** deployment must equal the site's origin exactly: same scheme, host, and no trailing slash. After changing the domain, rerun step 6. Confirm `VITE_CONVEX_URL` on Netlify points at the production deployment, not development.                   |
 | The site loads but every page is blank or shows a Convex error | `VITE_CONVEX_URL` is missing from Netlify's build environment or was added after the last build. Trigger a new deploy.                                                                                                                                                            |
 | Deep links return Netlify's 404 page                           | `netlify.toml` is missing from the fork's root, or the publish directory is not `dist`.                                                                                                                                                                                           |
-| The Plaid button is missing                                    | All three of `PLAID_CLIENT_ID`, `PLAID_SECRET`, and `PLAID_ENV` must be set on production, and `PLAID_ENV` must be exactly `sandbox` or `production`. If `PLAID_ALLOWED_EMAILS` is set, the signed-in account's email must be in it. Demo and sample workspaces never show Plaid. |
+| The Plaid button is missing                                    | All three of `PLAID_CLIENT_ID`, `PLAID_SECRET`, and `PLAID_ENV` must be set on production, and `PLAID_ENV` must be exactly `sandbox` or `production`. If `PLAID_ALLOWED_EMAILS` is set, the signed-in account's email must be in it and verified through a completed emailed password reset. Requesting a code or verifying reminders alone does not qualify. Demo and sample workspaces never show Plaid. |
 | A Chase or Schwab connection returns without finishing         | Register the site origin as a redirect URI in Plaid's dashboard and set `PLAID_REDIRECT_URI` to the same value.                                                                                                                                                                   |
 | **Forgot password?** is missing or the email never arrives     | Both `AUTH_BREVO_KEY` and `AUTH_EMAIL_FROM` must be set on production; the sender must be verified in Brevo and the key must still be active. See [authentication](authentication.md).                                                                                            |
 | SimpleFIN says the token was already claimed                   | Setup tokens work once. Create a new app connection in SimpleFIN Bridge and use **New token** on the connection card.                                                                                                                                                             |

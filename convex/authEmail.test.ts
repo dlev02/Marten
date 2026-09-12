@@ -147,6 +147,42 @@ describe("real Password provider reset flow", () => {
     await expect(signIn(newPassword)).rejects.toThrow();
   });
 
+  test("signup cannot claim verified email; a completed mailbox reset unlocks the Plaid allowlist", async () => {
+    vi.stubEnv("PLAID_ALLOWED_EMAILS", alice);
+    const { t, request, verify } = authFixture();
+    await t.action(api.auth.signIn, {
+      provider: "password",
+      params: {
+        flow: "signUp",
+        email: alice,
+        password: oldPassword,
+        emailVerified: true,
+        emailVerificationTime: now,
+      },
+    });
+    const user = await t.run((ctx) => ctx.db.query("users").unique());
+    if (!user) throw new Error("Expected fictional signup user");
+    const asUser = t.withIdentity({ subject: user._id });
+    expect(user.emailVerificationTime).toBeUndefined();
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      restricted: true,
+    });
+    await request();
+    expect(
+      (await t.run((ctx) => ctx.db.get(user._id)))?.emailVerificationTime,
+    ).toBeUndefined();
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      restricted: true,
+    });
+    await verify(deliveries[0].code);
+    expect(
+      (await t.run((ctx) => ctx.db.get(user._id)))?.emailVerificationTime,
+    ).toBe(now);
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      restricted: false,
+    });
+  });
+
   test("another account and noncanonical spellings cannot redeem a valid code", async () => {
     const { signUp, request, verify, signIn } = authFixture();
     await signUp(alice);

@@ -929,7 +929,11 @@ describe("PLAID_ALLOWED_EMAILS", () => {
   });
   test("reports Plaid unavailable and refuses new links for emails outside the list", async () => {
     configure(" Sample@Example.test , owner@example.test ");
-    const { asUser, asOther, itemId } = await fixture();
+    const { t, userId, otherUserId, asUser, asOther, itemId } = await fixture();
+    await t.run(async (ctx) => {
+      await ctx.db.patch(userId, { emailVerificationTime: Date.now() });
+      await ctx.db.patch(otherUserId, { emailVerificationTime: Date.now() });
+    });
     expect(await asUser.query(api.plaid.status, {})).toMatchObject({
       configured: true,
       restricted: false,
@@ -951,6 +955,58 @@ describe("PLAID_ALLOWED_EMAILS", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     // An allowed household member still syncs and links; sync ignores the list.
     await expect(asUser.action(api.plaid.sync, { itemId })).resolves.toBeNull();
+  });
+  test("an unverified allowlisted email cannot link or exchange tokens", async () => {
+    configure(" Sample@Example.test ");
+    const { t, userId, asUser, itemId } = await fixture();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await asUser.query(api.plaid.status, {})).toMatchObject({
+      configured: false,
+      restricted: true,
+    });
+    await expect(
+      asUser.action(api.plaid.createLinkToken, { mode: "transactions" }),
+    ).rejects.toThrow("SimpleFIN");
+    await expect(
+      asUser.action(api.plaid.createLinkToken, {
+        mode: "transactions",
+        itemId,
+      }),
+    ).rejects.toThrow("SimpleFIN");
+    await expect(
+      asUser.action(api.plaid.exchangePublicToken, {
+        publicToken: "fictional-public-token",
+      }),
+    ).rejects.toThrow("SimpleFIN");
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Existing data and revocation remain available without a new consent flow.
+    await expect(asUser.action(api.plaid.sync, { itemId })).resolves.toBeNull();
+    await expect(
+      t.mutation(internal.plaidInternal.disconnectStart, { userId, itemId }),
+    ).resolves.toMatchObject({ userId });
+  });
+  test("verified allowlisted users can create a Link token", async () => {
+    configure(" Sample@Example.test ");
+    const { t, userId, asUser } = await fixture();
+    await t.run((ctx) =>
+      ctx.db.patch(userId, { emailVerificationTime: Date.now() }),
+    );
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            link_token: "fictional-link-token",
+            expiration: "2026-09-13T00:00:00Z",
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      asUser.action(api.plaid.createLinkToken, { mode: "transactions" }),
+    ).resolves.toMatchObject({ linkToken: "fictional-link-token" });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });
 

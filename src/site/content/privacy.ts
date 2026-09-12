@@ -66,7 +66,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "**SimpleFIN Bridge.** You buy your own SimpleFIN subscription, link your banks there, and paste a one-time setup token into Marten. Marten exchanges that token once for an access URL and stores only that URL, sealed with AES-256-GCM encryption when the operator has configured a sealing key. From SimpleFIN, Marten receives institution names, account names and balances, posted transactions (dates, amounts, payee, description, and merchant category codes), and a count of holdings for investment accounts. Holdings themselves are not imported from SimpleFIN yet. Marten reads from SimpleFIN about once a day and when you choose **Import latest**.",
+          text: "**SimpleFIN Bridge.** You buy your own SimpleFIN subscription, link your banks there, and paste a one-time setup token into Marten. Marten exchanges that token once for an access URL and stores only that URL, sealed with AES-256-GCM encryption when the operator has configured a sealing key. From SimpleFIN, Marten receives institution names, account names and balances, posted transactions (dates, amounts, payee, description, and merchant category codes), and validated investment positions when supplied, including quantities and values. Total cost basis, gains, and security price history are not inferred when unavailable. Marten reads from SimpleFIN about once a day and when you choose **Import latest**.",
         },
         {
           type: "p",
@@ -226,7 +226,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "Marten does not yet have a self-service button that deletes a whole account. To delete your account and all of its data, open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}} from your sign-in address, and the operator will remove the account, its files, and its records from the live database. Backups kept by Convex age out on their own schedule.",
+          text: "To delete your account, open **Settings → Preferences → Delete account** and complete the confirmation. Deletion signs you out, revokes assistant access, and removes your account, files, and financial records from the live database in background batches. Marten attempts to revoke Plaid connections; if a provider cannot complete revocation, manage that consent with the provider. Backups kept by Convex age out on their own schedule. Do not post account details in a public GitHub issue.",
         },
         {
           type: "p",
@@ -299,7 +299,7 @@ export const privacyPolicy: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Questions about privacy, or a request to see or delete your data: open a [GitHub issue](https://github.com/dlev02/marten/issues) or email {{CONTACT_EMAIL}}. The site is operated by Drew in the United States.",
+          text: "For privacy questions, contact us through {{CONTACT_EMAIL}}. Use the in-app export and account-deletion controls to retrieve or remove your data. Do not include financial or account details in public GitHub issues. The site is operated by Drew in the United States.",
         },
       ],
     },
