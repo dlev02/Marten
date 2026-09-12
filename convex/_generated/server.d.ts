@@ -33,16 +33,13 @@ type Env = {
   readonly AGENT_APP_ORIGIN: string | undefined;
   readonly AUTH_BREVO_KEY: string | undefined;
   readonly AUTH_EMAIL_FROM: string | undefined;
+  readonly CREDENTIALS_KEY: string | undefined;
+  readonly PLAID_ALLOWED_EMAILS: string | undefined;
   readonly PLAID_CLIENT_ID: string | undefined;
   readonly PLAID_ENV: string | undefined;
   readonly PLAID_REDIRECT_URI: string | undefined;
   readonly PLAID_SECRET: string | undefined;
   readonly SITE_URL: string | undefined;
-  readonly SOPHTRON_ACCESS_KEY: string | undefined;
-  readonly SOPHTRON_CUSTOMER_ID: string | undefined;
-  readonly SOPHTRON_ENV: string | undefined;
-  readonly SOPHTRON_OWNER_USER_ID: string | undefined;
-  readonly SOPHTRON_USER_ID: string | undefined;
 };
 
 /**
