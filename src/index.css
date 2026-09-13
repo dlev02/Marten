@@ -3940,3 +3940,7 @@ html[data-ui-transition]::view-transition {
 .transaction-more-menu button {
   min-height: 44px;
 }
+/* The customizer's dragged card must not open a horizontal scrollbar on the dialog. */
+.customize-modal {
+  overflow-x: hidden;
+}
