@@ -130,6 +130,9 @@ export function PlaidLinkFlow() {
             );
           await exchange({
             publicToken,
+            ...(flow.importFromDate
+              ? { importFromDate: flow.importFromDate }
+              : {}),
             ...(metadata.institution
               ? {
                   institutionId: metadata.institution.institution_id,

@@ -3,6 +3,7 @@ import { internalAction, env, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { userAction, userQuery } from "./lib/access";
+import { date as validateDate } from "./lib/access";
 import { syncInvestments } from "./lib/investmentSync";
 import {
   configuration,
@@ -16,6 +17,7 @@ import {
   normalizeTransaction,
   bankCents,
   plaidAllowedFor,
+  plaidAccessFor,
   type PlaidAccount,
   type PlaidItem,
   type SyncPage,
@@ -43,6 +45,7 @@ export const status = userQuery({
     environment: v.union(environment, v.null()),
     // True when PLAID_ALLOWED_EMAILS is set and excludes the signed-in user.
     restricted: v.boolean(),
+    verificationRequired: v.boolean(),
     items: v.array(safeItem),
   }),
   handler: async (ctx) => {
@@ -59,6 +62,10 @@ export const status = userQuery({
     return {
       ...config,
       configured: config.configured && !restricted,
+      verificationRequired:
+        config.configured &&
+        plaidAccessFor(user?.email, user?.emailVerificationTime) ===
+          "verification-required",
       restricted,
       items: items.map(
         ({ _id, institution, status, error, syncedAt, products }) => ({
@@ -139,9 +146,20 @@ export const exchangePublicToken = userAction({
     publicToken: v.string(),
     institutionId: v.optional(v.string()),
     institutionName: v.optional(v.string()),
+    importFromDate: v.optional(v.string()),
   },
   returns: v.object({ itemId: v.id("plaidItems") }),
   handler: async (ctx, args) => {
+    if (args.importFromDate !== undefined) {
+      validateDate(args.importFromDate);
+      if (
+        args.importFromDate >
+        new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+      )
+        throw new ConvexError(
+          "Choose tomorrow or an earlier date for bank transactions.",
+        );
+    }
     await ctx.runQuery(internal.plaidInternal.context, {
       userId: ctx.userId,
       link: true,
@@ -182,6 +200,7 @@ export const exchangePublicToken = userAction({
           : {}),
         products: productSet(item),
         environment: configuration().environment!,
+        ...(args.importFromDate ? { importFromDate: args.importFromDate } : {}),
       });
       if (result.duplicate) {
         await publicRequest("/item/remove", {

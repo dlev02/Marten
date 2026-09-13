@@ -146,9 +146,13 @@ export const saveSettings = userMutation({
 });
 
 export const reserveVerification = internalMutation({
-  args: { userId: v.id("users"), codeHash: v.string() },
+  args: {
+    userId: v.id("users"),
+    codeHash: v.string(),
+    purpose: v.optional(v.literal("plaid")),
+  },
   returns: v.string(),
-  handler: async (ctx, { userId, codeHash }) => {
+  handler: async (ctx, { userId, codeHash, purpose }) => {
     const user = await recipient(ctx, userId);
     if (!user?.email)
       throw new ConvexError(
@@ -170,6 +174,7 @@ export const reserveVerification = internalMutation({
       );
     const value = {
       userId,
+      purpose,
       email: user.email,
       codeHash,
       expiresAt: now + 15 * 60_000,
@@ -185,9 +190,13 @@ export const reserveVerification = internalMutation({
 });
 
 export const verifyCode = internalMutation({
-  args: { userId: v.id("users"), codeHash: v.string() },
+  args: {
+    userId: v.id("users"),
+    codeHash: v.string(),
+    purpose: v.optional(v.literal("plaid")),
+  },
   returns: v.boolean(),
-  handler: async (ctx, { userId, codeHash }) => {
+  handler: async (ctx, { userId, codeHash, purpose }) => {
     const user = await recipient(ctx, userId);
     const row = await ctx.db
       .query("reminderEmailVerifications")
@@ -197,12 +206,20 @@ export const verifyCode = internalMutation({
       !row ||
       !user?.email ||
       row.email !== user.email ||
+      row.purpose !== purpose ||
       row.expiresAt <= Date.now() ||
       row.attempts >= 5
     )
       return false;
     await ctx.db.patch(row._id, { attempts: row.attempts + 1 });
     if (row.codeHash !== codeHash) return false;
+    // Both flows prove ownership of the current sign-in mailbox. Plaid verification
+    // does not opt the user into reminder emails.
+    await ctx.db.patch(userId, { emailVerificationTime: Date.now() });
+    if (purpose === "plaid") {
+      await ctx.db.patch(row._id, { codeHash: "", expiresAt: 0 });
+      return true;
+    }
     const preferences = await preferencesFor(ctx, userId);
     const value = {
       verifiedEmail: user.email,

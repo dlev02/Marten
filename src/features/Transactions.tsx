@@ -76,6 +76,7 @@ export function Transactions() {
     [tag, setTag] = useState(params.get("tag") ?? ""),
     [review, setReview] = useState("all"),
     [visibility, setVisibility] = useState("all"),
+    [source, setSource] = useState("all"),
     [sort, setSort] = useState("newest"),
     [minimum, setMinimum] = useState(""),
     [maximum, setMaximum] = useState("");
@@ -163,6 +164,7 @@ export function Transactions() {
               (review === "reviewed" ? tx.reviewed : !tx.reviewed)) &&
             (visibility === "all" ||
               (visibility === "hidden" ? tx.hidden : !tx.hidden)) &&
+            (source === "all" || tx.source === source) &&
             (!minimum ||
               !Number.isFinite(Number(minimum)) ||
               tx.amountCents >= Number(minimum) * 100) &&
@@ -186,6 +188,7 @@ export function Transactions() {
       tag,
       review,
       visibility,
+      source,
       sort,
       minimum,
       maximum,
@@ -198,6 +201,7 @@ export function Transactions() {
       tag,
       review !== "all",
       visibility !== "all",
+      source !== "all",
       account,
       merchant,
       minimum,
@@ -259,6 +263,7 @@ export function Transactions() {
     setTag("");
     setReview("all");
     setVisibility("all");
+    setSource("all");
     setMinimum("");
     setMaximum("");
     setAccount("");
@@ -361,6 +366,32 @@ export function Transactions() {
                   ]}
                 />
               </label>
+              <label>
+                Source
+                <Select
+                  value={source}
+                  onValueChange={(value) => {
+                    setSource(value);
+                    setChecked(new Set());
+                  }}
+                  aria-label="Transaction source"
+                  options={[
+                    { value: "all", label: "All sources" },
+                    { value: "csv", label: "Spreadsheet imports" },
+                    { value: "plaid", label: "Plaid" },
+                    { value: "simplefin", label: "SimpleFIN" },
+                    { value: "lunchflow", label: "Lunch Flow" },
+                    { value: "manual", label: "Entered manually" },
+                  ]}
+                />
+              </label>
+              {source !== "all" && (
+                <p className="import-hint">
+                  This filters the list only. To exclude overlapping entries
+                  from reports, select them and choose Hide in bulk edit. You
+                  can show them again later.
+                </p>
+              )}
               <label>
                 Visibility
                 <Select

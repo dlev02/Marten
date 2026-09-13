@@ -6,18 +6,18 @@ import {
   Landmark,
   Link2,
   Loader2,
-  LockKeyhole,
   Plus,
   WalletCards,
 } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc } from "../../../convex/_generated/dataModel";
 import { useData } from "../../lib/data";
-import { parseMoney } from "../../lib/format";
+import { parseMoney, localDate } from "../../lib/format";
 import { startPlaidFlow } from "../../lib/plaidLinkState";
 import { isDemoSession } from "../../lib/demo";
 import type { BankProvider } from "../../../convex/lib/bankProviders";
 import { SimpleFinFlow } from "./SimpleFin";
+import { BankHistoryChoice } from "./BankHistoryChoice";
 import {
   Button,
   Field,
@@ -39,14 +39,44 @@ export function AddAccount({
   const publicDemo = isDemoSession();
   const [bridge, setBridge] = useState<BankProvider | null>(null);
   const [plaidOpen, setPlaidOpen] = useState(false);
+  const [importFromDate, setImportFromDate] = useState<
+    string | null | undefined
+  >();
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const requestVerification = useAction(
+    api.reminderDelivery.requestVerification,
+  );
+  const verifyEmail = useAction(api.reminderDelivery.verifyEmail);
   const [tab, setTab] = useState("connect"),
     [mode, setMode] = useState<"transactions" | "investments">("transactions");
   const data = useData(),
     status = useQuery(api.plaid.status, open ? {} : "skip"),
     createToken = useAction(api.plaid.createLinkToken),
     { busy, run } = useTask();
+  const importedHistory = useQuery(
+    api.transactions.importedHistory,
+    open ? {} : "skip",
+  );
+  const dayAfter = (date: string) =>
+    new Date(Date.parse(date + "T00:00:00Z") + 86400000)
+      .toISOString()
+      .slice(0, 10);
+  const historyChoices = (importedHistory ?? [])
+    .filter((row) => row.lastDate <= localDate())
+    .map((row) => ({ ...row, fromDate: dayAfter(row.lastDate) }));
+  const suggestedDate =
+    importedHistory?.length === 1 && historyChoices.length === 1
+      ? historyChoices[0].fromDate
+      : undefined;
+  const effectiveImportDate =
+    importFromDate === undefined
+      ? suggestedDate
+      : (importFromDate ?? undefined);
   // A public deployment can limit Plaid to listed emails; everyone else uses SimpleFIN.
   const plaidRestricted = status?.restricted === true;
+  const plaidVisible =
+    !!status && (status.configured || status.verificationRequired);
   async function begin() {
     await run(async () => {
       if (!data.profile) return;
@@ -55,6 +85,9 @@ export function AddAccount({
         ...result,
         kind: "connect",
         userId: data.profile.userId,
+        ...(mode === "transactions" && effectiveImportDate
+          ? { importFromDate: effectiveImportDate }
+          : {}),
       });
       onClose();
     });
@@ -62,29 +95,43 @@ export function AddAccount({
   return (
     <>
       <Modal open={open && !bridge} onClose={onClose} title="Add an account">
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          items={[
-            {
-              value: "connect",
-              label: "Connect a bank",
-              icon: <Landmark size={16} />,
-            },
-            {
-              value: "manual",
-              label: "Add manually",
-              icon: <Plus size={16} />,
-            },
-          ]}
-        />
+        {!plaidOpen && (
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={[
+              {
+                value: "connect",
+                label: "Connect a bank",
+                icon: <Landmark size={16} />,
+              },
+              {
+                value: "manual",
+                label: "Add manually",
+                icon: <Plus size={16} />,
+              },
+            ]}
+          />
+        )}
         {tab === "connect" ? (
           <div className="connect-account">
             <div className="connect-intro">
-              <h2>Choose your connection</h2>
+              {plaidOpen && (
+                <Button
+                  tone="quiet"
+                  disabled={busy}
+                  onClick={() => setPlaidOpen(false)}
+                >
+                  Back to connections
+                </Button>
+              )}
+              <h2>
+                {plaidOpen ? "Connect with Plaid" : "Choose your connection"}
+              </h2>
               <p>
-                Bring balances and transactions into Marten with a service you
-                control.
+                {plaidOpen
+                  ? "Choose your accounts and how much history to bring in."
+                  : "Bring balances and transactions into Marten with a service you control."}
               </p>
             </div>
             {publicDemo ? (
@@ -97,7 +144,7 @@ export function AddAccount({
                 You’re exploring sample data. Start a fresh workspace in
                 Preferences before connecting a bank.
               </div>
-            ) : plaidRestricted ? (
+            ) : plaidRestricted && !status?.verificationRequired ? (
               <div className="account-notice">
                 Use your own SimpleFIN or Lunch Flow subscription. Plaid is
                 available when you{" "}
@@ -117,31 +164,95 @@ export function AddAccount({
                 accounts, not live financial accounts.
               </div>
             ) : null}
-            <div className="connect-providers">
-              <ProviderChoice
-                icon={<Link2 size={18} />}
-                title="Continue with SimpleFIN"
-                description="Your SimpleFIN Bridge token · US and Canadian banks"
-                disabled={busy || data.profile?.demo || publicDemo}
-                onClick={() => setBridge("simplefin")}
-              />
-              <ProviderChoice
-                icon={<Link2 size={18} />}
-                title="Continue with Lunch Flow"
-                description="Your Lunch Flow API key · more bank connections worldwide"
-                disabled={busy || data.profile?.demo || publicDemo}
-                onClick={() => setBridge("lunchflow")}
-              />
-              {!plaidRestricted && status?.configured && (
+            {!plaidOpen && (
+              <div className="connect-providers">
+                {plaidVisible && (
+                  <ProviderChoice
+                    icon={<Link2 size={18} />}
+                    title="Continue with Plaid"
+                    description={
+                      status?.verificationRequired
+                        ? "Available for your account · verify your email to continue"
+                        : "Connect your bank securely through Plaid"
+                    }
+                    disabled={busy || data.profile?.demo || publicDemo}
+                    onClick={() => setPlaidOpen(!plaidOpen)}
+                  />
+                )}
                 <ProviderChoice
-                  icon={<LockKeyhole size={18} />}
-                  title="Continue with Plaid"
-                  description="Use this Marten installation’s bank connection"
+                  icon={<Link2 size={18} />}
+                  title="Continue with SimpleFIN"
+                  description="Your SimpleFIN Bridge token · US and Canadian banks"
                   disabled={busy || data.profile?.demo || publicDemo}
-                  onClick={() => setPlaidOpen(!plaidOpen)}
+                  onClick={() => setBridge("simplefin")}
                 />
-              )}
-            </div>
+                <ProviderChoice
+                  icon={<Link2 size={18} />}
+                  title="Continue with Lunch Flow"
+                  description="Your Lunch Flow API key · more bank connections worldwide"
+                  disabled={busy || data.profile?.demo || publicDemo}
+                  onClick={() => setBridge("lunchflow")}
+                />
+              </div>
+            )}
+            {plaidOpen && status?.verificationRequired && (
+              <div className="plaid-product-choice">
+                <p>
+                  Verify your sign-in email to unlock Plaid. This does not turn
+                  on email reminders.
+                </p>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await requestVerification({ purpose: "plaid" });
+                      setVerificationSent(true);
+                    }, "Verification code sent to your sign-in email.")
+                  }
+                >
+                  {verificationSent
+                    ? "Send a new code"
+                    : "Send verification code"}
+                </Button>
+                {verificationSent && (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void run(async () => {
+                        await verifyEmail({
+                          code: verificationCode,
+                          purpose: "plaid",
+                        });
+                        setVerificationCode("");
+                      }, "Email verified. You can connect with Plaid.");
+                    }}
+                  >
+                    <Field
+                      label="Verification code"
+                      hint="Enter the eight-digit code from your email. It expires in 15 minutes."
+                    >
+                      <input
+                        aria-label="Plaid email verification code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]{8}"
+                        maxLength={8}
+                        required
+                        value={verificationCode}
+                        onChange={(event) =>
+                          setVerificationCode(
+                            event.target.value.replace(/\D/g, ""),
+                          )
+                        }
+                      />
+                    </Field>
+                    <Button type="submit" tone="primary" disabled={busy}>
+                      Verify email
+                    </Button>
+                  </form>
+                )}
+              </div>
+            )}
             {plaidOpen && !plaidRestricted && status?.configured && (
               <div className="plaid-product-choice">
                 <Field label="What would you like to connect?">
@@ -161,9 +272,23 @@ export function AddAccount({
                     ]}
                   />
                 </Field>
+                {mode === "transactions" && importedHistory !== undefined && (
+                  <BankHistoryChoice
+                    value={effectiveImportDate}
+                    onChange={(value) => setImportFromDate(value ?? null)}
+                    importedHistory={historyChoices}
+                    maxDate={dayAfter(localDate())}
+                    disabled={busy}
+                  />
+                )}
                 <Button
                   tone="primary"
-                  disabled={busy || !!data.profile?.demo || publicDemo}
+                  disabled={
+                    busy ||
+                    !!data.profile?.demo ||
+                    publicDemo ||
+                    (mode === "transactions" && importedHistory === undefined)
+                  }
                   icon={
                     busy ? (
                       <Loader2 size={16} className="spin" />
@@ -181,9 +306,11 @@ export function AddAccount({
               Read-only access. Choose the accounts to import before saving.
               Marten currently supports USD accounts.
             </p>
-            <button className="text-button" onClick={() => setTab("manual")}>
-              Prefer to enter your balance? Add manually
-            </button>
+            {!plaidOpen && (
+              <button className="text-button" onClick={() => setTab("manual")}>
+                Prefer to enter your balance? Add manually
+              </button>
+            )}
           </div>
         ) : (
           <AccountForm onSaved={onClose} />

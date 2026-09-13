@@ -37,7 +37,7 @@ import {
   Picker,
   useTask,
 } from "../../components/folio/ui";
-import { DatePicker } from "../../components/folio/DatePicker";
+import { BankHistoryChoice } from "./BankHistoryChoice";
 import "./simplefin.css";
 
 type Status = FunctionReturnType<typeof api.simplefin.status>;
@@ -554,23 +554,17 @@ export function SimpleFinImport({
                     );
                   })}
                 </div>
-                <Field
-                  label="Import transactions from"
-                  hint="Available history depends on your bank. When switching providers, start after the existing account’s latest transaction."
-                >
-                  <DatePicker
-                    label={`${name} import start date`}
-                    value={fromDate}
-                    onChange={(value) => {
-                      setFromDate(value);
-                      setReviewed(false);
-                    }}
-                    min="2000-01-01"
-                    max={localDate()}
-                    required
-                    disabled={busy}
-                  />
-                </Field>
+                <BankHistoryChoice
+                  value={fromDate}
+                  disabled={busy}
+                  availableFrom={localDate(
+                    new Date(Date.now() - 5 * 365 * 86400000),
+                  )}
+                  onChange={(value) => {
+                    setFromDate(value ?? localDate());
+                    setReviewed(false);
+                  }}
+                />
                 <label className="simplefin-check simplefin-final-review">
                   <input
                     type="checkbox"

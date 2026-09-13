@@ -13,6 +13,7 @@ import {
   importRowKey,
   importTemplateCsv,
   suggestMapping,
+  suggestHeaderRow,
   detectExportFormat,
   type ImportLookup,
   type ImportMapping,
@@ -119,6 +120,7 @@ export function ImportTransactions({
   const headers = sheet?.rows[options.headerRow - 1] ?? [];
   const exportFormat = detectExportFormat(headers);
   const balanceMode = exportFormat === "monarch-balances";
+  const expenseMode = exportFormat === "expense-sheet";
   const [plan, setPlan] = useState<ReturnType<typeof planImport> | null>(null);
   const preview = plan?.preview ?? null;
   const balancePreview = plan?.balancePreview ?? null;
@@ -180,21 +182,24 @@ export function ImportTransactions({
     setError("");
   }
   function applySheet(next: ImportSheet) {
-    const nextHeaders = next.rows[0] ?? [];
+    const headerRow = suggestHeaderRow(next.rows);
+    const nextHeaders = next.rows[headerRow - 1] ?? [];
     const mapping = suggestMapping(nextHeaders);
     const format = detectExportFormat(nextHeaders);
     setSheet(next);
     setChoices({ accounts: {}, categories: {} });
     setOptions((current) => ({
       ...current,
-      headerRow: 1,
+      headerRow,
       mapping,
       amountMode:
         mapping.amount < 0 && mapping.debit >= 0 && mapping.credit >= 0
           ? "separate"
           : "signed",
       // Monarch exports list expenses as negative amounts.
-      negativeExpenses: format === "monarch" ? true : current.negativeExpenses,
+      negativeExpenses: format === "monarch",
+      keepDuplicates: format === "expense-sheet",
+      fallbackYear: "",
       accountMap: {},
       categoryMap: {},
     }));
@@ -318,6 +323,7 @@ export function ImportTransactions({
             accountId: row.accountId as Id<"accounts">,
             categoryId: row.categoryId as Id<"categories">,
             categoryMatched: row.categoryMatched,
+            ...(row.descriptionInferred ? { descriptionInferred: true } : {}),
             merchantName: row.merchantName,
             date: row.date,
             amountCents: row.amountCents,
@@ -657,7 +663,8 @@ export function ImportTransactions({
                 <dt>Description</dt>
                 <dd>
                   The statement text. Original Statement, Payee, Name, or Memo
-                  headers are read too.
+                  headers are read too. In a Month / Date / Amount / Category /
+                  Notes expense sheet, the category supplies the description.
                 </dd>
                 <dt>Amount</dt>
                 <dd>
@@ -692,6 +699,11 @@ export function ImportTransactions({
             </li>
             <li>
               Monarch Money transaction and balance exports are recognized.
+            </li>
+            <li>
+              Expense sheets can use full Excel dates, or a day number with a
+              Month column. For day-only dates, include a year in Month or Year,
+              or enter it in the import settings. Notes are kept in full.
             </li>
           </ul>
           <Button
@@ -813,6 +825,27 @@ export function ImportTransactions({
         {sheet && !balanceMode && (
           <>
             <section className="import-section" aria-label="Match columns">
+              {expenseMode && (
+                <>
+                  <h3>Expense spreadsheet recognized</h3>
+                  <p className="import-hint">
+                    Your five columns are mapped from row {options.headerRow}.
+                    Categories label each expense; no merchant name is needed.
+                    Notes are kept.
+                  </p>
+                  <details className="import-optional">
+                    <summary>Combining this with bank history?</summary>
+                    <p>
+                      Category-only expenses are not automatically matched to
+                      bank transactions. Import spreadsheet history first, then
+                      connect each bank from the day after the spreadsheet ends.
+                      Overlapping dates can count an expense twice. Split a
+                      mixed-account sheet by account, or keep it in a separate
+                      manual history account.
+                    </p>
+                  </details>
+                </>
+              )}
               {exportFormat === "monarch" && (
                 <>
                   <h3>Monarch transactions recognized</h3>
@@ -826,15 +859,17 @@ export function ImportTransactions({
               )}
               <details
                 className="import-optional"
-                open={exportFormat !== "monarch" ? true : undefined}
+                open={exportFormat === null ? true : undefined}
               >
                 <summary>
-                  {exportFormat === "monarch"
+                  {exportFormat === "monarch" || expenseMode
                     ? "Review all column mappings"
                     : "Match your columns"}
                 </summary>
                 <div className="import-grid">
                   {column("date", "Date")}
+                  {column("month", "Month")}
+                  {column("year", "Year")}
                   {column("description", "Description")}
                   <Field label="Amount columns">
                     <Select
@@ -896,6 +931,25 @@ export function ImportTransactions({
                       }
                     />
                   </Field>
+                  {!expenseMode && options.mapping.month >= 0 && (
+                    <Field label="Year for day-only dates">
+                      <input
+                        aria-label="Year for day-only dates"
+                        inputMode="numeric"
+                        placeholder="e.g. 2026"
+                        maxLength={4}
+                        disabled={locked}
+                        value={options.fallbackYear ?? ""}
+                        onChange={(event) =>
+                          changeOptions({ fallbackYear: event.target.value })
+                        }
+                      />
+                      <small>
+                        Only used when Date is a day number and the row has no
+                        year. Full dates keep their own year.
+                      </small>
+                    </Field>
+                  )}
                 </div>
                 <div>
                   <div className="import-grid">
@@ -916,6 +970,24 @@ export function ImportTransactions({
                 </div>
               </details>
               <div className="import-grid import-defaults">
+                {expenseMode && options.mapping.month >= 0 && (
+                  <Field
+                    label="Year for day-only dates"
+                    hint="For day numbers like 12. Full dates keep their own year."
+                  >
+                    <input
+                      aria-label="Year for day-only dates"
+                      inputMode="numeric"
+                      placeholder="e.g. 2026"
+                      maxLength={4}
+                      disabled={locked}
+                      value={options.fallbackYear ?? ""}
+                      onChange={(event) =>
+                        changeOptions({ fallbackYear: event.target.value })
+                      }
+                    />
+                  </Field>
+                )}
                 {(options.mapping.account < 0 ||
                   preview?.rejected.some(
                     (r) => r.reason === "Choose a default account.",
@@ -955,9 +1027,8 @@ export function ImportTransactions({
             <section className="import-section" aria-label="Import preview">
               <h3>Review your import</h3>
               <p className="import-hint">
-                Expenses appear as positive amounts; income and refunds appear
-                as negative. Your saved rules apply after import, except that a
-                category named in the file is kept. Account balances stay
+                Expenses are positive; income and refunds are negative.
+                Categories from your file are kept. Account balances stay
                 unchanged.
               </p>
               <label className="import-checkbox">
@@ -971,14 +1042,20 @@ export function ImportTransactions({
                 />
                 Keep identical rows within this file
               </label>
-              <p className="import-hint">
-                Without a transaction ID, rows with the same account, date,
-                description, and amount count as duplicates. Previously imported
-                rows are always skipped. A row that matches a bank-synced or
-                manually added transaction on the same account (same amount,
-                within three days) updates that transaction's notes, tags,
-                category, and review status instead of adding a second copy.
-              </p>
+              <details className="import-optional">
+                <summary>How duplicate rows are handled</summary>
+                <p className="import-hint">
+                  Without a transaction ID, rows with the same account, date,
+                  description, and amount count as duplicates
+                  {expenseMode
+                    ? "; expense sheets also compare the source category and notes"
+                    : ""}
+                  . Previously imported rows are always skipped.{" "}
+                  {expenseMode
+                    ? "Category-only rows stay separate from bank entries. Use the Source filter in Transactions to review each set, and hide overlapping entries to exclude them from reports."
+                    : "A uniquely matched bank or manual transaction on the same account (same amount, within three days) receives the spreadsheet details instead of a second copy. Ambiguous matches stay separate for review."}
+                </p>
+              </details>
               {preview?.error && (
                 <p className="import-error" role="status">
                   {preview.error}
@@ -1055,6 +1132,12 @@ export function ImportTransactions({
                                     : ""}
                                   {row.reviewed ? " · reviewed" : ""}
                                 </small>
+                                {row.notes && (
+                                  <details className="import-row-notes">
+                                    <summary>Notes</summary>
+                                    <p>{row.notes}</p>
+                                  </details>
+                                )}
                               </td>
                               <td>
                                 {isNewImportId(row.categoryId)

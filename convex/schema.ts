@@ -124,6 +124,7 @@ export default defineSchema({
     .index("by_emailEnabled", ["emailEnabled"]),
   reminderEmailVerifications: defineTable({
     ...owner,
+    purpose: v.optional(v.literal("plaid")),
     email: v.string(),
     codeHash: v.string(),
     expiresAt: v.number(),
@@ -317,6 +318,8 @@ export default defineSchema({
     splitDraft: v.optional(v.array(split)),
     attachmentCount: v.optional(v.number()),
     importKey: v.optional(v.string()),
+    // A category label is not a merchant identity; do not guess a bank match.
+    importMatchDisabled: v.optional(v.boolean()),
   })
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_plaidTransactionId", ["userId", "plaidTransactionId"])
@@ -325,6 +328,12 @@ export default defineSchema({
       "simplefinTransactionId",
     ])
     .index("by_userId_and_importKey", ["userId", "importKey"])
+    .index("by_userId_and_source_and_accountId_and_date", [
+      "userId",
+      "source",
+      "accountId",
+      "date",
+    ])
     .index("by_userId_and_merchantId_and_date", [
       "userId",
       "merchantId",
@@ -441,6 +450,7 @@ export default defineSchema({
     institution: v.string(),
     logoUrl: v.optional(v.string()),
     cursor: v.optional(v.string()),
+    importFromDate: v.optional(v.string()),
     environment: v.union(v.literal("sandbox"), v.literal("production")),
     status: v.union(
       v.literal("connected"),

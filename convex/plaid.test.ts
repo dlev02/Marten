@@ -93,6 +93,105 @@ async function fixture() {
 }
 
 describe("Plaid ingestion", () => {
+  test("a history cutoff skips older new rows, keeps the boundary, and still applies corrections", async () => {
+    const { t, sync, itemId } = await fixture();
+    await t.run((ctx) =>
+      ctx.db.patch(itemId, { importFromDate: "2026-09-09" }),
+    );
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [
+        {
+          ...incoming,
+          transactionId: "older",
+          date: "2026-09-08",
+          pending: false,
+        },
+        { ...incoming, transactionId: "boundary", pending: false },
+      ],
+    });
+    const rows = await t.run((ctx) => ctx.db.query("transactions").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].date).toBe("2026-09-09");
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [
+        {
+          ...incoming,
+          transactionId: "boundary",
+          date: "2026-09-08",
+          amountCents: 1200,
+          pending: false,
+        },
+      ],
+    });
+    expect(await t.run((ctx) => ctx.db.get(rows[0]._id))).toMatchObject({
+      date: "2026-09-08",
+      amountCents: 1200,
+    });
+  });
+  test("category-only history never adopts a bank merchant and remains retry-safe", async () => {
+    const { t, sync, asUser, asOther } = await fixture();
+    const account = (
+      await t.run((ctx) => ctx.db.query("accounts").collect())
+    )[0];
+    const destinations = await asUser.mutation(
+      api.imports.prepareDestinations,
+      {
+        accounts: [],
+        categories: [{ name: "Groceries", kind: "expense", emoji: "🛒" }],
+      },
+    );
+    const row = {
+      key: "b".repeat(64),
+      accountId: account._id,
+      categoryId: destinations.categories[0]._id,
+      categoryMatched: true,
+      merchantName: "",
+      descriptionInferred: true,
+      date: incoming.date,
+      amountCents: incoming.amountCents,
+      originalName: "Groceries",
+      notes: "Weekly shop",
+    };
+    expect(
+      await asUser.mutation(api.transactions.importMapped, { rows: [row] }),
+    ).toMatchObject({ inserted: 1 });
+    await t.mutation(internal.plaidInternal.ingestTransactions, {
+      ...sync,
+      transactions: [{ ...incoming, pending: false }],
+    });
+    expect(
+      await asUser.mutation(api.transactions.importMapped, { rows: [row] }),
+    ).toMatchObject({ inserted: 0, skipped: 1 });
+    const rows = await t.run((ctx) => ctx.db.query("transactions").collect());
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.source === "csv")).toMatchObject({
+      importMatchDisabled: true,
+      originalName: "Groceries",
+      notes: "Weekly shop",
+    });
+    expect(
+      (await t.run((ctx) => ctx.db.query("merchants").collect())).map(
+        (m) => m.name,
+      ),
+    ).toContain("No merchant supplied");
+    expect(
+      await asUser.mutation(api.transactions.importMapped, {
+        rows: [{ ...row, key: "c".repeat(64) }],
+      }),
+    ).toMatchObject({ inserted: 1, matched: 0 });
+    expect(await asUser.query(api.transactions.importedHistory, {})).toEqual([
+      {
+        accountId: account._id,
+        accountName: account.name,
+        lastDate: incoming.date,
+      },
+    ]);
+    expect(await asOther.query(api.transactions.importedHistory, {})).toEqual(
+      [],
+    );
+  });
   test("pending-to-posted keeps the row, notes, tags, manual identity, review choice, and receipt", async () => {
     const { t, sync, userId, asUser } = await fixture();
     await t.mutation(internal.plaidInternal.ingestTransactions, {

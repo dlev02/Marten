@@ -115,6 +115,51 @@ export const list = userQuery({
   returns: paginationResultValidator(schema.doc("transactions")),
   handler: listTransactionsForUser,
 });
+/** Explicit history boundaries per account; never infer coverage across accounts. */
+export const importedHistory = userQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      accountId: v.id("accounts"),
+      accountName: v.string(),
+      lastDate: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const accounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(201);
+    if (accounts.length > 200)
+      throw new ConvexError(
+        "Review your imported history dates before connecting a bank.",
+      );
+    const histories = await Promise.all(
+      accounts.map(async (account) => {
+        const last = await ctx.db
+          .query("transactions")
+          .withIndex("by_userId_and_source_and_accountId_and_date", (q) =>
+            q
+              .eq("userId", ctx.userId)
+              .eq("source", "csv")
+              .eq("accountId", account._id),
+          )
+          .order("desc")
+          .first();
+        return last
+          ? {
+              accountId: account._id,
+              accountName: account.name,
+              lastDate: last.date,
+            }
+          : null;
+      }),
+    );
+    return histories.filter(
+      (row): row is NonNullable<typeof row> => row !== null,
+    );
+  },
+});
 export const detail = userQuery({
   args: { id: v.id("transactions") },
   returns: v.object({
@@ -521,6 +566,7 @@ export const importMapped = userMutation({
         accountId: v.id("accounts"),
         categoryId: v.id("categories"),
         categoryMatched: v.optional(v.boolean()),
+        descriptionInferred: v.optional(v.boolean()),
         merchantName: v.string(),
         date: v.string(),
         amountCents: v.number(),
@@ -553,6 +599,7 @@ export const importMapped = userMutation({
       tags = [],
       reviewed = false,
       categoryMatched = false,
+      descriptionInferred = false,
       ...fields
     } of rows) {
       if (!/^[a-f0-9]{64}$/.test(key))
@@ -574,16 +621,19 @@ export const importMapped = userMutation({
       const tagIds = tagIdsFor(tags);
       // A bank sync or manual entry that already holds this purchase gains the
       // spreadsheet's notes, tags, category, and review state instead of a twin.
-      const synced = await findMatchingTransaction(
-        ctx,
-        {
-          accountId: fields.accountId,
-          date: fields.date,
-          amountCents: fields.amountCents,
-          originalName: fields.originalName,
-        },
-        (row) => row.source !== "csv" && !row.importKey && !row.removedFromBank,
-      );
+      const synced = descriptionInferred
+        ? null
+        : await findMatchingTransaction(
+            ctx,
+            {
+              accountId: fields.accountId,
+              date: fields.date,
+              amountCents: fields.amountCents,
+              originalName: fields.originalName,
+            },
+            (row) =>
+              row.source !== "csv" && !row.importKey && !row.removedFromBank,
+          );
       if (synced) {
         const editedFields = [...synced.editedFields];
         const patch: Partial<TransactionFields> = {
@@ -617,7 +667,9 @@ export const importMapped = userMutation({
       }
       // Merchant creation and transaction insertion share the same atomic batch.
       // A validation failure cannot leave behind partial rows or empty merchants.
-      const name = text(merchantName);
+      const name = descriptionInferred
+        ? "No merchant supplied"
+        : text(merchantName);
       const normalizedName = normalize(name);
       const merchant = await ctx.db
         .query("merchants")
@@ -634,7 +686,7 @@ export const importMapped = userMutation({
           color: "#648981",
           transactionCount: 0,
         }));
-      await insertTransaction(
+      const importedId = await insertTransaction(
         ctx,
         {
           ...fields,
@@ -651,6 +703,8 @@ export const importMapped = userMutation({
         // A category the file named is the person's choice; rules keep it.
         categoryMatched ? ["categoryId"] : [],
       );
+      if (descriptionInferred)
+        await ctx.db.patch(importedId, { importMatchDisabled: true });
       inserted++;
     }
     return { inserted, skipped, matched };

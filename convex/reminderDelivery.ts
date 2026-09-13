@@ -19,35 +19,46 @@ async function codeHash(userId: string, code: string) {
     .join("");
 }
 export const requestVerification = userAction({
-  args: {},
+  args: { purpose: v.optional(v.literal("plaid")) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, { purpose }) => {
     if (!process.env.AUTH_BREVO_KEY || !process.env.AUTH_EMAIL_FROM)
       throw new ConvexError(
-        "Email reminders are not available on this server.",
+        "Email verification is not available on this server. Contact the site owner.",
       );
     const code = resetCode();
     const email = await ctx.runMutation(
       internal.reminders.reserveVerification,
-      { userId: ctx.userId, codeHash: await codeHash(ctx.userId, code) },
+      {
+        userId: ctx.userId,
+        codeHash: await codeHash(ctx.userId, code),
+        ...(purpose ? { purpose } : {}),
+      },
     );
     await sendReminderEmail(
       email,
-      reminderVerificationContent(code),
+      purpose === "plaid"
+        ? {
+            subject: "Verify your email for Marten",
+            textContent: `Your Marten verification code is ${code}. It expires in 15 minutes. This verifies your sign-in email for bank connections and does not enable email reminders.`,
+            htmlContent: `<p>Your Marten verification code is <strong>${code}</strong>.</p><p>It expires in 15 minutes. This verifies your sign-in email for bank connections and does not enable email reminders.</p>`,
+          }
+        : reminderVerificationContent(code),
       crypto.randomUUID(),
     );
     return null;
   },
 });
 export const verifyEmail = userAction({
-  args: { code: v.string() },
+  args: { code: v.string(), purpose: v.optional(v.literal("plaid")) },
   returns: v.null(),
-  handler: async (ctx, { code }) => {
+  handler: async (ctx, { code, purpose }) => {
     if (!/^\d{8}$/.test(code))
       throw new ConvexError("Enter the eight-digit code from your email.");
     const valid = await ctx.runMutation(internal.reminders.verifyCode, {
       userId: ctx.userId,
       codeHash: await codeHash(ctx.userId, code),
+      ...(purpose ? { purpose } : {}),
     });
     if (!valid)
       throw new ConvexError(

@@ -6,6 +6,7 @@ export type PlaidFlow = {
   kind: "connect" | "update";
   userId: string;
   itemId?: string;
+  importFromDate?: string;
   returnTo: string;
 };
 
@@ -32,6 +33,9 @@ export function parsePlaidFlow(
       f.userId !== userId ||
       (f.kind !== "connect" && f.kind !== "update") ||
       (f.kind === "update" && (typeof f.itemId !== "string" || !f.itemId)) ||
+      (f.importFromDate !== undefined &&
+        (typeof f.importFromDate !== "string" ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(f.importFromDate))) ||
       typeof f.returnTo !== "string" ||
       !f.returnTo.startsWith("/") ||
       f.returnTo.startsWith("//") ||
@@ -45,6 +49,9 @@ export function parsePlaidFlow(
       kind: f.kind,
       userId,
       ...(f.kind === "update" ? { itemId: f.itemId } : {}),
+      ...(f.kind === "connect" && f.importFromDate
+        ? { importFromDate: f.importFromDate }
+        : {}),
       returnTo: f.returnTo,
     };
   } catch {

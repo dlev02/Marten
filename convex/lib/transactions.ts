@@ -176,16 +176,27 @@ export async function findMatchingTransaction(
     .take(500);
   const wanted = normalize(target.originalName ?? "");
   let best: { row: Doc<"transactions">; score: number } | null = null;
+  let tied = false;
+  // A truncated candidate set cannot establish a unique match.
+  if (nearby.length === 500) return null;
   for (const row of nearby) {
-    if (row.amountCents !== target.amountCents || !accept(row)) continue;
+    if (
+      row.importMatchDisabled ||
+      row.amountCents !== target.amountCents ||
+      !accept(row)
+    )
+      continue;
     const distance = Math.abs(
       (Date.parse(row.date) - Date.parse(target.date)) / 86400000,
     );
     const score =
       distance * 2 + (wanted && normalize(row.originalName) === wanted ? 0 : 1);
-    if (!best || score < best.score) best = { row, score };
+    if (!best || score < best.score) {
+      best = { row, score };
+      tied = false;
+    } else if (score === best.score) tied = true;
   }
-  return best?.row ?? null;
+  return tied ? null : (best?.row ?? null);
 }
 /** Adds new tag ids to a transaction's list without repeating any. */
 export function unionTags(current: Id<"tags">[], added: Id<"tags">[]) {

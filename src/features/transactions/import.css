@@ -112,6 +112,19 @@
   overflow-wrap: anywhere;
   min-width: 110px;
 }
+.import-row-notes {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.import-row-notes summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.import-row-notes p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 6px 0 0;
+}
 .transaction-import td small {
   display: block;
   color: var(--muted);

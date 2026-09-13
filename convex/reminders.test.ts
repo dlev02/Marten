@@ -143,6 +143,31 @@ async function verify(f: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe("reminder consent and ownership", () => {
+  test("Plaid verification proves email without enabling reminders and codes cannot cross purposes", async () => {
+    const f = await fixture();
+    await f.alice.action(api.reminderDelivery.requestVerification, {
+      purpose: "plaid",
+    });
+    const code = mail[0].textContent.match(/\b\d{8}\b/)![0];
+    await expect(
+      f.alice.action(api.reminderDelivery.verifyEmail, { code }),
+    ).rejects.toThrow("incorrect");
+    await f.alice.action(api.reminderDelivery.verifyEmail, {
+      code,
+      purpose: "plaid",
+    });
+    expect(await f.t.run((ctx) => ctx.db.get(f.userId))).toMatchObject({
+      emailVerificationTime: now,
+    });
+    expect(await f.alice.query(api.reminders.settings, {})).toMatchObject({
+      emailEnabled: false,
+    });
+    now += 61_000;
+    await verify(f);
+    expect(await f.alice.query(api.reminders.settings, {})).toMatchObject({
+      emailEnabled: true,
+    });
+  });
   test("email starts off, requires a verified sign-in address, and signed-out access fails", async () => {
     const f = await fixture();
     expect(await f.alice.query(api.reminders.settings, {})).toMatchObject({

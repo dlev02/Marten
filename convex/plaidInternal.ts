@@ -94,6 +94,7 @@ export const saveItem = internalMutation({
     logoUrl: v.optional(v.string()),
     products: v.array(v.string()),
     environment,
+    importFromDate: v.optional(v.string()),
   },
   returns: v.object({
     itemId: v.id("plaidItems"),
@@ -406,6 +407,9 @@ export const ingestTransactions = internalMutation({
           await changeMerchantCount(ctx, null, existing.merchantId);
         continue;
       }
+      // Apply the saved cutover on every sync. Existing provider records above
+      // still receive corrections, and the cursor always consumes every page.
+      if (item.importFromDate && incoming.date < item.importFromDate) continue;
       // A row imported from a spreadsheet (such as a Monarch export) before
       // this bank connected becomes the bank's row, keeping its annotations.
       const imported = await findMatchingTransaction(

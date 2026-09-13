@@ -1008,15 +1008,27 @@
   display: grid;
   gap: 16px;
   text-align: left;
-  padding: 16px;
-  background: var(--hover);
-  border-radius: 8px;
+  padding: 0;
 }
 .plaid-product-choice > .btn {
   justify-self: end;
 }
 .institution-account-group + .institution-account-group {
   margin-top: 20px;
+}
+.bank-history-choice {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.bank-history-choice .field {
+  margin: 0;
+}
+.bank-history-choice p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
 }
 .institution-account-group h4 {
   display: flex;
@@ -1028,7 +1040,12 @@
 .institution-account-group h4 .avatar {
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  flex-basis: 26px;
   font-size: 11px;
+}
+.institution-account-group h4 .avatar.has-logo {
+  padding: 3px;
 }
 .institution-accounts .institution-account-group a {
   min-height: 44px;

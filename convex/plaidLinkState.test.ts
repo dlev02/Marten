@@ -10,6 +10,19 @@ const flow = {
   returnTo: "/accounts?filter=all",
 };
 describe("OAuth Link session boundaries", () => {
+  test("preserves a connection cutoff through OAuth, but does not change history when reconnecting", () => {
+    const dated = { ...flow, importFromDate: "2026-09-10" };
+    expect(parsePlaidFlow(JSON.stringify(dated), "sample-user", now)).toEqual(
+      dated,
+    );
+    expect(
+      parsePlaidFlow(
+        JSON.stringify({ ...dated, kind: "update", itemId: "item" }),
+        "sample-user",
+        now,
+      ),
+    ).not.toHaveProperty("importFromDate");
+  });
   test("accepts a fresh four-hour token when the browser clock is slightly behind", () => {
     const fresh = { ...flow, expiration: "2026-09-10T22:00:30Z" };
     expect(parsePlaidFlow(JSON.stringify(fresh), "sample-user", now)).toEqual(

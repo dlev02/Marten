@@ -8,6 +8,8 @@ export type ImportSource = {
 export type ImportSheet = { rows: ImportCell[][]; date1904: boolean };
 export type ImportMapping = Record<
   | "date"
+  | "month"
+  | "year"
   | "description"
   | "amount"
   | "debit"
@@ -27,6 +29,8 @@ export type ImportOptions = {
   amountMode: "signed" | "separate";
   negativeExpenses: boolean;
   dateOrder: "mdy" | "dmy";
+  /** Explicit year for day-only expense dates; never inferred from today. */
+  fallbackYear?: string;
   accountId: string;
   categoryId: string;
   keepDuplicates: boolean;
@@ -56,6 +60,7 @@ export type ReadyImportRow = {
   tags: string[];
   reviewed: boolean;
   fingerprint: string;
+  descriptionInferred?: boolean;
   warning?: string;
 };
 /** A distinct account or category name seen in the file and where it lands. */
@@ -261,7 +266,11 @@ export function importTemplateCsv() {
       .join("\r\n") + "\r\n"
   );
 }
-export type ExportFormat = "monarch" | "monarch-balances" | null;
+export type ExportFormat =
+  | "monarch"
+  | "monarch-balances"
+  | "expense-sheet"
+  | null;
 /**
  * Recognizes exports from other apps so their conventions apply automatically.
  * Monarch Money's transaction CSV has Date, Merchant, Category, Account,
@@ -282,6 +291,12 @@ export function detectExportFormat(headers: ImportCell[]): ExportFormat {
     "amount",
   ];
   if (monarch.every((key) => keys.has(key))) return "monarch";
+  if (
+    ["month", "date", "amount", "category", "notes"].every((key) =>
+      keys.has(key),
+    )
+  )
+    return "expense-sheet";
   if (
     ["date", "balance", "account"].every((key) => keys.has(key)) &&
     !keys.has("amount")
@@ -366,12 +381,15 @@ export function suggestMapping(headers: ImportCell[]): ImportMapping {
     return -1;
   };
   return {
+    month: find("month"),
+    year: find("year"),
     date: find(
       "date",
       "transaction date",
       "posted date",
       "posting date",
       "trans date",
+      "day",
     ),
     description: find(
       "description",
@@ -408,6 +426,91 @@ export function suggestMapping(headers: ImportCell[]): ImportMapping {
     reviewed: find("reviewed", "review status"),
     id: find("id", "transaction id", "external id", "reference"),
   };
+}
+
+/** Ignore blank/title rows, but leave the user in control of the selected header. */
+export function suggestHeaderRow(rows: ImportCell[][]): number {
+  let bestRow = 1,
+    bestScore = 0;
+  rows.slice(0, 50).forEach((row, index) => {
+    const mapping = suggestMapping(row);
+    const format = detectExportFormat(row);
+    if (
+      mapping.date < 0 ||
+      (mapping.amount < 0 && mapping.debit < 0 && format !== "monarch-balances")
+    )
+      return;
+    const score =
+      Object.values(mapping).filter((column) => column >= 0).length +
+      (format ? 10 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestRow = index + 1;
+    }
+  });
+  return bestRow;
+}
+
+/** Full dates retain their own year; a day number needs an explicit month and year. */
+export function parseImportRowDate(
+  row: ImportCell[],
+  options: ImportOptions,
+  date1904 = false,
+): string {
+  const { mapping } = options;
+  const value = row[mapping.date];
+  const dayText = cellText(value);
+  if (
+    mapping.month >= 0 &&
+    typeof value === "number" &&
+    value >= 0 &&
+    value < 100 &&
+    !Number.isInteger(value)
+  )
+    throw new Error("Use a whole day number with Month, or a full date.");
+  if (!/^\d{1,2}$/.test(dayText) || mapping.month < 0)
+    return parseImportDate(value, options.dateOrder, date1904);
+  const text = cellText(row[mapping.month]).toLowerCase().replace(/\.$/, "");
+  const names = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+  const withYear = /^(\d{4})[-/](\d{1,2})$/.exec(text);
+  const parts = /^(\d{1,2}|[a-z]+)\.?(?:[\s,/-]+(\d{4}))?$/.exec(text);
+  const monthText = withYear?.[2] ?? parts?.[1] ?? "";
+  const namedMonth = names.findIndex(
+    (name) =>
+      name === monthText ||
+      name.slice(0, 3) === monthText ||
+      (name === "september" && monthText === "sept"),
+  );
+  const month = /^\d{1,2}$/.test(monthText)
+    ? Number(monthText)
+    : namedMonth + 1;
+  if (month < 1 || month > 12)
+    throw new Error(
+      "Choose a Month column containing a month name or number (1–12).",
+    );
+  const monthYear = withYear?.[1] ?? parts?.[2] ?? "";
+  const rowYear = cellText(row[mapping.year]);
+  if (monthYear && rowYear && monthYear !== rowYear)
+    throw new Error("Month and Year contain different years.");
+  const year = rowYear || monthYear || options.fallbackYear?.trim();
+  if (!year || !/^\d{4}$/.test(year))
+    throw new Error(
+      "Enter the year for day-only dates, or include a four-digit year in Month or Year.",
+    );
+  return parseImportDate(`${year}-${month}-${dayText}`, options.dateOrder);
 }
 
 export function parseImportMoney(value: ImportCell | undefined): number {
@@ -503,6 +606,9 @@ export function previewImport(
   let duplicates = 0;
   const seen = new Map<string, number>();
   const { mapping } = options;
+  const expenseSheet =
+    detectExportFormat(sheet.rows[options.headerRow - 1] ?? []) ===
+    "expense-sheet";
   const sourceRows = sheet.rows.slice(options.headerRow);
   const count = sourceRows.filter((row) =>
     row.some((cell) => cellText(cell)),
@@ -521,7 +627,7 @@ export function previewImport(
     };
   if (
     mapping.date < 0 ||
-    mapping.description < 0 ||
+    (mapping.description < 0 && !expenseSheet) ||
     (options.amountMode === "signed"
       ? mapping.amount < 0
       : mapping.debit < 0 || mapping.credit < 0)
@@ -571,20 +677,26 @@ export function previewImport(
     if (!row.some((cell) => cellText(cell))) return;
     const rowNumber = index + options.headerRow + 1;
     const originalName =
-      cellText(row[mapping.description]) || cellText(row[mapping.merchant]);
+      cellText(row[mapping.description]) ||
+      cellText(row[mapping.merchant]) ||
+      (expenseSheet
+        ? cellText(row[mapping.category]) || "Imported expense"
+        : "");
     try {
       if (!originalName || originalName.length > 500)
         throw new Error("Description needs 1–500 characters.");
-      const merchantName = cellText(row[mapping.merchant]) || originalName;
+      const descriptionInferred =
+        expenseSheet &&
+        !cellText(row[mapping.description]) &&
+        !cellText(row[mapping.merchant]);
+      const merchantName = descriptionInferred
+        ? ""
+        : cellText(row[mapping.merchant]) || originalName;
       if (merchantName.length > 120)
         throw new Error(
           "Merchant needs at most 120 characters. Map a shorter merchant column.",
         );
-      const date = parseImportDate(
-        row[mapping.date],
-        options.dateOrder,
-        sheet.date1904,
-      );
+      const date = parseImportRowDate(row, options, sheet.date1904);
       let amountCents: number;
       if (options.amountMode === "signed")
         amountCents =
@@ -643,6 +755,7 @@ export function previewImport(
             date,
             normalized(originalName),
             amountCents,
+            ...(descriptionInferred ? [normalized(categoryName), notes] : []),
           ]);
       const occurrence = seen.get(base) ?? 0;
       seen.set(base, occurrence + 1);
@@ -663,6 +776,7 @@ export function previewImport(
         tags,
         reviewed,
         fingerprint: `${base}:${occurrence}`,
+        ...(descriptionInferred ? { descriptionInferred: true } : {}),
         warning:
           categoryName && !categoryMatched
             ? `“${categoryName}” uses the default category.`
@@ -676,7 +790,15 @@ export function previewImport(
       });
     }
   });
-  return { valid, rejected, duplicates, ...summary(), error: "" };
+  return {
+    valid,
+    rejected,
+    duplicates,
+    ...summary(),
+    error: count
+      ? ""
+      : "This worksheet has column headers but no expense rows. Choose a filled-in spreadsheet to import.",
+  };
 }
 export type BalanceImportRow = {
   rowNumber: number;

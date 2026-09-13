@@ -15,6 +15,8 @@ import {
   previewImport,
   readCsv,
   suggestMapping,
+  suggestHeaderRow,
+  parseImportRowDate,
   type ImportOptions,
 } from "./transactionImport";
 
@@ -251,6 +253,181 @@ describe("spreadsheet transaction imports", () => {
         categories,
       ).error,
     ).toContain("50,000");
+  });
+});
+
+describe("Month / Date expense worksheets", () => {
+  const headers = ["Month", "Date", "Amount", "Category", "Notes"];
+  const config = () => ({
+    ...options(headers),
+    headerRow: 2,
+    fallbackYear: "2026",
+    keepDuplicates: true,
+  });
+  test("detects row 2 in the blank template and explains that there is no data", async () => {
+    const book = utils.book_new();
+    utils.book_append_sheet(
+      book,
+      utils.aoa_to_sheet([[], headers, [], []]),
+      "Sheet1",
+    );
+    const source = await loadImportSource(
+      new File(
+        [write(book, { type: "array", bookType: "xlsx" })],
+        "expense-template.xlsx",
+      ),
+    );
+    const sheet = await loadImportSheet(source, "Sheet1");
+    expect(suggestHeaderRow(sheet.rows)).toBe(2);
+    expect(detectExportFormat(sheet.rows[1])).toBe("expense-sheet");
+    expect(suggestMapping(sheet.rows[1])).toMatchObject({
+      month: 0,
+      date: 1,
+      amount: 2,
+      category: 3,
+      notes: 4,
+      description: -1,
+      year: -1,
+    });
+    const result = previewImport(sheet, config(), accounts, categories);
+    expect(result.valid).toEqual([]);
+    expect(result.error).toContain("no expense rows");
+  });
+  test("imports full Excel dates, day numbers, refunds, zero, categories, and full notes", () => {
+    const notes =
+      'A fictional expense, with "quotes"\nand a second line. ' +
+      "Detail. ".repeat(100);
+    const rows = [
+      [],
+      headers,
+      ["September", 46277, 12.5, "Food", notes],
+      ["Sept", 13, "($5.25)", "Food", "Refund"],
+      [9, "14", 0, "", "Zero adjustment"],
+      ["", "2025-09-15", 30, "Food", "Prior year"],
+    ];
+    const result = previewImport(
+      { rows, date1904: false },
+      config(),
+      accounts,
+      categories,
+    );
+    expect(result.rejected).toEqual([]);
+    expect(
+      result.valid.map((r) => [
+        r.date,
+        r.amountCents,
+        r.originalName,
+        r.categoryId,
+      ]),
+    ).toEqual([
+      ["2026-09-12", 1250, "Food", "food"],
+      ["2026-09-13", -525, "Food", "food"],
+      ["2026-09-14", 0, "Imported expense", "other"],
+      ["2025-09-15", 3000, "Food", "food"],
+    ]);
+    expect(result.valid[0].notes).toBe(notes.trim());
+    expect(result.valid[0].merchantName).toBe("");
+    expect(result.valid[0].descriptionInferred).toBe(true);
+  });
+  test.each(["February 2024", "Feb, 2024", "2024-02", "2/2024"])(
+    "reads a year from Month: %s",
+    (month) => {
+      expect(
+        parseImportRowDate([month, 29], { ...config(), fallbackYear: "" }),
+      ).toBe("2024-02-29");
+    },
+  );
+  test("uses a Year column and refuses missing, conflicting, or impossible dates", () => {
+    const mapped = {
+      ...config(),
+      mapping: suggestMapping([...headers, "Year"]),
+      fallbackYear: "",
+    };
+    expect(
+      parseImportRowDate(["February", 29, null, null, null, 2024], mapped),
+    ).toBe("2024-02-29");
+    expect(() => parseImportRowDate(["February", 29], mapped)).toThrow(
+      "Enter the year",
+    );
+    expect(() =>
+      parseImportRowDate(["Feb 2024", 29, null, null, null, 2025], mapped),
+    ).toThrow("different years");
+    for (const row of [
+      ["February", 29],
+      ["April", 31],
+      ["Unknown", 12],
+      ["", 12],
+      [13, 12],
+      ["May", 0],
+      ["May", 1.5],
+    ])
+      expect(() => parseImportRowDate(row, config())).toThrow();
+    expect(parseImportRowDate(["", "9/12/2025"], mapped)).toBe("2025-09-12");
+    expect(parseImportRowDate(["", 44814], mapped, true)).toBe("2026-09-11");
+  });
+  test("keeps distinct notes and repeated purchases, with stable retry keys", async () => {
+    const rows = [
+      [],
+      headers,
+      ["Sep", 12, 10, "Food", "Lunch"],
+      ["Sep", 12, 10, "Food", "Dinner"],
+      ["Sep", 12, 10, "Food", "Lunch"],
+    ];
+    const result = previewImport(
+      { rows, date1904: false },
+      config(),
+      accounts,
+      categories,
+    );
+    const keys = await Promise.all(result.valid.map(importRowKey));
+    expect(result.valid).toHaveLength(3);
+    expect(new Set(keys).size).toBe(3);
+    const retry = previewImport(
+      { rows: [[], headers, ...rows.slice(2).reverse()], date1904: false },
+      config(),
+      accounts,
+      categories,
+    );
+    expect((await Promise.all(retry.valid.map(importRowKey))).sort()).toEqual(
+      keys.sort(),
+    );
+    const deduped = previewImport(
+      { rows, date1904: false },
+      { ...config(), keepDuplicates: false },
+      accounts,
+      categories,
+    );
+    expect(deduped.valid).toHaveLength(2);
+    expect(deduped.duplicates).toBe(1);
+  });
+  test("requires an explicit account and reports exact source row numbers", () => {
+    const rows = [
+      [],
+      headers,
+      ["September", 12, 10, "Food", "Lunch"],
+      [],
+      ["February", 30, 10, "Food", ""],
+    ];
+    const result = previewImport(
+      { rows, date1904: false },
+      { ...config(), accountId: "" },
+      accounts,
+      categories,
+    );
+    expect(result.valid).toEqual([]);
+    expect(result.rejected.map((r) => r.rowNumber)).toEqual([3, 5]);
+    expect(result.rejected[0].reason).toBe("Choose a default account.");
+  });
+  test("header discovery respects ordinary exports, titles, balances and the 50-row bound", () => {
+    expect(
+      suggestHeaderRow([["A title"], ["Date", "Description", "Amount"]]),
+    ).toBe(2);
+    expect(
+      suggestHeaderRow([["A title"], ["Date", "Balance", "Account"]]),
+    ).toBe(2);
+    expect(
+      suggestHeaderRow([...Array.from({ length: 50 }, () => []), headers]),
+    ).toBe(1);
   });
 });
 

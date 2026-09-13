@@ -34,17 +34,23 @@ export function plaidAllowedFor(
   email: string | undefined,
   emailVerificationTime: number | undefined,
 ): boolean {
+  return plaidAccessFor(email, emailVerificationTime) === "allowed";
+}
+export function plaidAccessFor(
+  email: string | undefined,
+  emailVerificationTime: number | undefined,
+): "allowed" | "verification-required" | "restricted" {
   const allowed = (env.PLAID_ALLOWED_EMAILS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
-  if (!allowed.length) return true;
-  return (
-    !!email &&
-    allowed.includes(email.trim().toLowerCase()) &&
-    typeof emailVerificationTime === "number" &&
+  if (!allowed.length) return "allowed";
+  if (!email || !allowed.includes(email.trim().toLowerCase()))
+    return "restricted";
+  return typeof emailVerificationTime === "number" &&
     Number.isFinite(emailVerificationTime)
-  );
+    ? "allowed"
+    : "verification-required";
 }
 export const plaidRestrictedMessage =
   "Bank connections on this site use SimpleFIN Bridge. Plaid isn’t available for this account.";
