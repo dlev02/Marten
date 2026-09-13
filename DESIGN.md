@@ -615,3 +615,6 @@ Public FAQ search applies the focus outline to the full search container via
 use the shared `Empty` component; payment-checkmark guidance is shown only when
 there are recurring occurrences or statements to act on. Reports initially opens
 Cash Flow, while explicit saved-report links retain their selected report.
+
+The public site's sticky header uses an opaque scene background, including the
+night scene, so scrolling text and artwork cannot bleed through navigation.

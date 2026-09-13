@@ -7,6 +7,8 @@
 export const site = {
   name: "Marten",
   operator: "Drew",
+  authorName: "Drew Levinson",
+  portfolio: "https://drewlevinson.me",
   url: "https://marten.money",
   github: "https://github.com/dlev02/marten",
   issues: "https://github.com/dlev02/marten/issues",

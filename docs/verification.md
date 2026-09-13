@@ -574,3 +574,11 @@ Focused ESLint, production build and diff whitespace checks passed.
   and the October statement empty state in light appearance with no footer.
 - Development and production Convex deployments succeeded. Existing real bank
   account classifications have not yet been edited through the owner's session.
+
+## Public header and footer credit — September 12, 2026
+
+The header's explicit 78% transparent background and blur caused content to show
+through. It now uses the opaque scene ground while retaining scene transitions.
+The footer reads © 2026 Drew Levinson and links to the portfolio's canonical URL,
+https://drewlevinson.me. Reviewed the scrolled landing page in the warm and night
+scenes and confirmed the rendered credit/link. Production build passed.

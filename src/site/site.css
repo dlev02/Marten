@@ -123,9 +123,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: saturate(1.2) blur(14px);
-  -webkit-backdrop-filter: saturate(1.2) blur(14px);
-  background: color-mix(in oklab, var(--site-ground) 78%, transparent);
+  background: var(--site-ground);
   border-bottom: 1px solid
     color-mix(in oklab, var(--site-line) 70%, transparent);
   transition: background-color 700ms var(--ease-out);
