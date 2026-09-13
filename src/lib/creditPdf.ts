@@ -8,6 +8,39 @@ export const maxCreditPdfBytes = 10 * 1024 * 1024;
 export const maxCreditPdfPages = 20;
 const maxTextCharacters = 100_000;
 
+export type PositionedText = {
+  str: string;
+  /** Left edge and baseline in PDF points; the origin is the bottom-left corner. */
+  x: number;
+  y: number;
+  height: number;
+};
+/**
+ * Statements often store text out of visual order: a Discover statement emits
+ * the score meter's "763" and its "as of" date long before the "FICO Score 8"
+ * label they sit beneath. Rebuilding lines from glyph positions puts labels
+ * and their values back in reading order, top to bottom and left to right.
+ */
+export function readingOrder(items: PositionedText[]): string {
+  const lines: { y: number; items: PositionedText[] }[] = [];
+  for (const item of items) {
+    if (!item.str.trim()) continue;
+    const tolerance = Math.max(2, item.height * 0.6);
+    const line = lines.find((row) => Math.abs(row.y - item.y) <= tolerance);
+    if (line) line.items.push(item);
+    else lines.push({ y: item.y, items: [item] });
+  }
+  return lines
+    .sort((a, b) => b.y - a.y)
+    .map((line) =>
+      line.items
+        .sort((a, b) => a.x - b.x)
+        .map((item) => item.str.trim())
+        .join(" "),
+    )
+    .join("\n");
+}
+
 /** Shared with the real-PDF fixture test; the supplied library is PDF.js itself. */
 export async function readCreditPdfText(
   bytes: Uint8Array,
@@ -39,7 +72,7 @@ export async function readCreditPdfText(
         for (let number = 1; number <= document.numPages; number++) {
           const page = await document.getPage(number);
           const content = await page.getTextContent();
-          let text = "";
+          const positioned: PositionedText[] = [];
           for (const item of content.items) {
             if (!("str" in item)) continue;
             length += item.str.length + 1;
@@ -47,9 +80,14 @@ export async function readCreditPdfText(
               throw new Error(
                 "This PDF contains too much text. Choose a shorter document or enter the score manually.",
               );
-            text += item.str + (item.hasEOL ? "\n" : " ");
+            positioned.push({
+              str: item.str,
+              x: item.transform[4],
+              y: item.transform[5],
+              height: item.height,
+            });
           }
-          pages.push(text);
+          pages.push(readingOrder(positioned));
           page.cleanup();
         }
         return pages;

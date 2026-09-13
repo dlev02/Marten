@@ -59,3 +59,19 @@ test("conflicting bureau/model/date details remain blank and invalid dates never
       .date,
   ).toBeUndefined();
 });
+
+test("a bureau-qualified label and a two-digit year are read from a card statement", () => {
+  expect(
+    suggestCreditScore([
+      "FICO ® Score 8 based on TransUnion ® data:\n763 AS OF 02/25/26\nVery Good Updated Monthly\nYour FICO Credit Score, key factors, and other credit information use the FICO Score 8 model.",
+    ]),
+  ).toMatchObject({
+    fields: {
+      score: 763,
+      bureau: "TransUnion",
+      model: "FICO Score 8",
+      date: "2026-02-25",
+    },
+    evidence: "FICO Score 8 based on TransUnion data: 763",
+  });
+});

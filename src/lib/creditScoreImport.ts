@@ -24,9 +24,12 @@ const unique = <T>(values: T[]) => [...new Set(values)];
 
 function reportedDate(value: string) {
   let normalized = value.trim();
-  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(normalized);
-  if (slash)
-    normalized = `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})$/.exec(normalized);
+  if (slash) {
+    // Card statements print "AS OF 02/25/26"; a two-digit year is this century.
+    const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
+    normalized = `${year}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
     const written = /^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/.exec(
       normalized,
@@ -72,8 +75,10 @@ export function suggestCreditScore(pages: string[]): CreditScoreImport {
   }[] = [];
   for (const raw of pages) {
     const page = raw.replace(/[®™]/g, "").replace(/\u00a0/g, " ");
+    // A label may name its bureau before the number, as Discover does with
+    // "FICO Score 8 based on TransUnion data: 763".
     const pattern =
-      /\b(?:FICO\s+(?:credit\s+)?Score(?:\s+(?:10\s*T|10|9|8))?|credit\s+score|VantageScore(?:\s*[34](?:\.0)?)?)\s*(?:is\s*|:\s*|[-–—]\s*)?(\d{3})(?![\d.,])/gi;
+      /\b(?:FICO\s+(?:credit\s+)?Score(?:\s+(?:10\s*T|10|9|8))?(?:\s+based\s+on\s+(?:Equifax|Experian|TransUnion)\s+data)?|credit\s+score|VantageScore(?:\s*[34](?:\.0)?)?)\s*(?:is\s*|:\s*|[-–—]\s*)?(\d{3})(?![\d.,])/gi;
     for (const match of page.matchAll(pattern)) {
       const score = Number(match[1]);
       const after = page.slice(
@@ -125,7 +130,7 @@ export function suggestCreditScore(pages: string[]): CreditScoreImport {
   const dates = unique(
     [
       ...nearby.matchAll(
-        /\b(?:as of|score date|date of score|score updated|updated on)\s*[:,-]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})\b/gi,
+        /\b(?:as of|score date|date of score|score updated|updated on)\s*[:,-]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/(?:\d{4}|\d{2})|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})\b/gi,
       ),
     ]
       .map((match) => reportedDate(match[1]))
