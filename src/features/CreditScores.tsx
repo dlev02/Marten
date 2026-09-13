@@ -7,7 +7,6 @@ import {
   ExternalLink,
   Gauge,
   Plus,
-  ShieldCheck,
   Trash2,
 } from "lucide-react";
 import {
@@ -32,6 +31,7 @@ import {
   Button,
   Empty,
   Field,
+  InfoTip,
   Loading,
   Modal,
   Panel,
@@ -51,6 +51,8 @@ import "./credit-scores.css";
 type Draft = { entry?: Doc<"creditScores">; suggestion?: CreditScoreImport };
 const fullDate = (date: string) =>
   dateLabel(date, { month: "short", day: "numeric", year: "numeric" });
+const pdfHelp =
+  "PDFs stay on this device. Review the details before saving. Files can be up to 10 MB and 20 pages.";
 
 export function CreditScores() {
   const entries = useQuery(api.creditScores.list, {});
@@ -92,13 +94,16 @@ export function CreditScores() {
     <div className="credit-scores-page">
       <PageHeader title="Credit scores">
         {!!groups.length && (
-          <Button
-            icon={<FileUp size={16} />}
-            disabled={reading}
-            onClick={() => fileInput.current?.click()}
-          >
-            {reading ? "Reading locally…" : "Import PDF"}
-          </Button>
+          <div className="credit-import-actions">
+            <Button
+              icon={<FileUp size={16} />}
+              disabled={reading}
+              onClick={() => fileInput.current?.click()}
+            >
+              {reading ? "Reading locally…" : "Import PDF"}
+            </Button>
+            <InfoTip disclosure label="About PDF imports" text={pdfHelp} />
+          </div>
         )}
         {!!groups.length && (
           <Button
@@ -134,12 +139,6 @@ export function CreditScores() {
       >
         Where to find your score <ArrowUpRight size={14} />
       </button>
-      {!!groups.length && (
-        <p className="credit-import-note">
-          <ShieldCheck size={16} /> PDFs stay on this device. Review the details
-          before saving. Up to 10 MB and 20 pages.
-        </p>
-      )}
       {reading && (
         <p role="status" className="credit-read-status">
           Reading the text in your PDF…
@@ -239,13 +238,20 @@ export function CreditScores() {
                 >
                   Add your first score
                 </Button>
-                <Button
-                  icon={<FileUp size={16} />}
-                  onClick={() => fileInput.current?.click()}
-                  disabled={reading}
-                >
-                  {reading ? "Reading locally…" : "Import PDF"}
-                </Button>
+                <div className="credit-import-actions">
+                  <Button
+                    icon={<FileUp size={16} />}
+                    onClick={() => fileInput.current?.click()}
+                    disabled={reading}
+                  >
+                    {reading ? "Reading locally…" : "Import PDF"}
+                  </Button>
+                  <InfoTip
+                    disclosure
+                    label="About PDF imports"
+                    text={pdfHelp}
+                  />
+                </div>
               </div>
             }
           />

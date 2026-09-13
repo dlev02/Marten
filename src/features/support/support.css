@@ -93,9 +93,6 @@
   flex-wrap: wrap;
   gap: 12px;
 }
-.support-actions small {
-  color: var(--muted);
-}
 .support-kofi {
   display: inline-flex;
   align-items: center;

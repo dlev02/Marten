@@ -48,17 +48,10 @@
   line-height: 1.55;
   margin: 7px 0 0;
 }
-.credit-import-note {
-  display: flex;
+.credit-import-actions {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin: 0 0 26px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-.credit-import-note svg {
-  flex-shrink: 0;
+  gap: 2px;
 }
 .credit-read-status {
   color: var(--muted);
@@ -295,9 +288,6 @@
   }
   .credit-score-pair {
     grid-template-columns: 1fr;
-  }
-  .credit-import-note {
-    align-items: flex-start;
   }
   .credit-score-form .modal-actions {
     flex-wrap: wrap;

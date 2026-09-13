@@ -51,9 +51,10 @@ export function SupportContent({
           <p>
             This is a passion project, built for family and shared with anyone
             who wants it. There are no subscriptions or ads, and no plans to add
-            either. If Marten saves you time, a small donation helps cover the
-            domain and keep improvements coming. Donations are optional gifts,
-            not purchases—every feature stays free, whether you donate or not.
+            either. If Marten saves you time, a one-time or monthly donation of
+            any amount helps cover the domain and keep improvements coming.
+            Donations are optional gifts, not purchases—every feature stays
+            free, whether you donate or not.
           </p>
           <div className="support-actions">
             <a
@@ -65,7 +66,6 @@ export function SupportContent({
               <Heart size={17} aria-hidden="true" />
               Support on Ko-fi
             </a>
-            <small>One-time or monthly, any amount. Opens Ko-fi.</small>
           </div>
         </div>
         <div className="support-art" aria-hidden="true">

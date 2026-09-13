@@ -360,7 +360,9 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
       <Panel
         title="Spending this month"
         action={
-          <span className="muted">{dateLabel(from, { month: "long" })}</span>
+          <Link className="text-link subtle-link" to="/cash-flow">
+            View cash flow <ArrowRight size={14} />
+          </Link>
         }
       >
         {!complete ? (
@@ -402,9 +404,6 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
             description="Your monthly spending will take shape here."
           />
         )}
-        <Link className="panel-footer-link" to="/cash-flow">
-          View cash flow <ArrowRight size={14} />
-        </Link>
       </Panel>
     ),
     cashFlow: (
