@@ -741,3 +741,33 @@ investments or scores).
 - Not yet covered: editing a real SimpleFIN card through the owner's session;
   the dashboard widgets with a Plaid-backed portfolio; Safari's handling of the
   mask-composite animation.
+
+## Site polish, About as an essay, and steady loading screens — September 13, 2026
+
+- The release-notes page is now titled **Changelog** (site nav, footer, search
+  catalog, and the H1); the profile menu keeps "What's new", the conventional
+  label for a help-menu link. The eyebrow above the H1 is gone, the "Every
+  commit on GitHub" link sits under the header summary where it stays findable
+  as the list grows, and the closing note is one short sentence capped at 56ch.
+- The site footer's legal line is just the copyright. The "not a bank, no
+  financial advice" sentence lives in the Terms of service, which already has a
+  section for it, and the provider sentence is covered by the FAQ and privacy
+  policy.
+- Home page scrolling: the Product link glides to the "A day with Marten"
+  section, which now clears the 64px sticky header (measured section top =
+  header bottom after the scroll); clicking the Marten mark while on the home
+  page glides back to the top instead of pushing a duplicate history entry;
+  back and forward keep the browser's own scroll position; reduced motion
+  jumps instead of gliding.
+- About reads as one 68ch column without the section rail or an effective
+  date (`layout: "essay"` on the document). Policies keep both, since their
+  text cites the effective date. Checked at 1280px and 375px.
+- Every whole-screen wait on the way into the app is centered with the marten
+  mark: the auth check, the workspace metadata query (previously a small
+  spinner hugging the top of the page, which is the flash Drew saw between the
+  centered demo screens), and the demo start all use the same text in a demo
+  session. The route-loading fallback inside the shell sits mid-content.
+- Recurring: the "No statements due this month" panel carries the same
+  Add statement reminder action the list's empty state carries for Add
+  recurring, so both sections follow one pattern (header action, repeated as
+  the empty state's call to action).
