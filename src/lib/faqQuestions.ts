@@ -191,6 +191,14 @@ export const faqQuestions = [
     linkLabel: "Open preferences",
   },
   {
+    question:
+      "Can I clear everything and start over without deleting my account?",
+    answer:
+      "Yes. Preferences → Start fresh → Clear all data removes every account, transaction, receipt, category, merchant, rule, tag, recurring item, report, credit score, forecast and bank connection, then restores the default categories. Your sign-in, name, photo, reminder, appearance and assistant settings stay, so you can import a spreadsheet or reconnect a bank from a clean slate. Plaid access is revoked; revoke SimpleFIN in the bridge yourself. The data cannot be restored, so type CLEAR to confirm.",
+    to: "/settings/preferences#clear-data",
+    linkLabel: "Open Start fresh",
+  },
+  {
     question: "Why don’t my stock purchases show up as transactions?",
     answer:
       "Trades, dividends and cash sweeps from brokerage and retirement accounts stay out of Transactions unless you turn on Preferences → Transactions → Investment account activity. Off is the default so buying shares never counts as spending in cash flow or reports and never fills the Merchants list; balances and holdings for those accounts still update. When you turn it on, daily imports include the activity and you can fetch what SimpleFIN already holds. Turning it off again offers to remove the rows an earlier import brought in.",

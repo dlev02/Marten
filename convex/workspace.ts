@@ -14,7 +14,8 @@ import {
 } from "./lib/access";
 import { accountKind, avatarPreset } from "./validators";
 import { api, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalAction, internalMutation } from "./_generated/server";
+import { plaidRequest } from "./lib/plaidApi";
 import { seedCategories, seedSample } from "./sample";
 import {
   changeMerchantCount,
@@ -820,5 +821,149 @@ export const clearSample = userMutation({
       await ctx.storage.delete(profile.photoStorageId);
     await ctx.db.delete(profile._id);
     return { done: true, deleted: 1 };
+  },
+});
+
+// Tables emptied by clearWorkspace, grouped by the index whose first field is
+// userId. Preferences, reminders, assistant grants and the profile are kept.
+const clearedByUserId = [
+  "forecastScenarios",
+  "investmentHoldings",
+  "investmentTransactions",
+  "investmentSecurities",
+  "investmentSyncStates",
+  "attachments",
+  "uploads",
+  "activity",
+  "recurring",
+  "savedReports",
+  "tags",
+  "merchants",
+  "categories",
+  "groups",
+  "accounts",
+  "simplefinConnections",
+] as const;
+const clearedByUserIdAndDate = [
+  "transactions",
+  "balances",
+  "recurringPayments",
+  "creditScores",
+] as const;
+const CLEAR_CONFIRMATION = "CLEAR";
+/**
+ * Start over without leaving. Removes every account, transaction, receipt,
+ * category, merchant, rule, tag, recurring item, report, credit score,
+ * forecast and bank connection, then restores the default categories. The
+ * sign-in, name, photo and preferences stay. Runs in batches: call until done.
+ */
+export const clearWorkspace = userMutation({
+  args: { confirmation: v.string() },
+  returns: v.object({ done: v.boolean(), deleted: v.number() }),
+  handler: async (ctx, { confirmation }) => {
+    const user = await ctx.db.get(ctx.userId);
+    if (!user || user.isAnonymous)
+      throw new ConvexError(
+        "Exit the demo and sign in before clearing a workspace.",
+      );
+    if (confirmation !== CLEAR_CONFIRMATION)
+      throw new ConvexError(`Type ${CLEAR_CONFIRMATION} to confirm.`);
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .unique();
+    if (!profile) throw new ConvexError("Set up your workspace first.");
+    if (profile.deletionRequestedAt)
+      throw new ConvexError("This account is already being deleted.");
+    // Bank access at Plaid is revoked as the connection rows go. SimpleFIN
+    // keeps no server-side grant; its access URL simply leaves with the row.
+    const items = await ctx.db
+      .query("plaidItems")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(20);
+    if (items.length) {
+      for (const item of items) {
+        if (item.status !== "disconnected")
+          await ctx.scheduler.runAfter(
+            0,
+            internal.workspace.revokePlaidAccess,
+            {
+              accessToken: item.accessToken,
+              environment: item.environment,
+            },
+          );
+        await ctx.db.delete(item._id);
+      }
+      return { done: false, deleted: items.length };
+    }
+    const rules = await ctx.db
+      .query("rules")
+      .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+      .take(100);
+    if (rules.length) {
+      for (const rule of rules) await ctx.db.delete(rule._id);
+      return { done: false, deleted: rules.length };
+    }
+    const deliveries = await ctx.db
+      .query("reminderDeliveries")
+      .withIndex("by_userId_and_channel_and_occurrenceKey", (q) =>
+        q.eq("userId", ctx.userId),
+      )
+      .take(100);
+    if (deliveries.length) {
+      for (const row of deliveries) await ctx.db.delete(row._id);
+      return { done: false, deleted: deliveries.length };
+    }
+    for (const table of clearedByUserId) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(100);
+      if (!rows.length) continue;
+      for (const row of rows) {
+        if ("storageId" in row) await ctx.storage.delete(row.storageId);
+        if ("logoStorageId" in row && row.logoStorageId)
+          await ctx.storage.delete(row.logoStorageId);
+        await ctx.db.delete(row._id);
+      }
+      return { done: false, deleted: rows.length };
+    }
+    for (const table of clearedByUserIdAndDate) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+        .take(100);
+      if (!rows.length) continue;
+      for (const row of rows) await ctx.db.delete(row._id);
+      return { done: false, deleted: rows.length };
+    }
+    // Everything is gone: a fresh workspace gets its default categories back so
+    // the next import or manual entry has somewhere to land.
+    await ctx.db.patch(profile._id, { demo: false });
+    await seedCategories(ctx);
+    return { done: true, deleted: 0 };
+  },
+});
+/** Best-effort revocation; the token was already erased with its row. */
+export const revokePlaidAccess = internalAction({
+  args: {
+    accessToken: v.string(),
+    environment: v.union(v.literal("sandbox"), v.literal("production")),
+  },
+  returns: v.null(),
+  handler: async (_ctx, { accessToken, environment }) => {
+    try {
+      await plaidRequest(
+        "/item/remove",
+        { access_token: accessToken },
+        environment,
+      );
+    } catch (error) {
+      console.warn(
+        "Clear workspace: Plaid revocation failed",
+        error instanceof Error ? error.message : error,
+      );
+    }
+    return null;
   },
 });

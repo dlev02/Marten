@@ -1,5 +1,41 @@
 # Verification record
 
+## September 12 — Start fresh, investment activity, rule editor, feedback, Discover statements
+
+- `clearWorkspace` (Preferences → Start fresh) empties every owned table in
+  batches, revokes Plaid items, keeps the profile, sign-in, reminder and
+  assistant preferences, and re-seeds default categories. Covered by
+  `convex/workspaceReset.test.ts` (typed confirmation, other user untouched,
+  receipt storage deleted, guest refusal). Exercised in the browser only as a
+  guest, where the panel explains that the demo cannot be cleared; the signed-in
+  path is covered by the backend test rather than a live account.
+- Investment account activity is off by default. `simplefin.test.ts` shows a
+  brokerage import saving the balance but no transactions, then importing two
+  rows once the preference is on, and `removeInvestmentActivity` deleting them
+  together with their two merchants. The Preferences toggle, inline "Remove
+  them" note and "Import past activity" backfill were reviewed in the demo
+  workspace, which has no bridged investment accounts, so the note and backfill
+  button were verified through their conditions and the backend tests only.
+- Rule editor: conditions sit on one row (field · comparison, value beneath)
+  and each change is a switch row that unfolds its controls; the enabled switch
+  appears only when editing an existing rule. Created "Costco runs" in the demo
+  with a typed new merchant, cleared tags, hide, reviewed and no splits; the
+  list showed "Rename to Costco Wholesale · Clear tags · Hide transaction ·
+  Mark reviewed · Remove splits" and the merchant was created on save, not on
+  cancel. Reviewed in dark and light appearance at 1280×900 and at 768×1024,
+  where the columns stack and the enabled switch moves under the name field.
+- Feedback dialog: device details are offered for all three kinds so the
+  dialog keeps one height when switching tabs, and the three segments share
+  the bar equally. Confirmed by switching to An idea at 1280×900.
+- Discover statements: PDF text is rebuilt in reading order from glyph
+  positions before matching, and the label pattern accepts "FICO Score 8 based
+  on TransUnion data:" plus two-digit "AS OF" years. A real March 2026 Discover
+  statement (not committed) now suggests 763 · TransUnion · FICO Score 8 ·
+  2026-02-25; `creditPdf.test.ts` and `creditScoreImport.test.ts` cover the
+  reordering and label variants with fictional text. Capital One statements do
+  not print a score, so nothing changes there.
+- `npm run lint` and `npx vitest run` (45 files, 320 tests) pass.
+
 ## September 12 — Production release routing
 
 - Netlify production tracks `main`; automatic builds are enabled. Released

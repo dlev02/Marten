@@ -2,6 +2,7 @@ import { useAmountsHidden, setAmountsHidden } from "../../lib/amountVisibility";
 import { useState } from "react";
 import { useSidebarLabels, setSidebarLabels } from "../../lib/sidebarLabels";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { useNavigate } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useTheme } from "next-themes";
 import { AlertTriangle } from "lucide-react";
@@ -38,6 +39,7 @@ export function Preferences() {
     task = useTask(),
     save = useMutation(api.workspace.saveProfile),
     clearSample = useMutation(api.workspace.clearSample),
+    clearWorkspace = useMutation(api.workspace.clearWorkspace),
     removeInvestmentActivity = useMutation(
       api.transactions.removeInvestmentActivity,
     ),
@@ -46,6 +48,7 @@ export function Preferences() {
     deleteAccount = useMutation(api.accountDeletion.deleteAccount),
     deletion = useQuery(api.accountDeletion.status, {}),
     toast = useToast(),
+    navigate = useNavigate(),
     { signOut } = useAuthActions(),
     { theme, setTheme } = useTheme();
   const [font, setFont] = useState(readFont),
@@ -57,6 +60,10 @@ export function Preferences() {
     [confirmDelete, setConfirmDelete] = useState(false),
     [deleteWord, setDeleteWord] = useState(""),
     [deleteEmail, setDeleteEmail] = useState(""),
+    [confirmClear, setConfirmClear] = useState(false),
+    [clearWord, setClearWord] = useState(""),
+    [clearingAll, setClearingAll] = useState(false),
+    [clearedCount, setClearedCount] = useState(0),
     [confirmRemove, setConfirmRemove] = useState(false),
     [removing, setRemoving] = useState(false),
     [removedCount, setRemovedCount] = useState(0);
@@ -289,6 +296,27 @@ export function Preferences() {
           </Panel>
         </div>
       )}
+      <div id="clear-data" tabIndex={-1}>
+        <Panel title="Start fresh" className="settings-preference-panel">
+          <p className="settings-helper">
+            {guest
+              ? "Exit the demo and sign in to manage your own data."
+              : "Clears every account, transaction, receipt, category, merchant, rule, tag, recurring item, report, credit score, forecast and bank connection, then restores the default categories. Your sign-in, name, photo and preferences stay, so you can import again from a clean slate."}
+          </p>
+          {!guest && !deletion?.requestedAt && (
+            <Button
+              tone="danger"
+              onClick={() => {
+                setClearWord("");
+                setClearedCount(0);
+                setConfirmClear(true);
+              }}
+            >
+              Clear all data
+            </Button>
+          )}
+        </Panel>
+      </div>
       <div id="delete-account" tabIndex={-1}>
         <Panel title="Delete account" className="settings-preference-panel">
           <p className="settings-helper">
@@ -386,6 +414,83 @@ export function Preferences() {
             </Button>
           </div>
         </form>
+      </Modal>
+      <Modal
+        open={confirmClear}
+        onClose={() => !clearingAll && setConfirmClear(false)}
+        title={clearingAll ? "Clearing your data" : "Clear all data?"}
+        description={
+          clearingAll
+            ? "Keep this tab open while Marten removes everything. Accounts opens when it finishes."
+            : "Everything you entered or imported is removed and cannot be restored. You stay signed in with the default categories ready for a new import."
+        }
+      >
+        {clearingAll ? (
+          <Loading text={`${clearedCount.toLocaleString()} items removed…`} />
+        ) : (
+          <>
+            <div className="settings-warning">
+              <AlertTriangle size={18} />
+              <p>
+                Accounts, transactions, receipts, categories, merchants, rules,
+                tags, recurring items, reports, credit scores, forecasts and
+                bank connections are all deleted. Plaid access is revoked;
+                SimpleFIN access continues in the bridge until you revoke it
+                there. Reminder, appearance and assistant settings are kept.
+              </p>
+            </div>
+            <form
+              className="settings-delete-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (clearWord !== "CLEAR") return;
+                void task.run(async () => {
+                  setClearingAll(true);
+                  try {
+                    await runInBatches(
+                      () => clearWorkspace({ confirmation: clearWord }),
+                      setClearedCount,
+                    );
+                    setConfirmClear(false);
+                    toast(
+                      "Your data is cleared. Add or import accounts to begin again.",
+                    );
+                    void navigate("/accounts");
+                  } finally {
+                    setClearingAll(false);
+                  }
+                });
+              }}
+            >
+              <Field label="Type CLEAR to confirm">
+                <input
+                  aria-label="Type CLEAR to confirm"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="CLEAR"
+                  value={clearWord}
+                  onChange={(event) => setClearWord(event.target.value)}
+                />
+              </Field>
+              <div className="settings-dialog-actions">
+                <Button
+                  type="button"
+                  disabled={task.busy}
+                  onClick={() => setConfirmClear(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  tone="danger"
+                  disabled={clearWord !== "CLEAR" || task.busy}
+                >
+                  Clear all data
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
       </Modal>
       <Modal
         open={confirmRemove}

@@ -277,6 +277,14 @@ export const searchDestinations: SearchDestination[] = [
     keywords: "delete account remove data close erase privacy",
   },
   {
+    id: "clear-data",
+    title: "Clear all data",
+    section: "Settings",
+    path: "/settings/preferences#clear-data",
+    keywords:
+      "clear all data start fresh start over reset workspace erase everything wipe transactions accounts categories merchants rules tags import again",
+  },
+  {
     id: "investment-activity",
     title: "Investment account activity",
     section: "Preferences",
