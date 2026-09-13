@@ -67,3 +67,7 @@ Plaid requests run on the server. A short-lived Link token is handed to the brow
 The static build publishes `dist` with SPA fallback routing and `VITE_CONVEX_URL` pointing to the intended Convex deployment. Convex and Netlify deployment configuration must be separated between development and production. Authentication signing keys, allowed/redirect origins, Plaid environment and credentials, Plaid Link redirect registration when needed, scheduled refreshes, and any webhook endpoint must be checked for the final origin.
 
 Before a public release, run the checks in [verification.md](verification.md), complete real institution consent and sync validation, confirm backups/export and disconnect behavior, and obtain publication authorization. No Netlify site, production backend, custom domain, provider approval, or real bank connection is presumed to exist.
+
+## Lunch Flow and shared bank imports
+
+[The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.

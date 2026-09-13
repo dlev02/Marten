@@ -385,7 +385,7 @@ export function Landing() {
                     <strong>Free.</strong> Donations welcome, never required.
                   </td>
                   <td data-label="Bank connections">
-                    Your own SimpleFIN Bridge subscription, or manual and
+                    Your own SimpleFIN or Lunch Flow subscription, or manual and
                     spreadsheet entry.
                   </td>
                   <td data-label="Good for">
@@ -399,7 +399,7 @@ export function Landing() {
                     household.
                   </td>
                   <td data-label="Bank connections">
-                    Plaid’s free trial for your family’s banks, plus SimpleFIN.
+                    Your own Plaid Trial, SimpleFIN or Lunch Flow connections.
                   </td>
                   <td data-label="Good for">
                     People who want the data on infrastructure they control.{" "}

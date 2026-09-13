@@ -193,3 +193,7 @@ boundary. Merchants, account names, dates, counts, proportions and chart shapes
 remain visible. Receipts, user-authored text, exported files and authorized agent
 reads retain their original content. See Preferences → Privacy for the user-facing
 scope and the FAQ/search entry for the direct link.
+
+## Lunch Flow and shared bank imports
+
+[The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.

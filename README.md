@@ -20,15 +20,15 @@ Every signed-in person gets a private workspace. There is no household sharing y
 
 ## Why it exists
 
-I built Marten for my family. We wanted something modern and simple that did not cost about $100 a year the way Monarch Money does, and that did not mean typing every purchase into a spreadsheet. In the United States, bank data is not open: apps reach it through an aggregator such as Plaid or SimpleFIN, so Marten lets you choose one and keeps the rest free.
+I built Marten for my family. We wanted something modern and simple that did not cost about $100 a year the way Monarch Money does, and that did not mean typing every purchase into a spreadsheet. In the United States, bank data is not open: apps reach it through an aggregator such as Plaid, SimpleFIN or Lunch Flow, so Marten lets you choose one and keeps the rest free.
 
 ## Two ways to use it
 
 |               | Hosted Marten site                                                                                                   | Self-hosted                                                                                       |
 | ------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Who runs it   | Drew hosts a public instance for anyone who wants an account <!-- TODO: confirm domain -->                           | You, for your own household                                                                       |
-| Cost          | Free. Bank connections use your own SimpleFIN Bridge subscription (about $1.50/month or $15/year, paid to SimpleFIN) | Free tiers of Convex and a static host; a domain if you want one; Plaid's free Trial or SimpleFIN |
-| Bank provider | SimpleFIN Bridge. Plaid on the hosted site is reserved for the operator's family                                     | Your choice: Plaid (your own free Trial credentials), SimpleFIN, or manual and spreadsheet only   |
+| Cost          | Free. Bank connections use your own SimpleFIN Bridge or Lunch Flow subscription, paid to that provider | Free tiers of Convex and a static host; a domain if you want one; Plaid's free Trial, SimpleFIN or Lunch Flow |
+| Bank provider | SimpleFIN Bridge or Lunch Flow. Plaid on the hosted site is reserved for the operator's family                                     | Your choice: Plaid (your own free Trial credentials), SimpleFIN, Lunch Flow, or manual and spreadsheet only   |
 | Get started   | Create an account on the hosted site, or try `/demo` first                                                           | Follow the [self-hosting guide](docs/self-hosting.md)                                             |
 
 Either way you can start with manual accounts and spreadsheet imports and connect a bank later.
@@ -44,7 +44,7 @@ Either way you can start with manual accounts and spreadsheet imports and connec
 | Freshness      | Webhooks plus a six-hour catch-up sweep                                                          | Once a day, plus **Import latest** on demand                                                 | You                                             |
 | Best for       | The operator's own household                                                                     | Everyone else on a shared deployment, or a self-hoster who would rather not manage Plaid     | Getting started, or accounts no provider covers |
 
-Details and sources: [bank provider options](docs/bank-provider-options.md), [Plaid](docs/plaid.md), [SimpleFIN](docs/simplefin.md).
+Details and sources: [bank provider options](docs/bank-provider-options.md), [Plaid](docs/plaid.md), [SimpleFIN](docs/simplefin.md), [Lunch Flow](docs/lunchflow.md).
 
 ## How Plaid's free Trial works
 
@@ -63,9 +63,13 @@ To get credentials:
 2. Apply for **Production** access; the free Trial is the plan you are approved into. OAuth institutions can take a while to become available after approval.
 3. On your Convex deployment set `PLAID_CLIENT_ID`, `PLAID_SECRET`, and `PLAID_ENV` (`sandbox` while testing, `production` for real banks). Missing or invalid settings simply hide the Plaid button.
 4. For OAuth banks (Chase, American Express, Schwab), register your site's HTTPS origin as an allowed redirect URI in Plaid's dashboard and set the same value as `PLAID_REDIRECT_URI`.
-5. On a shared deployment, set `PLAID_ALLOWED_EMAILS` (comma-separated) so only those accounts see Plaid. Everyone else uses SimpleFIN and your Trial slots stay with your family.
+5. On a shared deployment, set `PLAID_ALLOWED_EMAILS` (comma-separated) so only those accounts see Plaid. Everyone else can use SimpleFIN or Lunch Flow and your Trial slots stay with your family.
 
 Sources: [bank provider options](docs/bank-provider-options.md#how-plaids-limit-works) and [Plaid integration](docs/plaid.md).
+
+## How Lunch Flow works
+
+Connect banks in your own [Lunch Flow](https://lunchflow.app) account. Create an API destination, enable its Account Access settings, then choose **Add account → Continue with Lunch Flow** in Marten. Paste the key and review the accounts, types, mappings and import start date. Marten imports USD balances, posted transactions and supported holdings daily. The subscription and coverage are set by Lunch Flow; the API does not supply transaction categories, merchant logos or credit-card statement fields. [Setup and data limits](docs/lunchflow.md).
 
 ## How SimpleFIN works
 

@@ -5,7 +5,7 @@ export const termsOfService: SiteDocument = {
   title: "Terms of Service",
   summary:
     "The plain-English agreement for using the hosted Marten site: a free tool provided as-is, by one person, with no financial advice attached.",
-  effective: "September 12, 2026",
+  effective: "September 13, 2026",
   sections: [
     {
       id: "the-service",
@@ -98,6 +98,7 @@ export const termsOfService: SiteDocument = {
           items: [
             "**Plaid** (Plaid, Inc.) is not offered to the public on the hosted site. It is available only to the operator's own household through an allow list, because Plaid's free Trial covers a limited number of institution logins for the whole deployment. Self-hosted copies of Marten can use their own Plaid credentials. When you use Plaid Link you agree to Plaid's terms and the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
             "**SimpleFIN Bridge** is a subscription you purchase directly from [SimpleFIN](https://beta-bridge.simplefin.org/), under SimpleFIN's own terms and prices. Marten shows SimpleFIN's advertised price only as an approximation; SimpleFIN sets and can change it.",
+            "**Lunch Flow** is a separate subscription you purchase directly from [Lunch Flow](https://lunchflow.app), under its own terms, coverage, limits and prices. You choose the accounts shared by your API destination and authorize Marten to read and store that data. Stop imports or remove the key in Marten and revoke the destination or bank consent in Lunch Flow when you no longer want access.",
           ],
         },
         {

@@ -9,11 +9,11 @@ you choose. Bank data arrives through a provider each user chooses:
 | Provider         | Who sets it up                            | Who can use it                                        | Cost                                          |
 | ---------------- | ----------------------------------------- | ----------------------------------------------------- | --------------------------------------------- |
 | SimpleFIN Bridge | Each user, in their own SimpleFIN account | Anyone on this deployment, by pasting their own token | About $1.50/month or $15/year to SimpleFIN    |
+| Lunch Flow       | Each user, in their own Lunch Flow account | Anyone, using their own API destination key | Set by Lunch Flow; check current pricing |
 | Plaid            | The deployment operator, once             | The operator's household (`PLAID_ALLOWED_EMAILS`)     | Free Trial covers 10 institution logins total |
 | Manual and CSV   | Nobody                                    | Everyone                                              | Free                                          |
 
-SimpleFIN is the recommended path for anyone other than the operator, because
-it needs no deployment secrets and its connection quota belongs to each user.
+SimpleFIN and Lunch Flow accept each user’s own connection credentials; their subscription and connection allowances belong to that user. See the [Lunch Flow guide](lunchflow.md).
 Plaid credentials are shared across the whole deployment and its Trial quota
 cannot be recovered once used, so a deployment that anyone can join should
 restrict Plaid to specific accounts with `PLAID_ALLOWED_EMAILS` or leave it
@@ -23,10 +23,8 @@ Trial explanation in the [README](../README.md#how-plaids-free-trial-works).
 ## What you need
 
 - A GitHub account (to fork the repository) and Node.js 22.12 or newer.
-- A [Convex](https://convex.dev) account. The free tier is enough for a
-  household.
-- A static host. This guide uses [Netlify](https://www.netlify.com), whose free
-  tier is also enough; any host that serves `dist` with a single-page-app
+- A [Convex](https://convex.dev) account. Check the current free usage allowances against your household’s needs.
+- A static host. This guide uses [Netlify](https://www.netlify.com), which offers a free plan with usage limits; any host that serves `dist` with a single-page-app
   fallback to `index.html` works.
 - Optional: a domain, a [Brevo](https://www.brevo.com) account for password-reset
   email, and a [Plaid](https://dashboard.plaid.com) developer account.
@@ -97,7 +95,7 @@ touched development; the next steps set up production.
 | `CONVEX_DEPLOYMENT`                   | Local only                        | `.env.local`, written by the Convex CLI      | Which deployment the CLI targets. Never needed on Netlify.                                                                                                                            |
 | `JWT_PRIVATE_KEY`, `JWKS`             | Required                          | Convex deployment                            | Convex Auth signing keys, set by the `@convex-dev/auth` initializer. Do not regenerate them on a live deployment: it signs everyone out.                                              |
 | `SITE_URL`                            | Required                          | Convex deployment                            | Exact HTTPS origin of the site, with no trailing slash. Sign-in fails when it does not match.                                                                                         |
-| `CREDENTIALS_KEY`                     | Recommended                       | Convex deployment                            | 32 random bytes, base64. Seals user-entered SimpleFIN access URLs so they never appear in plain form in the database, dashboard, or backups. Generate with `openssl rand -base64 32`. |
+| `CREDENTIALS_KEY`                     | Recommended                       | Convex deployment                            | 32 random bytes, base64. Seals user-entered SimpleFIN access URLs and Lunch Flow API keys so they never appear in plain form in the database, dashboard, or backups. Generate with `openssl rand -base64 32`. |
 | `AUTH_BREVO_KEY`                      | Optional                          | Convex deployment                            | Brevo API key for transactional email. Enables **Forgot password?** and email reminders.                                                                                              |
 | `AUTH_EMAIL_FROM`                     | Optional (with `AUTH_BREVO_KEY`)  | Convex deployment                            | Sender address verified in Brevo. The display name is `Marten`.                                                                                                                       |
 | `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Optional                          | Convex deployment                            | Your Plaid credentials. Both are needed; the secret must match `PLAID_ENV`.                                                                                                           |
@@ -225,3 +223,13 @@ at the final origin after deployment.
 | **Forgot password?** is missing or the email never arrives     | Both `AUTH_BREVO_KEY` and `AUTH_EMAIL_FROM` must be set on production; the sender must be verified in Brevo and the key must still be active. See [authentication](authentication.md).                                                                                            |
 | SimpleFIN says the token was already claimed                   | Setup tokens work once. Create a new app connection in SimpleFIN Bridge and use **New token** on the connection card.                                                                                                                                                             |
 | Users must re-paste SimpleFIN tokens after a change            | `CREDENTIALS_KEY` was changed or removed. Restore the original value if you have it.                                                                                                                                                                                              |
+
+## Can this run for free?
+
+A small household can fit within free service allowances, but this depends on eligibility, covered institutions, products and usage. As checked September 13, 2026, [Plaid Trial](https://plaid.com/docs/quickstart/) supports eligible US/Canada teams with up to **10 lifetime Production Items**. An Item normally represents an institution login, not every checking, card or investment account behind that login. Four supported logins can therefore cover more than four accounts. Preserve each stored token and repair the same Item using update mode where possible. Creating a new Item consumes a slot; [removal does not restore one](https://plaid.com/docs/api/items/). This is a Trial entitlement, not guaranteed free unlimited production access.
+
+Check [Convex pricing](https://www.convex.dev/pricing), [Netlify pricing](https://www.netlify.com/pricing/) and Plaid's dashboard before choosing a setup. Domains, email, electricity, hardware and optional SimpleFIN/Lunch Flow subscriptions can add costs. Marten cannot promise a permanently zero-cost deployment.
+
+## Access away from home
+
+With a hosted frontend and Convex Cloud, sign in through the deployed HTTPS URL from any device; no home-network tunnel is needed. If you serve the frontend from a home computer, a private [Tailscale Serve](https://tailscale.com/kb/1312/serve) address is an option for devices in your tailnet. The computer must stay on, each client must be authorized, and authentication origins must match that HTTPS address. Serve is private; Funnel makes a service public and is not required for this setup. A private frontend does not move a Convex Cloud backend onto your home computer. Fully self-hosting the backend is a separate deployment and maintenance choice; consult [Convex self-hosting](https://docs.convex.dev/self-hosting).

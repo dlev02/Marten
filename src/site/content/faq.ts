@@ -13,7 +13,7 @@ export const publicFaq: FaqEntry[] = [
     category: "Getting started",
     question: "Is it really free?",
     answer:
-      "Yes. There are no fees, no paid tier, and no ads, and your data is never sold. The only cost you might choose to pay is a SimpleFIN Bridge subscription if you want automatic bank connections; that goes to SimpleFIN, not to Marten. Manual accounts and spreadsheet imports cost nothing.",
+      "Yes. There are no fees, no paid tier, and no ads, and your data is never sold. The only cost you might choose to pay is a SimpleFIN Bridge or Lunch Flow subscription if you want automatic bank connections; you pay the provider directly. Manual accounts and spreadsheet imports cost nothing.",
   },
   {
     id: "why-built",
@@ -34,14 +34,35 @@ export const publicFaq: FaqEntry[] = [
     category: "Banks & data",
     question: "Which banks work?",
     answer:
-      "Any institution your chosen provider supports. Through SimpleFIN Bridge that is the banks you link in your SimpleFIN account. Through Plaid it is Plaid's US and Canadian catalog, including OAuth institutions such as Chase, American Express, and Charles Schwab. Marten itself is currently USD-only. Accounts no provider covers can be added by hand and updated from a spreadsheet.",
+      "Any institution your chosen provider supports. With SimpleFIN Bridge or Lunch Flow, coverage depends on the banks and providers available in your own subscription. Lunch Flow includes several regional providers, but broader coverage does not guarantee a specific connection. Through Plaid it is Plaid's US and Canadian catalog, including OAuth institutions such as Chase, American Express, and Charles Schwab. Marten itself is currently USD-only. Accounts no provider covers can be added by hand and updated from a spreadsheet.",
   },
   {
     id: "how-connections-work",
     category: "Banks & data",
     question: "How do bank connections work?",
     answer:
-      "Marten never sees your bank password. With SimpleFIN, you link banks inside SimpleFIN Bridge and paste a one-time setup token into Marten; balances and posted transactions import daily and whenever you choose Import latest. With Plaid, you sign in to your bank inside Plaid Link and choose what to share; Marten keeps a server-side token and syncs from Plaid's cached data, usually within hours of the bank updating. Disconnecting stops syncing and keeps the history you already imported.",
+      "Marten never sees your bank password. With SimpleFIN, you link banks inside SimpleFIN Bridge and paste a one-time setup token into Marten; balances and posted transactions import daily and whenever you choose Import latest. With Lunch Flow, connect your banks there, create an API destination, enable account access and paste the API key into Marten. You review the accounts before importing; Marten checks daily. With Plaid, you sign in to your bank inside Plaid Link and choose what to share; Marten keeps a server-side token and syncs from Plaid's cached data, usually within hours of the bank updating. Disconnecting stops syncing and keeps the history you already imported.",
+  },
+  {
+    id: "what-is-lunchflow",
+    category: "Banks & data",
+    question: "How do I connect Lunch Flow, and can I choose MX or Finicity?",
+    answer:
+      "Create an API destination in your own [Lunch Flow account](https://lunchflow.app), enable the accounts you want to share and paste its key into Marten. Review balances, types and mappings before importing. Lunch Flow manages bank connections and the available providers; Marten shows the reported provider but has no success-rate or connector-selection API. Check or repair the connection in Lunch Flow. Its subscription, coverage and pricing are set by Lunch Flow. Marten imports USD balances, posted transactions and available holdings. The documented transaction API does not include categories, merchant logos or credit-card statement details; rules and statement reminders still help fill those gaps.",
+  },
+  {
+    id: "default-charts",
+    category: "Getting started",
+    question: "Can I choose the charts Marten opens by default?",
+    answer:
+      "Yes. In Settings → Preferences → Default charts, choose spending, income and cash-flow visuals. Spending and income support trend bars, pie charts and treemaps; cash flow also supports Sankey. Preferences follow your workspace. You can switch charts while exploring, and saved reports keep their own chart.",
+  },
+  {
+    id: "plaid-free-household",
+    category: "Hosting & open source",
+    question: "Can a small household self-host with free Plaid connections?",
+    answer:
+      "It can be possible within provider limits. As checked September 13, 2026, [Plaid Trial](https://plaid.com/docs/quickstart/) offers eligible US/Canada teams up to 10 lifetime Production Items at no cost. An Item is generally an institution login, which can contain several accounts. Removing an Item does not restore the slot; creating a replacement consumes another, while repairing the same Item in update mode preserves it. Supported products and institutions still depend on your entitlements. Convex and your frontend host have free usage allowances, not an unlimited zero-cost guarantee. Read the [self-hosting guide](https://github.com/dlev02/marten/blob/main/docs/self-hosting.md) for deployment, remote access and current limits.",
   },
   {
     id: "what-is-simplefin",
@@ -63,7 +84,7 @@ export const publicFaq: FaqEntry[] = [
     category: "Banks & data",
     question: "Can I use Plaid on the hosted site?",
     answer:
-      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list of verified email addresses; everyone else uses SimpleFIN or spreadsheets and the Plaid option simply isn't shown. If you self-host, you run your own backend, apply for your own Plaid Trial, and your bank data never touches this site at all.",
+      "Plaid credentials belong to the whole deployment, and Plaid's free Trial allows 10 institution logins in total, ever; removing one does not give the slot back. Sharing that with the public would use it up in an afternoon, and Plaid's developer policy does not allow pooling keys. So on the hosted site Plaid is limited to the operator's own household through an allow list of verified email addresses; everyone else uses SimpleFIN, Lunch Flow or spreadsheets and the Plaid option simply isn't shown. If you self-host, you run your own backend, apply for your own Plaid Trial, and your bank data never touches this site at all.",
   },
   {
     id: "self-host",

@@ -176,3 +176,7 @@ setup token was claimed, three demo accounts previewed, two imported with 344
 posted transactions across the 90-day default range, MCC categories applied, and
 the bridge's "recommended range of 45 days" notice surfaced on the connection
 card (which led to the 45-day window). No real bank or subscription was used.
+
+## Lunch Flow and shared bank imports
+
+[The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.

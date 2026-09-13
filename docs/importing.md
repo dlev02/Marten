@@ -65,8 +65,8 @@ Screenshots in the Aside QA session:
 
 These checks use synthetic files; the specific family spreadsheet format remains to be provided.
 
-## Category suggestions
+## Starter categories
 
-New workspaces include convenience stores, pharmacy, haircuts, public transit, video games, accommodation, flights, ferries, eSIM/roaming, rideshare/taxis, travel insurance, tours/activities, parking/tolls, and fuel. Existing households can use **Settings → Categories → Add suggested categories**; it adds only missing names and leaves current categories, icons, groups, and disabled choices unchanged. The importer preserves a file's distinct names (for example Hotels) rather than silently replacing them with a broader preset (Accommodation).
+New workspaces include convenience stores, pharmacy, haircuts, public transit, video games, accommodation, flights, ferries, eSIM/roaming, rideshare/taxis, travel insurance, tours/activities, parking/tolls, and fuel. New and reset workspaces receive the full starter set automatically, organized into focused groups for housing, utilities, food, transport, travel, shopping, health, education, entertainment, family, giving and financial costs. Existing households keep their organization; revisiting Categories does not recreate categories they deleted or reset renamed or disabled choices. The importer preserves a file's distinct names (for example Hotels) rather than silently replacing them with a broader preset (Accommodation).
 
 Design reference: Monarch's [import guidance](https://help.monarch.com/hc/en-us/articles/4409682789908-Import-Transaction-Data-Manually-from-Banks-or-Other-Finance-Apps) distinguishes account mapping from column mapping. Marten keeps an explicit review of destination creation and retains its own non-destructive retry behavior.

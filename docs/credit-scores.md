@@ -80,3 +80,7 @@ The credit-score page now includes **Where to find your score** with direct offi
 | American Express MyCredit Guide | [MyCredit Guide](https://www.americanexpress.com/us/credit-cards/features-benefits/free-credit-score/index.html) and the [experience transition guide](https://www.americanexpress.com/content/dam/amex/us/credit-cards/features-benefits/free-credit-score/mycreditguide-new-experience-cm.pdf) identify FICO Score 8 from Experian. | Use the observed score's actual model, bureau and date. Inclusion in monthly card statements was not verified. The separate paid CreditSecure service is not needed for this manual workflow.              |
 
 Issuer names never fill missing PDF score metadata. The import remains conservative and text-only; app-only scores, screenshots and unreadable PDFs use manual entry. The editor now uses a numeric-keyboard text field with explicit 300–850 whole-score validation instead of browser stepper arrows.
+
+## Demo observations
+
+New fictional workspaces include six monthly TransUnion / VantageScore 3.0 observations, labeled Fictional demo observation. They are seeded only with sample data, never into a personal workspace, and are visible in Credit scores and the demo dashboard widget. These are illustrative values, not a live credit feed.

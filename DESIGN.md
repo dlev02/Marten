@@ -627,3 +627,13 @@ Cash Flow, while explicit saved-report links retain their selected report.
 
 The public site's sticky header uses an opaque scene background, including the
 night scene, so scrolling text and artwork cannot bleed through navigation.
+
+## Bank connections and chart defaults
+
+Add account leads with parallel SimpleFIN and Lunch Flow service choices. Eligible, configured Plaid installations retain Plaid, with its checking/investment product choice disclosed only after choosing that service. Use concise, left-aligned copy and the shared account-review flow. Unused providers do not each get an empty card; Institutions has one overall empty state and groups connected accounts by bank inside each service. Provider identity comes from data, without fabricated ratings. Avoid repeating a mask already present in an account name.
+
+Preferences → Default charts uses shared selects for spending, income and cash flow. Saved reports preserve their chart; ordinary chart exploration does not overwrite the workspace default. Sankey is offered for cash flow only.
+
+Use `InfoTip` with `disclosure` for secondary guidance such as PDF limits, chart defaults and connection maintenance. It opens on click or touch, has a 44px target, supports links, and closes with Escape or an outside click. Keep requirements needed to complete a form visible. Leave 16px between connection choices and their scope note. Recharts pointer focus must not draw a chart border; preserve visible keyboard focus and arrow-key navigation.
+
+Starter categories are included at workspace creation and reset, organized into focused household groups, using the existing CategoryIcon artwork. Categories opens directly with the groups, without a suggestions banner. Bank-account hover rows have 12px horizontal padding and a minimum 44px height; grouped service rows retain their bank-heading indent.

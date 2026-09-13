@@ -5,7 +5,7 @@ export const privacyPolicy: SiteDocument = {
   title: "Privacy Policy",
   summary:
     "What Marten stores, where it lives, who processes it, and what never happens to it. Written in plain English by the person who runs the site.",
-  effective: "September 12, 2026",
+  effective: "September 13, 2026",
   sections: [
     {
       id: "what-marten-is",
@@ -41,7 +41,7 @@ export const privacyPolicy: SiteDocument = {
             "**Financial records you enter or import.** Accounts, balances and balance history, transactions, categories, category groups, merchants, tags, notes, splits, ordered rules, recurring schedules and paid checkmarks, saved reports, forecast scenarios, and credit-score observations (score, date, bureau, model, source, and entry method).",
             "**Receipts and merchant logos.** Files you attach to a transaction (up to 20 per transaction, 5 MB each, in supported image and document types) and logos you upload for a merchant. These live in Convex file storage and belong only to your workspace.",
             "**Spreadsheet imports.** Rows from an Excel or CSV file you choose, including a Monarch Money export, become transactions or balance history in your workspace. The original file is read in your browser; only the reviewed rows are saved.",
-            "**Preferences.** Settings such as whether new transactions need review, whether pending transactions are shown, which dashboard widgets you use, and reminder timing.",
+            "**Preferences.** Settings such as whether new transactions need review, whether pending transactions are shown, which dashboard widgets and default report charts you use, and reminder timing.",
             "**Reminder consent.** If you enable email reminders, Marten stores a hash of the verification code you enter, your chosen timing and time zone, and a record of each reminder it attempted to deliver. Delivery records do not contain message contents.",
             "**AI-connection records.** If you enable an assistant connection, Marten stores your consent choices, hashed OAuth grant secrets, and an activity log with the tool name, source, time, and whether the call succeeded. The log never stores amounts, arguments, or conversation text.",
           ],
@@ -62,7 +62,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "**Plaid** (Plaid, Inc.). Plaid is the bank connection for self-hosted copies of Marten, where you run your own backend with your own Plaid credentials, so your bank data stays on infrastructure you control. On the hosted site, Plaid is switched off for everyone except the operator's own family, because Plaid's free Trial covers a fixed number of institution logins for the whole deployment; everyone else connects through SimpleFIN Bridge and never sees a Plaid option. When Plaid is used, you sign in to your bank inside Plaid Link and choose what to share. Marten then receives and stores: institution name and logo, account names, types, and masked identifiers; cached current and available balances; transactions with dates, amounts, statement text, pending status, and Plaid's category suggestions; for cards and loans, statement balances, minimum payments, and due dates when the institution provides them; and for brokerage and retirement accounts, holdings, securities, and investment activity. Marten stores a Plaid access token and sync cursor on the server so it can keep syncing. Plaid's own handling of your data is described in the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
+          text: "**Plaid** (Plaid, Inc.). Plaid is the bank connection for self-hosted copies of Marten, where you run your own backend with your own Plaid credentials, so your bank data stays on infrastructure you control. On the hosted site, Plaid is switched off for everyone except the operator's own family, because Plaid's free Trial covers a fixed number of institution logins for the whole deployment; everyone else can connect through SimpleFIN Bridge or Lunch Flow and never sees a Plaid option. When Plaid is used, you sign in to your bank inside Plaid Link and choose what to share. Marten then receives and stores: institution name and logo, account names, types, and masked identifiers; cached current and available balances; transactions with dates, amounts, statement text, pending status, and Plaid's category suggestions; for cards and loans, statement balances, minimum payments, and due dates when the institution provides them; and for brokerage and retirement accounts, holdings, securities, and investment activity. Marten stores a Plaid access token and sync cursor on the server so it can keep syncing. Plaid's own handling of your data is described in the [Plaid End User Privacy Policy](https://plaid.com/legal/#end-user-privacy-policy).",
         },
         {
           type: "p",
@@ -70,7 +70,11 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "Disconnecting a bank stops future syncing. For Plaid, Marten revokes the connection with Plaid and clears the stored access token. For SimpleFIN, **Remove** forgets the access URL. In both cases the transactions and balances already imported stay in your workspace until you delete them, so your history is not lost when a connection ends.",
+          text: "**Lunch Flow.** You link banks in your own Lunch Flow account, create an API destination and choose which accounts it can expose. Marten stores the key on the server, sealed with AES-256-GCM when the operator has configured a sealing key, to read balances, posted transactions and available holdings. Marten also receives institution names and logos, account names, currency and the reported underlying provider. No raw API key is returned in a query or stored in browser preferences. Marten reads daily and when you request an import. Lunch Flow and its banking providers process the connected data under [Lunch Flow’s privacy policy](https://lunchflow.app/privacy).",
+        },
+        {
+          type: "p",
+          text: "Disconnecting a bank stops future syncing. For Plaid, Marten revokes the connection with Plaid and clears the stored access token. For SimpleFIN or Lunch Flow, **Stop imports** pauses reads and **Remove** forgets the stored access URL or API key. Revoke the app destination or bank consent with that provider separately. In all cases the transactions and balances already imported stay in your workspace until you delete them, so your history is not lost when a connection ends.",
         },
       ],
     },
@@ -177,6 +181,11 @@ export const privacyPolicy: SiteDocument = {
               "[SimpleFIN Bridge](https://beta-bridge.simplefin.org)",
               "Bank connections you set up with your own subscription.",
               "Your bank links live in your SimpleFIN account. Marten holds only the access URL SimpleFIN issues to it.",
+            ],
+            [
+              "[Lunch Flow](https://lunchflow.app)",
+              "Bank connections chosen by you; API access to account, balance, transaction and holdings data",
+              "Only if you connect your own Lunch Flow account",
             ],
             [
               "[Brevo](https://www.brevo.com)",

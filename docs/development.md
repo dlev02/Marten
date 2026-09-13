@@ -133,3 +133,7 @@ and `@dnd-kit/utilities` through `SortableList`. Keep each ordering scope in its
 own context. Category ordering cannot cross groups; rule ordering while filtered
 preserves hidden rules in their slots. Check pointer dragging, keyboard pickup,
 Escape cancellation, saved order after reload, and reduced-motion CSS.
+
+## Lunch Flow and shared bank imports
+
+[The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.

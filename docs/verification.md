@@ -1,5 +1,46 @@
 # Verification record
 
+## September 13 — Complete starter categories and institution-row spacing
+
+- New and reset workspaces now receive 77 categories across 15 groups: 6 income,
+  68 expense and 3 transfer categories. Removed the suggested-category banner
+  and its unused mutation. Existing workspaces keep their names, disabled
+  choices and deletions; initialization remains idempotent.
+- Every starter category uses existing illustrated artwork. A regression check
+  caught the old ferry emoji fallback, which now uses the travel illustration.
+  Credit-card payments and loan principal remain transfers, excluded from
+  spending. Ownership and preservation checks passed.
+- Reviewed a fresh fictional demo at 1280px desktop, 1024px tablet and 390px
+  phone widths, including light and dark appearance. Food, transport and travel
+  groups fit without horizontal overflow; the extra banner is gone.
+- Institution account links now have 12px horizontal padding and a 44px minimum
+  height. A temporary DOM-only fictional bank fixture exercised the actual
+  stylesheet at desktop and phone widths in both themes; measured 12px insets
+  and a 44px row, with no phone overflow. No bank records were changed. The
+  quiet Disconnect action remains intentional and retains confirmation.
+- Final checks: 336 tests across 47 files, typecheck, lint, production build
+  and whitespace checks passed. Development backend deployment succeeded.
+  The authorized production backend release to `confident-kiwi-9` also
+  succeeded after a dry run; schema validation passed and no indexes were
+  deleted. Account-holder Lunch Flow connection testing remains outstanding.
+  Evidence includes `/tmp/marten-categories-expanded-light.png`,
+  `/tmp/marten-category-food-transport-phone.png`,
+  `/tmp/marten-categories-tablet-dark.png`,
+  `/tmp/marten-bank-row-padding-light.png` and
+  `/tmp/marten-bank-row-padding-phone-dark.png`.
+
+## September 13 — Dashboard spending card header
+
+- Moved “View cash flow →” into the shared panel header, replacing the redundant
+  month label, and removed the footer link and divider. The chart and legend
+  fill the remaining card height so they stay centered beside taller widgets.
+- Reviewed the fictional demo at 1440×1000, 1024×1100, and 390×844 in light and
+  dark appearance. Header labels fit, the footer is gone, and category hover
+  still highlights the matching donut segment. Keyboard activation of the
+  header link opened `/cash-flow`.
+- Passed `npm run typecheck`, focused ESLint for `src/features/Dashboard.tsx`,
+  and `git diff --check`. No finance logic or backend behavior changed.
+
 ## September 12 — Visual refinement pass (reports basis, dashboard customizer, statements, support, buttons)
 
 - Reports and Cash Flow: the "Based on N transactions…" footnote at the page
@@ -814,3 +855,20 @@ Consent copy in Settings and on `/agent-authorize` names the new edit scope.
   rule and QA categories removed, preferences unchanged, grant disconnected.
 - Not covered: hosted ChatGPT/Claude connection flows and the WebMCP browser
   path (it shares these schemas and gained the same tools without a live check).
+
+
+## September 13, 2026 · Lunch Flow, chart preferences and interface review
+
+Implemented user-owned Lunch Flow API connections alongside SimpleFIN and the existing gated Plaid path. Official API contracts and Monarch screens reviewed through Mobbin are linked in [Lunch Flow](lunchflow.md) and [the design review](design/mobbin-review.md). Updated the public FAQ, privacy policy, terms, setup guides and search catalog.
+
+- Automated: 335 tests across 47 files passed, including Lunch Flow contract validation, amount signs, pending exclusion, incomplete responses, provider error sanitization, sealed credentials, user isolation, coexistence with legacy SimpleFIN, repeat-import preservation, disconnect fencing, removal without history loss, invalid-key replacement, chart validation and idempotent demo scores. Typecheck, lint and production build passed.
+- Development backend: `npx convex dev --once` succeeded on the configured development deployment. No production deployment or live bank consent was performed. A temporary internal fixture created five fictional accounts across two stopped services for UI review, then removed those records; the fixture function was deleted and removed from the deployment.
+- Browser: used the running app at `127.0.0.1:5173`, isolated demo sessions and a fictional personal QA account. Reviewed connection choices, masked key entry, malformed-key validation, populated institutions and the single overall empty state. Both themes and 1280/1440px laptop, 1024px tablet and 390px phone layouts were reviewed across the changed surfaces. Phone checks found no horizontal page overflow.
+- Preferences: saved Treemap for spending and trend bars for cash flow through the shared selects; reloaded to confirm persistence. Reports and Cash Flow used the selected defaults. A saved fictional pie report retained Pie chart when reopened, while switching to Spending applied Treemap. A new demo displayed six fictional scores and a 741 TransUnion/VantageScore 3.0 dashboard widget.
+- Design follow-ups: added space below provider choices; moved PDF limits, chart-default guidance and connection-maintenance details into click/touch info disclosures. Verified Escape dismissal and return of focus, 44px help targets, and light/dark responsive padding. Folded donation-frequency copy into the support paragraph. Corrected the missing intrinsic viewBox in Trader Joe’s bundled SVG; audited the other bundled SVG image wrappers for the same omission.
+- Chart interaction: reproduced the unwanted browser outline on Recharts SVG layers after pointer clicks. Pointer focus now has no outline on Dashboard and Cash Flow chart surfaces, including trend bars. Keyboard focus still displays a themed ring and arrow-key navigation remains available.
+- During editing, Vite Fast Refresh briefly produced a stale finance-context error after the shared UI module changed. A full browser reload recovered both QA sessions; final checks were performed on settled pages.
+
+Evidence remains in `/tmp/marten-*` screenshots, including `marten-connect-phone-light.png`, `marten-institutions-phone-dark-full.png`, `marten-preferences-phone-dark.png`, `marten-preferences-tablet-light.png`, `marten-credit-desktop-light.png`, `marten-new-demo-widget.png`, `marten-trader-joes-logo.png`, `marten-support-tablet-light.png` and `marten-cashflow-pointer-dark.png`. All captured financial data is fictional.
+
+Not verified: an account-holder Lunch Flow key, live institution coverage/completeness, available brokerage holdings or signs for a particular bank, a new Plaid consent, or a production release. The integration is ready for account-holder testing; broader Lunch Flow coverage does not guarantee richer categories or credit-card statement data.
