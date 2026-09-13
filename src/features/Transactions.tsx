@@ -4,17 +4,13 @@ import {
   displayMoney as money,
 } from "../lib/amountVisibility";
 import { CategoryIcon } from "../components/folio/CategoryIcon";
-import {
-  transactionDatePresets,
-  transactionRangeLabel,
-} from "../lib/dateRanges";
+import { transactionDatePresets } from "../lib/dateRanges";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { useSearchParams } from "react-router-dom";
 import * as Popover from "@radix-ui/react-popover";
 import {
   ArrowDownUp,
-  CalendarDays,
   CheckCircle2,
   ChevronRight,
   Columns3,
@@ -57,7 +53,7 @@ import {
 } from "../components/folio/ui";
 import { PageHeader } from "../components/folio/PageHeader";
 import { Select } from "../components/folio/Select";
-import { DatePicker } from "../components/folio/DatePicker";
+import { DateRangeButton } from "../components/folio/DateRangeButton";
 import { TransactionDrawer } from "./transactions/TransactionDrawer";
 import {
   NewTransaction,
@@ -73,7 +69,6 @@ export function Transactions() {
     [debounced, setDebounced] = useState(search);
   const [from, setFrom] = useState(params.get("from") ?? ""),
     [to, setTo] = useState(params.get("to") ?? ""),
-    [dateOpen, setDateOpen] = useState(false),
     [tab, setTab] = useState(
       params.get("tab") === "receipts" ? "receipts" : "all",
     ),
@@ -291,65 +286,15 @@ export function Transactions() {
           onChange={setSearch}
           placeholder="Search transactions…"
         />
-        <Popover.Root open={dateOpen} onOpenChange={setDateOpen}>
-          <Popover.Trigger asChild>
-            <Button
-              icon={<CalendarDays size={16} />}
-              className={from || to ? "filter-active" : ""}
-            >
-              {transactionRangeLabel(from, to)}
-            </Button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content
-              className="filter-popover date-range-popover"
-              align="end"
-              sideOffset={8}
-            >
-              <h3>Date range</h3>
-              <div
-                className="date-range-presets"
-                role="group"
-                aria-label="Common date ranges"
-              >
-                {transactionDatePresets().map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    aria-pressed={from === preset.from && to === preset.to}
-                    onClick={() => {
-                      setFrom(preset.from);
-                      setTo(preset.to);
-                      setDateOpen(false);
-                    }}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <p className="date-range-custom-label">Custom range</p>
-              <label>
-                From
-                <DatePicker
-                  value={from}
-                  onChange={setFrom}
-                  label="From date"
-                  max={to || undefined}
-                />
-              </label>
-              <label>
-                To
-                <DatePicker
-                  value={to}
-                  onChange={setTo}
-                  label="To date"
-                  min={from || undefined}
-                />
-              </label>
-              <Button onClick={() => setDateOpen(false)}>Done</Button>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
+        <DateRangeButton
+          from={from}
+          to={to}
+          presets={transactionDatePresets()}
+          onChange={(nextFrom, nextTo) => {
+            setFrom(nextFrom);
+            setTo(nextTo);
+          }}
+        />
         <Popover.Root>
           <Popover.Trigger asChild>
             <Button

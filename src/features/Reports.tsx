@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  SlidersHorizontal,
+  Filter,
   PieChart as PieIcon,
   Save,
   Trash2,
@@ -74,7 +74,8 @@ import {
   FlowChart,
 } from "../components/folio/charts";
 import { Select } from "../components/folio/Select";
-import { DatePicker } from "../components/folio/DatePicker";
+import { DateRangeButton } from "../components/folio/DateRangeButton";
+import { reportDatePresets } from "../lib/dateRanges";
 import { CashFlowTimeline } from "../components/folio/CashFlowTimeline";
 import { MoneyFlow } from "../components/folio/MoneyFlow";
 import { PageHeader } from "../components/folio/PageHeader";
@@ -1197,28 +1198,21 @@ export function Reports() {
         </div>
       </div>
       <div className="report-filters">
-        <label>
-          <span>From</span>
-          <DatePicker
-            label="Report start date"
-            value={from}
-            onChange={setFrom}
-            max={to || undefined}
-          />
-        </label>
-        <label>
-          <span>Through</span>
-          <DatePicker
-            label="Report end date"
-            value={to}
-            onChange={setTo}
-            min={from || undefined}
-          />
-        </label>
+        <DateRangeButton
+          from={from}
+          to={to}
+          presets={reportDatePresets()}
+          required
+          align="start"
+          onChange={(nextFrom, nextTo) => {
+            setFrom(nextFrom);
+            setTo(nextTo);
+          }}
+        />
         <GroupPicker value={groupBy} onChange={setGroupBy} />
         <Button
           className={filtersOpen || filterCount ? "report-filter-active" : ""}
-          icon={<SlidersHorizontal size={15} />}
+          icon={<Filter size={15} />}
           onClick={() => setFiltersOpen(!filtersOpen)}
           aria-expanded={filtersOpen}
           aria-controls="report-extra-filters"
