@@ -85,23 +85,28 @@ export function DocumentPage({ document }: { document: SiteDocument }) {
   useDocumentTitle(`${document.title} · Marten`, document.summary);
   const ids = document.sections.map((section) => section.id);
   const current = useCurrentSection(ids);
+  const essay = document.layout === "essay";
   return (
     <SiteLayout tone="paper">
-      <div className="doc">
-        <aside className="doc-aside" aria-label="On this page">
-          <div className="doc-meta">Effective {document.effective}</div>
-          <nav>
-            {document.sections.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                className={current === section.id ? "is-current" : ""}
-              >
-                {section.heading}
-              </a>
-            ))}
-          </nav>
-        </aside>
+      <div className={`doc ${essay ? "doc-essay" : ""}`}>
+        {!essay && (
+          <aside className="doc-aside" aria-label="On this page">
+            {document.effective && (
+              <div className="doc-meta">Effective {document.effective}</div>
+            )}
+            <nav>
+              {document.sections.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className={current === section.id ? "is-current" : ""}
+                >
+                  {section.heading}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        )}
         <article className="doc-body">
           <header>
             <h1>{document.title}</h1>

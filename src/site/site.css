@@ -806,6 +806,27 @@
   grid-template-columns: 220px minmax(0, 1fr);
   gap: clamp(28px, 5vw, 80px);
 }
+/* Short pages read as a single column; the rail only earns its place on long policies. */
+.doc-essay {
+  --site-muted-strong: color-mix(
+    in oklab,
+    var(--site-muted) 60%,
+    var(--site-ink)
+  );
+  grid-template-columns: minmax(0, 1fr);
+  max-width: calc(68ch + var(--site-gutter) * 2);
+}
+.doc-essay .doc-body > header p {
+  max-width: 52ch;
+  color: var(--site-muted-strong);
+}
+/* Four short sections read as one piece: closer together than a policy's chapters. */
+.doc-essay .doc-body section {
+  margin-top: clamp(30px, 4vw, 44px);
+}
+.doc-essay .doc-footer {
+  color: var(--site-muted-strong);
+}
 .doc-aside {
   position: sticky;
   top: 96px;

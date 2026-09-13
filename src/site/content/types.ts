@@ -9,7 +9,10 @@ export type SiteDocument = {
   slug: string;
   title: string;
   summary: string;
-  effective: string;
+  /** Shown beside the section list; policies cite it in their own text. */
+  effective?: string;
+  /** "essay" reads as one column with no section rail, for short pages. */
+  layout?: "document" | "essay";
   sections: SiteSection[];
 };
 export type FaqEntry = {

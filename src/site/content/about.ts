@@ -5,7 +5,7 @@ export const aboutStory: SiteDocument = {
   title: "About Marten",
   summary:
     "Why I built a free finance app, what the name means, how it is paid for, and where the code lives.",
-  effective: "September 12, 2026",
+  layout: "essay",
   sections: [
     {
       id: "why-marten-exists",
