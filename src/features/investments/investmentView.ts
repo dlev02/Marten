@@ -1,3 +1,12 @@
+/** Muted series colors shared by the allocation bars on Investments and the dashboard. */
+export const allocationColors = [
+  "#7b9890",
+  "#8195ae",
+  "#baa17c",
+  "#9c91a8",
+  "#849b74",
+];
+
 export type PositionValue = {
   valueCents: number;
   basisCents: number | null;

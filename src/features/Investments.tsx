@@ -34,6 +34,7 @@ import { Select } from "../components/folio/Select";
 import { PageHeader } from "../components/folio/PageHeader";
 import { NetWorthChart } from "../components/folio/charts";
 import {
+  allocationColors,
   investmentMetrics,
   investmentRange,
   securityType,
@@ -56,13 +57,6 @@ const ranges = [
   { value: "1Y", label: "Past year" },
   { value: "ALL", label: "All history" },
   { value: "custom", label: "Custom dates" },
-];
-const allocationColors = [
-  "#7b9890",
-  "#8195ae",
-  "#baa17c",
-  "#9c91a8",
-  "#849b74",
 ];
 
 function valueLabel(value: number, currency: string) {

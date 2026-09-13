@@ -13,6 +13,7 @@ import {
   cents,
 } from "./lib/access";
 import { accountKind, avatarPreset } from "./validators";
+import { dashboardWidgetIds } from "./lib/dashboardWidgets";
 import { api, internal } from "./_generated/api";
 import { internalAction, internalMutation } from "./_generated/server";
 import { plaidRequest } from "./lib/plaidApi";
@@ -417,16 +418,7 @@ export const saveProfile = userMutation({
       fields.widgets &&
       (fields.widgets.length > 20 ||
         fields.widgets.some(
-          (w) =>
-            ![
-              "netWorth",
-              "spending",
-              "cashFlow",
-              "recurring",
-              "transactions",
-              "accounts",
-              "topMerchants",
-            ].includes(w),
+          (w) => !(dashboardWidgetIds as readonly string[]).includes(w),
         ))
     )
       throw new ConvexError("Choose supported dashboard widgets.");

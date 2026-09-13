@@ -48,13 +48,24 @@ import {
 } from "../components/folio/charts";
 import { PageHeader, AddAccountButton } from "../components/folio/PageHeader";
 import { Select } from "../components/folio/Select";
+import { CreditScoreWidget, InvestmentsWidget } from "./dashboard/widgets";
 const widgetNames: Record<string, string> = {
   netWorth: "Net worth",
   transactions: "Recent transactions",
   recurring: "Upcoming recurring",
   spending: "Spending this month",
   cashFlow: "Cash flow",
+  investments: "Investments",
+  creditScore: "Credit score",
 };
+/** A new dashboard starts with these; the rest are offered in Customize. */
+const defaultWidgets = [
+  "netWorth",
+  "transactions",
+  "recurring",
+  "spending",
+  "cashFlow",
+];
 export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
   useAmountsHidden();
   const data = useData(),
@@ -170,16 +181,9 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
   const upcoming = [...schedules, ...statements]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 4);
-  const defaults = [
-      "netWorth",
-      "transactions",
-      "recurring",
-      "spending",
-      "cashFlow",
-    ],
-    widgets = data.profile?.widgets?.length
-      ? data.profile.widgets.filter((w) => defaults.includes(w))
-      : defaults;
+  const widgets = data.profile?.widgets?.length
+    ? data.profile.widgets.filter((w) => w in widgetNames)
+    : defaultWidgets;
   const complete = monthly.status === "Exhausted";
   const panels: Record<string, React.ReactNode> = {
     netWorth: (
@@ -439,6 +443,8 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
         )}
       </Panel>
     ),
+    investments: <InvestmentsWidget />,
+    creditScore: <CreditScoreWidget />,
   };
   return (
     <>

@@ -21,7 +21,8 @@ export const searchDestinations: SearchDestination[] = [
     title: "Dashboard",
     section: "Pages",
     path: "/dashboard",
-    keywords: "home overview widgets customize",
+    keywords:
+      "home overview widgets customize net worth investments credit score cash flow",
   },
   {
     id: "accounts",

@@ -30,6 +30,7 @@ import type * as lib_agentTools from "../lib/agentTools.js";
 import type * as lib_categoryDefaults from "../lib/categoryDefaults.js";
 import type * as lib_credentialCrypto from "../lib/credentialCrypto.js";
 import type * as lib_creditScores from "../lib/creditScores.js";
+import type * as lib_dashboardWidgets from "../lib/dashboardWidgets.js";
 import type * as lib_finance from "../lib/finance.js";
 import type * as lib_forecast from "../lib/forecast.js";
 import type * as lib_forecastValidators from "../lib/forecastValidators.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "lib/categoryDefaults": typeof lib_categoryDefaults;
   "lib/credentialCrypto": typeof lib_credentialCrypto;
   "lib/creditScores": typeof lib_creditScores;
+  "lib/dashboardWidgets": typeof lib_dashboardWidgets;
   "lib/finance": typeof lib_finance;
   "lib/forecast": typeof lib_forecast;
   "lib/forecastValidators": typeof lib_forecastValidators;

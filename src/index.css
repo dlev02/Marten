@@ -616,6 +616,250 @@ label select {
 .dashboard-networth {
   min-height: 321px;
 }
+/* Investments widget: value and gain, a quiet path, then holdings by type. */
+.portfolio-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px 3px;
+}
+.portfolio-gain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+  padding-top: 5px;
+}
+.portfolio-gain span,
+.portfolio-gain small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.portfolio-gain strong {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.change.muted-change span {
+  margin-left: 0;
+}
+.portfolio-spark {
+  height: 64px;
+  margin: 8px 20px 0;
+}
+.portfolio-spark .sparkline {
+  width: 100%;
+  height: 100%;
+}
+.portfolio-spark-empty {
+  display: block;
+  height: 100%;
+  border-bottom: 1px dashed var(--border);
+}
+.portfolio-allocation {
+  padding: 16px 20px 20px;
+}
+.portfolio-allocation-bar {
+  display: flex;
+  height: 8px;
+  gap: 2px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.portfolio-allocation-bar > span {
+  display: block;
+  min-width: 3px;
+  border-radius: 2px;
+}
+.portfolio-allocation-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
+  margin-top: 12px;
+}
+.portfolio-allocation-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  min-width: 0;
+}
+.portfolio-allocation-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.portfolio-allocation-legend span {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.portfolio-allocation-legend strong {
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-note {
+  margin: 0;
+  padding: 16px 20px 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* Credit score widget: a half gauge on the 300–850 scale beside the detail. */
+.dashboard-credit {
+  display: flex;
+  flex-direction: column;
+}
+.credit-widget {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 2px 20px 24px;
+}
+.credit-widget-gauge {
+  position: relative;
+  flex: 0 0 176px;
+  width: 176px;
+}
+.credit-widget-gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.credit-gauge-track,
+.credit-gauge-fill {
+  fill: none;
+  stroke-width: 11;
+  stroke-linecap: round;
+}
+.credit-gauge-track {
+  stroke: var(--selected);
+}
+.credit-gauge-fill {
+  stroke: var(--accent);
+}
+.credit-gauge-marker {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 3.5;
+}
+.credit-widget-reading {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 46%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.credit-widget-reading strong {
+  font-size: 33px;
+  font-weight: 600;
+  letter-spacing: -1.2px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.credit-widget-reading span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.credit-widget-scale {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.credit-widget-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.credit-widget-model {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.credit-widget-model strong {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+.credit-widget-model span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.credit-widget-detail .change {
+  margin-top: 2px;
+}
+.credit-widget-date {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.credit-widget-others {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.credit-widget-others button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+}
+.credit-widget-others button:hover {
+  background: var(--selected);
+  color: var(--text);
+}
+.credit-widget-others strong {
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 440px) {
+  .credit-widget {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .credit-widget-gauge {
+    width: 176px;
+    margin: 0 auto;
+  }
+  .portfolio-top {
+    flex-wrap: wrap;
+  }
+  .portfolio-gain {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
 .networth-top {
   display: flex;
   align-items: flex-start;
