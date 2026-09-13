@@ -1,3 +1,8 @@
+import {
+  bankProvider,
+  providerName,
+  type BankProvider,
+} from "./lib/bankProviders";
 import { ConvexError, v } from "convex/values";
 import {
   internalMutation,
@@ -40,33 +45,38 @@ export async function requirePersonalWorkspace(
     .unique();
   if (!user || user.isAnonymous || !profile || profile.demo)
     throw new ConvexError(
-      "Create a personal workspace before connecting SimpleFIN. The public demo cannot access real bank data.",
+      "Create a personal workspace before connecting a bank. The public demo cannot access real bank data.",
     );
 }
-/** One bridge connection per user; a reconnect replaces its access URL in place. */
+/** One connection per user and provider; a reconnect replaces its access URL in place. */
 export async function savedConnection(
   ctx: Pick<QueryCtx, "db">,
   userId: Id<"users">,
+  provider: BankProvider = "simplefin",
 ) {
   const rows = await ctx.db
     .query("simplefinConnections")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .take(2);
-  if (rows.length > 1)
+    .take(3);
+  const matches = rows.filter(
+    (row) => (row.provider ?? "simplefin") === provider,
+  );
+  if (rows.length > 2 || matches.length > 1)
     throw new ConvexError(
-      "This workspace has more than one SimpleFIN connection.",
+      "This workspace has duplicate connections for a bank service.",
     );
-  return rows[0] ?? null;
+  return matches[0] ?? null;
 }
 export async function requireConnection(
   ctx: Pick<QueryCtx, "db">,
   userId: Id<"users">,
+  provider: BankProvider = "simplefin",
 ): Promise<Doc<"simplefinConnections">> {
   await requirePersonalWorkspace(ctx, userId);
-  const connection = await savedConnection(ctx, userId);
+  const connection = await savedConnection(ctx, userId, provider);
   if (!connection)
     throw new ConvexError(
-      "Connect SimpleFIN with a setup token before importing accounts.",
+      `Connect ${providerName(provider)} before importing accounts.`,
     );
   return connection;
 }
@@ -82,7 +92,7 @@ async function fenced(
     (connection.syncLease ?? 0) < Date.now()
   )
     throw new ConvexError(
-      "This SimpleFIN import was stopped or superseded. Try again.",
+      "This bank import was stopped or superseded. Try again.",
     );
   await requirePersonalWorkspace(ctx, connection.userId);
   await ctx.db.patch(connection._id, { syncLease: Date.now() + LEASE_MS });
@@ -90,15 +100,15 @@ async function fenced(
 }
 /** Server-only: the stored access URL is returned so an action can open it. */
 export const context = internalQuery({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), provider: v.optional(bankProvider) },
   returns: v.object({
     connection: schema.doc("simplefinConnections"),
     accounts: v.array(schema.doc("accounts")),
     allowPending: v.boolean(),
     investmentActivity: v.boolean(),
   }),
-  handler: async (ctx, { userId }) => {
-    const connection = await requireConnection(ctx, userId);
+  handler: async (ctx, { userId, provider }) => {
+    const connection = await requireConnection(ctx, userId, provider);
     const accounts = await ctx.db
       .query("accounts")
       .withIndex("by_simplefinConnectionId", (q) =>
@@ -106,7 +116,7 @@ export const context = internalQuery({
       )
       .take(101);
     if (accounts.length > 100)
-      throw new ConvexError("This SimpleFIN connection has too many accounts.");
+      throw new ConvexError("This bank connection has too many accounts.");
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -121,7 +131,7 @@ export const context = internalQuery({
 });
 /** Reserves one connect attempt before a token is claimed. */
 export const reserveConnect = internalMutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), provider: v.optional(bankProvider) },
   returns: v.null(),
   handler: async (ctx, { userId }) => {
     await requirePersonalWorkspace(ctx, userId);
@@ -130,19 +140,24 @@ export const reserveConnect = internalMutation({
     });
     if (!limited.ok)
       throw new ConvexError(
-        "Too many SimpleFIN connection attempts. Wait a few minutes and try again.",
+        "Too many bank connection attempts. Wait a few minutes and try again.",
       );
     return null;
   },
 });
 /** Saves a freshly claimed access URL (already sealed by the action). */
 export const store = internalMutation({
-  args: { userId: v.id("users"), accessUrl: v.string(), host: v.string() },
+  args: {
+    userId: v.id("users"),
+    provider: v.optional(bankProvider),
+    accessUrl: v.string(),
+    host: v.string(),
+  },
   returns: v.id("simplefinConnections"),
-  handler: async (ctx, { userId, accessUrl, host }) => {
+  handler: async (ctx, { userId, provider, accessUrl, host }) => {
     await requirePersonalWorkspace(ctx, userId);
     const now = Date.now();
-    const existing = await savedConnection(ctx, userId);
+    const existing = await savedConnection(ctx, userId, provider);
     if (existing) {
       // A new token supersedes any import fenced to the old one.
       await ctx.db.patch(existing._id, {
@@ -158,6 +173,7 @@ export const store = internalMutation({
     }
     return await ctx.db.insert("simplefinConnections", {
       userId,
+      provider,
       accessUrl,
       host,
       status: "connected",
@@ -189,7 +205,9 @@ export const note = internalMutation({
 /** Connections the daily catch-up should refresh: connected and not synced within 20 hours. */
 export const due = internalQuery({
   args: { before: v.number() },
-  returns: v.array(v.object({ userId: v.id("users") })),
+  returns: v.array(
+    v.object({ userId: v.id("users"), provider: v.optional(bankProvider) }),
+  ),
   handler: async (ctx, { before }) => {
     const rows = await ctx.db
       .query("simplefinConnections")
@@ -197,7 +215,7 @@ export const due = internalQuery({
         q.eq("status", "connected").lt("syncedAt", before),
       )
       .take(50);
-    return rows.map((row) => ({ userId: row.userId }));
+    return rows.map((row) => ({ userId: row.userId, provider: row.provider }));
   },
 });
 const preparedAccount = v.object({
@@ -211,6 +229,7 @@ export const begin = internalMutation({
     accounts: v.array(preparedAccount),
     reconnect: v.boolean(),
     expectedVersion: v.number(),
+    provider: v.optional(bankProvider),
   },
   returns: v.object({
     ...fenceArgs,
@@ -223,28 +242,26 @@ export const begin = internalMutation({
     ),
   }),
   handler: async (ctx, args) => {
-    const connection = await requireConnection(ctx, args.userId);
+    const connection = await requireConnection(ctx, args.userId, args.provider);
     if (connection.syncVersion !== args.expectedVersion)
       throw new ConvexError(
-        "The SimpleFIN connection changed while its data was loading. Review the accounts and try again.",
+        "The bank connection changed while its data was loading. Review the accounts and try again.",
       );
     if (connection.status === "disconnected" && !args.reconnect)
       throw new ConvexError(
-        "SimpleFIN imports are stopped. Review and import accounts to resume.",
+        "Bank imports are stopped. Review and import accounts to resume.",
       );
     if ((connection.syncLease ?? 0) > Date.now())
       throw new ConvexError(
-        "A SimpleFIN import is already running. Wait for it to finish.",
+        "A bank import is already running. Wait for it to finish.",
       );
     if (!args.accounts.length || args.accounts.length > 25)
-      throw new ConvexError(
-        "Import between 1 and 25 SimpleFIN accounts at a time.",
-      );
+      throw new ConvexError("Import between 1 and 25 bank accounts at a time.");
     if (
       new Set(args.accounts.map((row) => row.account.externalId)).size !==
       args.accounts.length
     )
-      throw new ConvexError("Select each SimpleFIN account once.");
+      throw new ConvexError("Select each bank account once.");
     const version = connection.syncVersion + 1;
     const connectionId = connection._id;
     await ctx.db.patch(connectionId, {
@@ -272,7 +289,7 @@ export const begin = internalMutation({
         selection.externalAccountId !== incoming.externalId ||
         selection.kind !== incoming.kind
       )
-        throw new ConvexError("Review the SimpleFIN account selection again.");
+        throw new ConvexError("Review the bank account selection again.");
       const existing = await ctx.db
         .query("accounts")
         .withIndex("by_simplefinConnectionId_and_simplefinAccountId", (q) =>
@@ -291,7 +308,7 @@ export const begin = internalMutation({
         throw new ConvexError("The selected Marten account is unavailable.");
       if (existing && target?._id !== existing._id)
         throw new ConvexError(
-          "This SimpleFIN account is already imported. Use its existing Marten account.",
+          "This bank account is already imported. Use its existing Marten account.",
         );
       if (!target && ownedAccountCount >= 200)
         throw new ConvexError(
@@ -299,10 +316,17 @@ export const begin = internalMutation({
         );
       if (target && selectedTargets.has(target._id))
         throw new ConvexError(
-          "Map each SimpleFIN account to a different Marten account.",
+          "Map each bank account to a different Marten account.",
         );
       if (target) {
         selectedTargets.add(target._id);
+        if (
+          target.simplefinConnectionId &&
+          target.simplefinConnectionId !== connectionId
+        )
+          throw new ConvexError(
+            "Remove the previous bank connection before mapping this account to another provider. Your saved history will stay.",
+          );
         if (target.closed)
           throw new ConvexError(
             "Reopen this Marten account before importing into it.",
@@ -314,14 +338,14 @@ export const begin = internalMutation({
         const plaid = target.itemId ? await ctx.db.get(target.itemId) : null;
         if (plaid && plaid.status !== "disconnected")
           throw new ConvexError(
-            "Disconnect this account's Plaid connection before mapping it to SimpleFIN.",
+            "Disconnect this account's Plaid connection before mapping it to this provider.",
           );
         if (
           target.simplefinAccountId &&
           target.simplefinAccountId !== incoming.externalId
         )
           throw new ConvexError(
-            "This Marten account is mapped to a different SimpleFIN account.",
+            "This Marten account is mapped to a different bank account.",
           );
         if (!target.simplefinAccountId) {
           // Existing history from another source must end before the new import begins.
@@ -334,7 +358,7 @@ export const begin = internalMutation({
             .first();
           if (latest && latest.date >= fromDate)
             throw new ConvexError(
-              `Start the SimpleFIN import after ${latest.date} for ${target.name}. This keeps its existing history from being counted twice.`,
+              `Start the bank import after ${latest.date} for ${target.name}. This keeps its existing history from being counted twice.`,
             );
         }
       }
@@ -343,6 +367,9 @@ export const begin = internalMutation({
         currency: incoming.currency,
         availableCents: incoming.availableCents,
         simplefinConnectionId: connectionId,
+        bankProvider: connection.provider ?? "simplefin",
+        connectionProvider: incoming.connectionProvider,
+        ...(incoming.logoUrl ? { logoUrl: incoming.logoUrl } : {}),
         simplefinAccountId: incoming.externalId,
         simplefinImportFromDate:
           target?.simplefinImportFromDate &&
@@ -405,7 +432,7 @@ export const begin = internalMutation({
   },
 });
 /**
- * SimpleFIN sends no category. A merchant category code, or an obvious
+ * Providers may omit categories. A merchant category code, or an obvious
  * transfer/income description, chooses a starting category when the user
  * already has one by that name; everything else starts uncategorized.
  */
@@ -493,7 +520,7 @@ export const ingest = internalMutation({
       account.simplefinConnectionId !== connection._id
     )
       throw new ConvexError(
-        "This SimpleFIN account mapping changed. Review the account before retrying.",
+        "This bank account mapping changed. Review the account before retrying.",
       );
     if (args.transactions.length > 100)
       throw new ConvexError("Import at most 100 transactions per batch.");
@@ -510,7 +537,7 @@ export const ingest = internalMutation({
         incoming.date < (account.simplefinImportFromDate ?? "0000")
       )
         throw new ConvexError(
-          "The SimpleFIN transaction is outside this account's import range.",
+          "The bank transaction is outside this account's import range.",
         );
       const existing = await ctx.db
         .query("transactions")
@@ -523,10 +550,10 @@ export const ingest = internalMutation({
       if (existing) {
         if (
           existing.userId !== connection.userId ||
-          existing.source !== "simplefin"
+          existing.source !== (connection.provider ?? "simplefin")
         )
           throw new ConvexError(
-            "This SimpleFIN transaction identity is unavailable.",
+            "This bank transaction identity is unavailable.",
           );
         let categoryId = existing.categoryId;
         // Only enrich an untouched fallback. Reviewed, split, manually edited,
@@ -582,7 +609,7 @@ export const ingest = internalMutation({
           await ctx.db.insert("activity", {
             userId: connection.userId,
             transactionId: existing._id,
-            message: `SimpleFIN changed the posted amount from ${(existing.amountCents / 100).toFixed(2)} to ${(fields.amountCents / 100).toFixed(2)} USD. Your split allocations are saved for review; reports use the updated total until reconciled.`,
+            message: `bank changed the posted amount from ${(existing.amountCents / 100).toFixed(2)} to ${(fields.amountCents / 100).toFixed(2)} USD. Your split allocations are saved for review; reports use the updated total until reconciled.`,
           });
         }
         await ctx.db.patch(existing._id, {
@@ -632,7 +659,7 @@ export const ingest = internalMutation({
         };
         await ctx.db.patch(spreadsheetRow._id, {
           ...fields,
-          source: "simplefin",
+          source: connection.provider ?? "simplefin",
           simplefinTransactionId: incoming.externalId,
           removedFromBank: false,
           updatedAt: Date.now(),
@@ -682,7 +709,7 @@ export const ingest = internalMutation({
       await ctx.db.insert("transactions", {
         ...fields,
         userId: connection.userId,
-        source: "simplefin",
+        source: connection.provider ?? "simplefin",
         simplefinTransactionId: incoming.externalId,
         editedFields: [],
         updatedAt: Date.now(),

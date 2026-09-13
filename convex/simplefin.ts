@@ -1,3 +1,14 @@
+import {
+  bankProvider,
+  providerName,
+  type BankProvider,
+} from "./lib/bankProviders";
+import {
+  lunchflowAccounts,
+  lunchflowError,
+  lunchflowKey,
+  LUNCHFLOW_NOTICE,
+} from "./lib/lunchflowApi";
 import { ConvexError, v, type Infer } from "convex/values";
 import { env, internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -63,15 +74,17 @@ async function isPersonalWorkspace(
   }
 }
 export const status = userQuery({
-  args: {},
+  args: { provider: v.optional(bankProvider) },
   returns: v.object({
     availableToUser: v.boolean(),
     setupReason: v.union(v.string(), v.null()),
     connection: v.union(safeConnection, v.null()),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, { provider = "simplefin" }) => {
     const personal = await isPersonalWorkspace(ctx, ctx.userId);
-    const connection = personal ? await savedConnection(ctx, ctx.userId) : null;
+    const connection = personal
+      ? await savedConnection(ctx, ctx.userId, provider)
+      : null;
     const accounts = connection
       ? await ctx.db
           .query("accounts")
@@ -84,7 +97,7 @@ export const status = userQuery({
       availableToUser: personal,
       setupReason: personal
         ? null
-        : "Sign in to a personal workspace to connect SimpleFIN. The demo cannot connect to a bank.",
+        : "Sign in to a personal workspace to connect a bank. The demo cannot connect to a bank.",
       connection: connection
         ? {
             _id: connection._id,
@@ -134,10 +147,11 @@ type ImportContext = {
 /** Loads the caller's connection and opens the stored access URL for requests. */
 async function importContext(
   ctx: ActionCtx & { userId: Id<"users"> },
+  provider: BankProvider = "simplefin",
 ): Promise<ImportContext & { accessUrl: string }> {
   const context: ImportContext = await ctx.runQuery(
     internal.simplefinInternal.context,
-    { userId: ctx.userId },
+    { userId: ctx.userId, provider },
   );
   return {
     ...context,
@@ -150,10 +164,14 @@ async function importContext(
 async function fetchPreview(
   accessUrl: string,
   existing: Doc<"accounts">[],
+  provider: BankProvider = "simplefin",
 ): Promise<PreviewResult> {
-  const set = parseAccountSet(
-    await simplefinAccounts(accessUrl, { balancesOnly: true }),
-  );
+  const set =
+    provider === "lunchflow"
+      ? await lunchflowAccounts(accessUrl)
+      : parseAccountSet(
+          await simplefinAccounts(accessUrl, { balancesOnly: true }),
+        );
   return {
     accounts: set.accounts.map((row) => {
       const incoming = previewSimplefinAccount(row);
@@ -169,7 +187,7 @@ async function fetchPreview(
       };
     }),
     providerErrors: set.errors,
-    notice: NOTICE,
+    notice: provider === "lunchflow" ? LUNCHFLOW_NOTICE : NOTICE,
   };
 }
 /**
@@ -177,33 +195,49 @@ async function fetchPreview(
  * before the first data request; a failed preview leaves a retryable connection.
  */
 export const connect = userAction({
-  args: { setupToken: v.string() },
+  args: { setupToken: v.string(), provider: v.optional(bankProvider) },
   returns: v.object({
     host: v.string(),
     preview: v.union(previewResult, v.null()),
     warning: v.union(v.string(), v.null()),
   }),
-  handler: async (ctx, { setupToken }) => {
+  handler: async (ctx, { setupToken, provider = "simplefin" }) => {
     await ctx.runMutation(internal.simplefinInternal.reserveConnect, {
       userId: ctx.userId,
     });
     let accessUrl: string;
+    let validatedPreview: PreviewResult | undefined;
     try {
-      accessUrl = await claimAccessUrl(decodeSetupToken(setupToken));
+      accessUrl =
+        provider === "lunchflow"
+          ? lunchflowKey(setupToken)
+          : await claimAccessUrl(decodeSetupToken(setupToken));
+      // Validate reusable Lunch Flow keys before replacing a working credential.
+      if (provider === "lunchflow")
+        validatedPreview = await fetchPreview(accessUrl, [], provider);
     } catch (error) {
-      throw new ConvexError(simplefinError(error));
+      throw new ConvexError(
+        provider === "lunchflow"
+          ? lunchflowError(error)
+          : simplefinError(error),
+      );
     }
-    const { host } = parseAccessUrl(accessUrl);
+    const host =
+      provider === "lunchflow"
+        ? "lunchflow.app"
+        : parseAccessUrl(accessUrl).host;
     const connectionId: Id<"simplefinConnections"> = await ctx.runMutation(
       internal.simplefinInternal.store,
       {
         userId: ctx.userId,
+        provider,
         accessUrl: await sealCredential(accessUrl, env.CREDENTIALS_KEY),
         host,
       },
     );
     try {
-      const preview = await fetchPreview(accessUrl, []);
+      const preview =
+        validatedPreview ?? (await fetchPreview(accessUrl, [], provider));
       if (preview.providerErrors.length)
         await ctx.runMutation(internal.simplefinInternal.note, {
           connectionId,
@@ -211,7 +245,10 @@ export const connect = userAction({
         });
       return { host, preview, warning: null };
     } catch (error) {
-      const warning = simplefinError(error);
+      const warning =
+        provider === "lunchflow"
+          ? lunchflowError(error)
+          : simplefinError(error);
       await ctx.runMutation(internal.simplefinInternal.note, {
         connectionId,
         error: warning,
@@ -221,14 +258,18 @@ export const connect = userAction({
   },
 });
 export const preview = userAction({
-  args: {},
+  args: { provider: v.optional(bankProvider) },
   returns: previewResult,
-  handler: async (ctx): Promise<PreviewResult> => {
-    const { accessUrl, accounts } = await importContext(ctx);
+  handler: async (ctx, { provider = "simplefin" }): Promise<PreviewResult> => {
+    const { accessUrl, accounts } = await importContext(ctx, provider);
     try {
-      return await fetchPreview(accessUrl, accounts);
+      return await fetchPreview(accessUrl, accounts, provider);
     } catch (error) {
-      throw new ConvexError(simplefinError(error));
+      throw new ConvexError(
+        provider === "lunchflow"
+          ? lunchflowError(error)
+          : simplefinError(error),
+      );
     }
   },
 });
@@ -288,15 +329,18 @@ async function fetchRange(
 async function runImport(
   ctx: ActionCtx & { userId: Id<"users"> },
   args?: { accounts: SimplefinSelection[]; fromDate: string },
+  provider: BankProvider = "simplefin",
 ): Promise<ImportResult> {
   const {
     connection,
     accounts: existing,
     accessUrl,
     investmentActivity,
-  } = await importContext(ctx);
+  } = await importContext(ctx, provider);
   if (!args && connection.status === "disconnected")
-    throw new ConvexError("Review and import your SimpleFIN accounts first.");
+    throw new ConvexError(
+      `Review and import your ${providerName(provider)} accounts first.`,
+    );
   const selections: SimplefinSelection[] =
     args?.accounts ??
     existing
@@ -314,8 +358,8 @@ async function runImport(
   )
     throw new ConvexError(
       args
-        ? "Select between 1 and 25 different SimpleFIN accounts."
-        : "No SimpleFIN accounts are mapped yet. Review and import accounts first.",
+        ? `Select between 1 and 25 different ${providerName(provider)} accounts.`
+        : `No ${providerName(provider)} accounts are mapped yet. Review and import accounts first.`,
     );
   const toDate = new Date().toISOString().slice(0, 10);
   const requestedFrom = args ? date(args.fromDate) : undefined;
@@ -344,17 +388,30 @@ async function runImport(
     | { connectionId: Id<"simplefinConnections">; version: number }
     | undefined;
   try {
-    const remote = await fetchRange(
-      accessUrl,
-      selections.map((row) => row.externalAccountId),
-      fetchFrom,
-      toDate,
-    );
+    const remote =
+      provider === "lunchflow"
+        ? await lunchflowAccounts(accessUrl, {
+            accountIds: selections.map((row) => row.externalAccountId),
+            fromDate: fetchFrom,
+            toDate,
+            investmentIds: selections
+              .filter((row) => row.kind === "investment")
+              .map((row) => row.externalAccountId),
+          }).then((set) => ({
+            accounts: new Map(set.accounts.map((row) => [row.id, row])),
+            errors: set.errors,
+          }))
+        : await fetchRange(
+            accessUrl,
+            selections.map((row) => row.externalAccountId),
+            fetchFrom,
+            toDate,
+          );
     const prepared = selections.map((selection) => {
       const row = remote.accounts.get(selection.externalAccountId);
       if (!row)
         throw new ConvexError(
-          "A selected account is no longer available in SimpleFIN Bridge. Review your accounts again.",
+          `A selected account is no longer available in ${providerName(provider)}. Review your accounts again.`,
         );
       return {
         selection,
@@ -401,6 +458,7 @@ async function runImport(
       }[];
     } = await ctx.runMutation(internal.simplefinInternal.begin, {
       userId: ctx.userId,
+      provider,
       accounts: prepared.map(({ selection, account, fromDate }) => ({
         selection,
         account,
@@ -453,7 +511,7 @@ async function runImport(
         }
       }
     }
-    const warning = `${NOTICE} ${[...new Set(investmentWarnings)].join(" ")}${
+    const warning = `${provider === "lunchflow" ? LUNCHFLOW_NOTICE : NOTICE} ${[...new Set(investmentWarnings)].join(" ")}${
       skippedUnsupported
         ? ` ${skippedUnsupported} records lacked a usable date or amount and were skipped.`
         : ""
@@ -478,7 +536,8 @@ async function runImport(
       providerErrors: remote.errors,
     };
   } catch (error) {
-    const message = simplefinError(error);
+    const message =
+      provider === "lunchflow" ? lunchflowError(error) : simplefinError(error);
     if (lease)
       await ctx.runMutation(internal.simplefinInternal.fail, {
         ...lease,
@@ -488,14 +547,18 @@ async function runImport(
   }
 }
 export const importAccounts = userAction({
-  args: { accounts: v.array(simplefinSelection), fromDate: v.string() },
+  args: {
+    accounts: v.array(simplefinSelection),
+    fromDate: v.string(),
+    provider: v.optional(bankProvider),
+  },
   returns: importResult,
-  handler: runImport,
+  handler: (ctx, args) => runImport(ctx, args, args.provider),
 });
 export const sync = userAction({
-  args: {},
+  args: { provider: v.optional(bankProvider) },
   returns: importResult,
-  handler: (ctx) => runImport(ctx),
+  handler: (ctx, { provider }) => runImport(ctx, undefined, provider),
 });
 /** Stops future imports. Cached balances, accounts and history stay. */
 export const disconnect = userMutation({
@@ -504,7 +567,7 @@ export const disconnect = userMutation({
   handler: async (ctx, { connectionId }) => {
     const connection = await ctx.db.get(connectionId);
     if (!connection || connection.userId !== ctx.userId)
-      throw new ConvexError("This SimpleFIN connection is unavailable.");
+      throw new ConvexError("This bank connection is unavailable.");
     await ctx.db.patch(connectionId, {
       status: "disconnected",
       syncVersion: connection.syncVersion + 1,
@@ -517,10 +580,10 @@ export const disconnect = userMutation({
 });
 /** Forgets the access URL entirely; imported accounts become manual accounts. */
 export const remove = userMutation({
-  args: {},
+  args: { provider: v.optional(bankProvider) },
   returns: v.null(),
-  handler: async (ctx) => {
-    const connection = await savedConnection(ctx, ctx.userId);
+  handler: async (ctx, { provider }) => {
+    const connection = await savedConnection(ctx, ctx.userId, provider);
     if (!connection) return null;
     const accounts = await ctx.db
       .query("accounts")
@@ -531,6 +594,8 @@ export const remove = userMutation({
     for (const account of accounts)
       await ctx.db.patch(account._id, {
         simplefinConnectionId: undefined,
+        bankProvider: undefined,
+        connectionProvider: undefined,
         simplefinAccountId: undefined,
         simplefinImportFromDate: undefined,
         simplefinUpdatedAt: undefined,
@@ -543,18 +608,23 @@ export const remove = userMutation({
 });
 /** Daily catch-up: one request window per connection, well under the bridge's 24/day budget. */
 export const sweep = internalAction({
-  args: {},
+  args: { provider: v.optional(bankProvider) },
   returns: v.null(),
   handler: async (ctx) => {
-    const due: { userId: Id<"users"> }[] = await ctx.runQuery(
-      internal.simplefinInternal.due,
-      { before: Date.now() - 20 * 60 * 60 * 1000 },
-    );
-    for (const { userId } of due) {
+    const due: { userId: Id<"users">; provider?: BankProvider }[] =
+      await ctx.runQuery(internal.simplefinInternal.due, {
+        before: Date.now() - 20 * 60 * 60 * 1000,
+      });
+    for (const { userId, provider } of due) {
       try {
-        await runImport({ ...ctx, userId });
+        await runImport({ ...ctx, userId }, undefined, provider);
       } catch (error) {
-        console.warn("SimpleFIN catch-up skipped", simplefinError(error));
+        console.warn(
+          "Bank catch-up skipped",
+          provider === "lunchflow"
+            ? lunchflowError(error)
+            : simplefinError(error),
+        );
       }
     }
     return null;

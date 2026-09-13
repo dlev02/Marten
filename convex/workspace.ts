@@ -1,3 +1,4 @@
+import { chartDefaults } from "./lib/chartDefaults";
 import type { UserRead, UserMutationCtx } from "./lib/access";
 import type { Id } from "./_generated/dataModel";
 import type { Infer } from "convex/values";
@@ -201,6 +202,7 @@ export const initialize = userMutation({
         "recurring",
         "spending",
         "cashFlow",
+        ...(sample ? ["creditScore"] : []),
       ],
     });
     const categories = await seedCategories(ctx);
@@ -405,6 +407,7 @@ export const saveProfile = userMutation({
     allowPending: v.optional(v.boolean()),
     investmentActivity: v.optional(v.boolean()),
     widgets: v.optional(v.array(v.string())),
+    chartDefaults: v.optional(chartDefaults),
   },
   returns: v.null(),
   handler: async (ctx, fields) => {

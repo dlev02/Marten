@@ -76,14 +76,50 @@ test("invalid preparation rolls back accounts and categories together", async ()
     }),
   ).rejects.toThrow("100");
 });
-test("suggested category expansion is idempotent and does not modify personal categories", async () => {
-  const { t, alice } = await fixture();
-  const first = await alice.mutation(api.imports.prepareDestinations, args);
-  expect(
-    await alice.mutation(api.imports.addSuggestedCategories, {}),
-  ).toBeGreaterThan(30);
-  expect(await alice.mutation(api.imports.addSuggestedCategories, {})).toBe(0);
-  expect(await t.run((ctx) => ctx.db.get(first.categories[0]._id))).toEqual(
-    first.categories[0],
+test("new workspaces start with complete illustrated groups and keep user changes on later visits", async () => {
+  const { t, alice, bob } = await fixture();
+  await alice.mutation(api.workspace.initialize, { sample: false });
+  const initial = await alice.query(api.workspace.metadata, {});
+  expect(initial.categories.length).toBeGreaterThan(70);
+  expect(new Set(initial.categories.map((c) => c.name)).size).toBe(
+    initial.categories.length,
+  );
+  for (const name of [
+    "Housing",
+    "Food & drink",
+    "Auto & transport",
+    "Travel",
+    "Shopping",
+    "Health & wellness",
+    "Education",
+    "Bills & utilities",
+    "Financial",
+  ])
+    expect(
+      initial.groups.some((g) => g.name === name),
+      name,
+    ).toBe(true);
+  const kind = (name: string) =>
+    initial.groups.find(
+      (g) => g._id === initial.categories.find((c) => c.name === name)?.groupId,
+    )?.kind;
+  expect(kind("Credit card payment")).toBe("transfer");
+  expect(kind("Loan principal")).toBe("transfer");
+  expect(kind("Pharmacy")).toBe("expense");
+  expect(kind("Paycheck")).toBe("income");
+  const deleted = initial.categories.find((c) => c.name === "Souvenirs")!;
+  const renamed = initial.categories.find((c) => c.name === "Groceries")!;
+  await t.run(async (ctx) => {
+    await ctx.db.delete(deleted._id);
+    await ctx.db.patch(renamed._id, { name: "My groceries", enabled: false });
+  });
+  await alice.mutation(api.workspace.initialize, { sample: false });
+  const revisited = await alice.query(api.workspace.metadata, {});
+  expect(revisited.categories).toHaveLength(initial.categories.length - 1);
+  expect(revisited.categories.find((c) => c._id === renamed._id)).toMatchObject(
+    { name: "My groceries", enabled: false },
+  );
+  expect((await bob.query(api.workspace.metadata, {})).categories).toHaveLength(
+    0,
   );
 });

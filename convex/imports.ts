@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import schema from "./schema";
 import { userMutation, text } from "./lib/access";
 import { accountKind, kind } from "./validators";
-import { categoryDefinitions } from "./lib/categoryDefaults";
 const normalize = (name: string) =>
   name.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -133,65 +132,5 @@ export const prepareDestinations = userMutation({
       categoryResults.push(category);
     }
     return { accounts: accountResults, categories: categoryResults };
-  },
-});
-
-/** Explicitly offered to existing households; no automatic changes to personal organization. */
-export const addSuggestedCategories = userMutation({
-  args: {},
-  returns: v.number(),
-  handler: async (ctx) => {
-    const categories = await ctx.db
-      .query("categories")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .take(501);
-    const groups = await ctx.db
-      .query("groups")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .take(201);
-    const names = new Set(categories.map((c) => normalize(c.name)));
-    let added = 0,
-      order = Math.max(-1, ...categories.map((c) => c.order)) + 1;
-    for (const [name, kind, definitions] of categoryDefinitions) {
-      const missing = definitions.filter(
-        ([name]) => !names.has(normalize(name)),
-      );
-      if (!missing.length) continue;
-      if (
-        categories.length + added + missing.length > 500 ||
-        groups.length > 200
-      )
-        throw new ConvexError(
-          "There is not enough room for the suggested categories.",
-        );
-      let group = groups.find((g) => g.name === name && g.kind === kind);
-      if (!group) {
-        if (groups.length >= 200)
-          throw new ConvexError(
-            "There is not enough room for another category group.",
-          );
-        const id = await ctx.db.insert("groups", {
-          userId: ctx.userId,
-          name,
-          kind,
-          order: Math.max(-1, ...groups.map((g) => g.order)) + 1,
-        });
-        group = (await ctx.db.get(id))!;
-        groups.push(group);
-      }
-      for (const [name, emoji] of missing) {
-        await ctx.db.insert("categories", {
-          userId: ctx.userId,
-          name,
-          emoji,
-          groupId: group._id,
-          enabled: true,
-          order: order++,
-        });
-        names.add(normalize(name));
-        added++;
-      }
-    }
-    return added;
   },
 });

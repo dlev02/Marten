@@ -26,6 +26,8 @@ export const simplefinAccount = v.object({
   currency: v.literal("USD"),
   availableCents: v.optional(v.number()),
   lastUpdated: v.optional(v.number()),
+  logoUrl: v.optional(v.string()),
+  connectionProvider: v.optional(v.string()),
 });
 export const simplefinTransaction = v.object({
   externalId: v.string(),
@@ -300,6 +302,8 @@ export type ParsedAccount = {
   balanceCents: number | null;
   availableCents?: number;
   balanceDate?: number;
+  logoUrl?: string;
+  connectionProvider?: string;
   holdings: number;
   holdingPositions?: SimplefinHolding[] | null;
   holdingsWarning?: string;
@@ -574,6 +578,10 @@ export function normalizeSimplefinAccount(
               : "other",
     balanceCents: debt ? -account.balanceCents : account.balanceCents,
     currency: "USD",
+    ...(account.logoUrl ? { logoUrl: account.logoUrl } : {}),
+    ...(account.connectionProvider
+      ? { connectionProvider: account.connectionProvider }
+      : {}),
     ...(account.availableCents !== undefined
       ? { availableCents: account.availableCents }
       : {}),

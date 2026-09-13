@@ -30,6 +30,24 @@ export async function seedSample(
   ctx: UserWrite,
   categories: Record<string, Id<"categories">>,
 ) {
+  // Fictional observations from one bureau/model make the demo history meaningful.
+  const today = new Date();
+  for (const [index, score] of [718, 722, 727, 725, 734, 741].entries()) {
+    const observed = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 5 + index, 1),
+    );
+    await ctx.db.insert("creditScores", {
+      userId: ctx.userId,
+      score,
+      date: observed.toISOString().slice(0, 10),
+      bureau: "TransUnion",
+      model: "VantageScore 3.0",
+      source: "Fictional demo observation",
+      entryMethod: "manual",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
   const accountDefs = [
     {
       name: "Everyday Checking",

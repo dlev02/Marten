@@ -154,7 +154,9 @@ export async function updateOne(
 ) {
   const tx = await owned(ctx, id);
   if (
-    (tx.source === "plaid" || tx.source === "simplefin") &&
+    (tx.source === "plaid" ||
+      tx.source === "simplefin" ||
+      tx.source === "lunchflow") &&
     (patch.accountId !== undefined ||
       patch.amountCents !== undefined ||
       patch.date !== undefined ||
@@ -285,7 +287,11 @@ async function deleteTransactionRow(ctx: MutationCtx, tx: Doc<"transactions">) {
 }
 async function removeOne(ctx: UserWrite, id: Id<"transactions">) {
   const tx = await owned(ctx, id);
-  if (tx.source === "plaid" || tx.source === "simplefin")
+  if (
+    tx.source === "plaid" ||
+    tx.source === "simplefin" ||
+    tx.source === "lunchflow"
+  )
     throw new ConvexError(
       "Hide a bank transaction to exclude it from reports.",
     );
@@ -299,7 +305,11 @@ async function investmentAccounts(ctx: UserRead) {
   return accounts.filter((account) => account.kind === "investment");
 }
 const providerRows = (q: FilterBuilder<DataModel["transactions"]>) =>
-  q.or(q.eq(q.field("source"), "plaid"), q.eq(q.field("source"), "simplefin"));
+  q.or(
+    q.eq(q.field("source"), "plaid"),
+    q.eq(q.field("source"), "simplefin"),
+    q.eq(q.field("source"), "lunchflow"),
+  );
 /**
  * Bank-imported rows sitting in investment accounts: trades, dividends, sweeps.
  * Shown beside the investment activity preference so turning it off can offer

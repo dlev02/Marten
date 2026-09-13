@@ -18,6 +18,8 @@ import {
   split,
   avatarPreset,
 } from "./validators";
+import { chartDefaults } from "./lib/chartDefaults";
+import { bankProvider } from "./lib/bankProviders";
 const owner = { userId: v.id("users") };
 export default defineSchema({
   ...authTables,
@@ -169,15 +171,17 @@ export default defineSchema({
     // and holdings so a share purchase never reads as spending.
     investmentActivity: v.optional(v.boolean()),
     widgets: v.array(v.string()),
+    chartDefaults: v.optional(chartDefaults),
     // Set when the owner asked to delete the account; the scheduled sweep in
     // accountDeletion.ts is emptying every table and will remove the sign-in last.
     deletionRequestedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
-  // One SimpleFIN Bridge connection per Marten user. The access URL carries the
-  // bridge credentials and is sealed by lib/credentialCrypto when CREDENTIALS_KEY
-  // is set. Public functions never return it.
+  // One connection per user and provider. Legacy simplefin table/field names
+  // remain for persisted IDs; absent provider means SimpleFIN. accessUrl holds
+  // the server-only credential (an API key for Lunch Flow).
   simplefinConnections: defineTable({
     ...owner,
+    provider: v.optional(bankProvider),
     accessUrl: v.string(),
     host: v.string(),
     status: v.union(
@@ -218,6 +222,8 @@ export default defineSchema({
     plaidAccountId: v.optional(v.string()),
     simplefinConnectionId: v.optional(v.id("simplefinConnections")),
     simplefinAccountId: v.optional(v.string()),
+    bankProvider: v.optional(bankProvider),
+    connectionProvider: v.optional(v.string()),
     simplefinImportFromDate: v.optional(v.string()),
     simplefinUpdatedAt: v.optional(v.number()),
     logoUrl: v.optional(v.string()),
@@ -297,6 +303,7 @@ export default defineSchema({
       v.literal("manual"),
       v.literal("plaid"),
       v.literal("simplefin"),
+      v.literal("lunchflow"),
       v.literal("sample"),
       v.literal("csv"),
     ),
