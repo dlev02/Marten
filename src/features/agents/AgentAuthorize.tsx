@@ -57,8 +57,8 @@ function ConsentRequest({ request }: { request: string }) {
       <h1>Connect {details.clientName}?</h1>
       <p>
         This assistant will be able to read your Marten accounts, transactions,
-        reports, recurring schedules, investments, forecasts and credit-score
-        history.
+        categories, merchants, tags, rules, preferences, reports, recurring
+        schedules, investments, forecasts and credit-score history.
       </p>
       <div className="agent-consent-identity">
         <span>Client</span>
@@ -77,7 +77,7 @@ function ConsentRequest({ request }: { request: string }) {
       {details.requestedScopes.includes("finance:write") && (
         <Toggle
           label="Also allow edits"
-          description="Allow transaction annotations, account display changes, recurring schedules and saved forecasts. Bank payments, trades and account deletion are not available."
+          description="Allow transaction annotations, bulk recategorizing, merchant names, categories, tags, rules, review and pending preferences, account display, recurring schedules and saved forecasts. Bank payments, trades, deleting data and bank connections are not available."
           checked={allowEdits}
           disabled={task.busy}
           onChange={setAllowEdits}

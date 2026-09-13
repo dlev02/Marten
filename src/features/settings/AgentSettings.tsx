@@ -61,7 +61,7 @@ export function AgentSettings() {
         />
         <Toggle
           label="Allow edits from your browser assistant"
-          description="Allow transaction annotations, account display changes, recurring schedules and saved forecasts. Ask your assistant to review changes with you."
+          description="Allow transaction annotations, bulk recategorizing, merchant names, categories, tags, rules, review and pending preferences, account display, recurring schedules and saved forecasts. Ask your assistant to review changes with you."
           checked={browser.allowEdits}
           disabled={!browser.enabled || task.busy}
           onChange={(allowEdits) =>

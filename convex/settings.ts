@@ -1,4 +1,4 @@
-import { v, ConvexError } from "convex/values";
+import { v, ConvexError, type Infer } from "convex/values";
 import {
   paginationOptsValidator,
   paginationResultValidator,
@@ -15,6 +15,7 @@ import {
   ruleSplitsFit,
   validateTransaction,
   type UserRead,
+  type UserWrite,
 } from "./lib/transactions";
 import type { Id } from "./_generated/dataModel";
 
@@ -37,6 +38,30 @@ export const saveGroup = userMutation({
     return await ctx.db.insert("groups", { userId: ctx.userId, ...fields });
   },
 });
+export async function saveCategoryForUser(
+  ctx: UserWrite,
+  {
+    id,
+    ...fields
+  }: {
+    id?: Id<"categories">;
+    groupId: Id<"groups">;
+    name: string;
+    emoji: string;
+    order: number;
+    enabled: boolean;
+  },
+) {
+  await owned(ctx, fields.groupId);
+  fields.name = text(fields.name);
+  text(fields.emoji, 30);
+  if (id) {
+    await owned(ctx, id);
+    await ctx.db.patch(id, fields);
+    return id;
+  }
+  return await ctx.db.insert("categories", { userId: ctx.userId, ...fields });
+}
 export const saveCategory = userMutation({
   args: {
     id: v.optional(v.id("categories")),
@@ -47,26 +72,13 @@ export const saveCategory = userMutation({
     enabled: v.boolean(),
   },
   returns: v.id("categories"),
-  handler: async (ctx, { id, ...fields }) => {
-    await owned(ctx, fields.groupId);
-    fields.name = text(fields.name);
-    text(fields.emoji, 30);
-    if (id) {
-      await owned(ctx, id);
-      await ctx.db.patch(id, fields);
-      return id;
-    }
-    return await ctx.db.insert("categories", { userId: ctx.userId, ...fields });
-  },
+  handler: saveCategoryForUser,
 });
-export const saveMerchant = userMutation({
-  args: {
-    id: v.optional(v.id("merchants")),
-    name: v.string(),
-    color: v.string(),
-  },
-  returns: v.id("merchants"),
-  handler: async (ctx, { id, name, color }) => {
+export async function saveMerchantForUser(
+  ctx: UserWrite,
+  { id, name, color }: { id?: Id<"merchants">; name: string; color: string },
+) {
+  {
     name = text(name);
     const normalizedName = normalize(name);
     color = text(color, 40);
@@ -97,7 +109,16 @@ export const saveMerchant = userMutation({
       color,
       transactionCount: 0,
     });
+  }
+}
+export const saveMerchant = userMutation({
+  args: {
+    id: v.optional(v.id("merchants")),
+    name: v.string(),
+    color: v.string(),
   },
+  returns: v.id("merchants"),
+  handler: saveMerchantForUser,
 });
 export const reindexMerchant = internalMutation({
   args: {
@@ -198,6 +219,22 @@ export const mergeMerchants = userMutation({
     };
   },
 });
+export async function saveTagForUser(
+  ctx: UserWrite,
+  {
+    id,
+    ...fields
+  }: { id?: Id<"tags">; name: string; color: string; order: number },
+) {
+  fields.name = text(fields.name);
+  fields.color = text(fields.color, 40);
+  if (id) {
+    await owned(ctx, id);
+    await ctx.db.patch(id, fields);
+    return id;
+  }
+  return await ctx.db.insert("tags", { userId: ctx.userId, ...fields });
+}
 export const saveTag = userMutation({
   args: {
     id: v.optional(v.id("tags")),
@@ -206,16 +243,7 @@ export const saveTag = userMutation({
     order: v.number(),
   },
   returns: v.id("tags"),
-  handler: async (ctx, { id, ...fields }) => {
-    fields.name = text(fields.name);
-    fields.color = text(fields.color, 40);
-    if (id) {
-      await owned(ctx, id);
-      await ctx.db.patch(id, fields);
-      return id;
-    }
-    return await ctx.db.insert("tags", { userId: ctx.userId, ...fields });
-  },
+  handler: saveTagForUser,
 });
 export const deleteTag = userMutation({
   args: { id: v.id("tags"), cursor: v.optional(v.union(v.string(), v.null())) },
@@ -294,25 +322,31 @@ async function validateRule(
   if (fields.actions.splits?.length === 1)
     throw new ConvexError("A split rule needs at least two allocations.");
 }
+export type RuleInput = Infer<typeof ruleValidator>;
+const ruleValidator = v.object(ruleFields);
+export async function saveRuleForUser(
+  ctx: UserWrite,
+  { id, ...fields }: RuleInput & { id?: Id<"rules"> },
+) {
+  fields.name = text(fields.name);
+  await validateRule(ctx, fields);
+  if (id) {
+    await owned(ctx, id);
+    await ctx.db.patch(id, fields);
+    return id;
+  }
+  const rules = await ctx.db
+    .query("rules")
+    .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+    .take(200);
+  if (rules.length >= 200)
+    throw new ConvexError("A workspace can have up to 200 rules.");
+  return await ctx.db.insert("rules", { userId: ctx.userId, ...fields });
+}
 export const saveRule = userMutation({
   args: { id: v.optional(v.id("rules")), ...ruleFields },
   returns: v.id("rules"),
-  handler: async (ctx, { id, ...fields }) => {
-    fields.name = text(fields.name);
-    await validateRule(ctx, fields);
-    if (id) {
-      await owned(ctx, id);
-      await ctx.db.patch(id, fields);
-      return id;
-    }
-    const rules = await ctx.db
-      .query("rules")
-      .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
-      .take(200);
-    if (rules.length >= 200)
-      throw new ConvexError("A workspace can have up to 200 rules.");
-    return await ctx.db.insert("rules", { userId: ctx.userId, ...fields });
-  },
+  handler: saveRuleForUser,
 });
 export const deleteRule = userMutation({
   args: { id: v.id("rules") },
@@ -350,14 +384,14 @@ export const previewRule = userQuery({
     return { ...rows, page: matching };
   },
 });
-export const applyRule = userMutation({
-  args: { id: v.id("rules"), paginationOpts: paginationOptsValidator },
-  returns: v.object({
-    updated: v.number(),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
-  }),
-  handler: async (ctx, args) => {
+export async function applyRuleForUser(
+  ctx: UserWrite,
+  args: {
+    id: Id<"rules">;
+    paginationOpts: { cursor: string | null; numItems: number };
+  },
+) {
+  {
     if (args.paginationOpts.numItems > 100)
       throw new ConvexError("Apply to at most 100 transactions at a time.");
     const rule = await owned(ctx, args.id);
@@ -392,7 +426,16 @@ export const applyRule = userMutation({
       isDone: rows.isDone,
       continueCursor: rows.continueCursor,
     };
-  },
+  }
+}
+export const applyRule = userMutation({
+  args: { id: v.id("rules"), paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    updated: v.number(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: applyRuleForUser,
 });
 export const reorder = userMutation({
   args: {

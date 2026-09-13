@@ -28,6 +28,7 @@ import { agentRateLimiter } from "./lib/agentLimits";
 import { performAgentCall } from "./lib/agentCall";
 import { readWorkspace } from "./workspace";
 import { listTransactionsForUser } from "./transactions";
+import { applyRuleForUser } from "./settings";
 import { paginationOptsValidator } from "convex/server";
 
 export const executionAuth = v.union(
@@ -512,6 +513,20 @@ export const authenticateMcp = internalQuery({
       : null;
   },
 });
+
+/**
+ * Every call reads its grant, so rewriting lastUsedAt on every call made
+ * parallel tool calls from one assistant conflict and occasionally fail.
+ * Settings only shows the time coarsely; once a minute is enough.
+ */
+const GRANT_TOUCH_MS = 60_000;
+async function touchGrant(ctx: MutationCtx, grantId?: Id<"agentGrants">) {
+  if (!grantId) return;
+  const grant = await ctx.db.get(grantId);
+  const now = Date.now();
+  if (grant && now - (grant.lastUsedAt ?? 0) >= GRANT_TOUCH_MS)
+    await ctx.db.patch(grantId, { lastUsedAt: now });
+}
 
 export const execute = userAction({
   args: { name: v.string(), arguments: v.any() },

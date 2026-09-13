@@ -771,3 +771,46 @@ investments or scores).
   Add statement reminder action the list's empty state carries for Add
   recurring, so both sections follow one pattern (header action, repeated as
   the empty state's call to action).
+
+## MCP tool surface expansion and live re-test — September 13, 2026
+
+Acted on the September 12 agent pass. The remote and browser agent surface grew
+from 20 to 31 tools: `update_transactions` (atomic patch on up to 100 rows with
+per-row before/after), `update_merchant`, `create_category`, `update_category`,
+`create_tag`, `update_tag`, `get_rules`, `save_rule`, `apply_rule` (bounded
+page walk), `get_preferences` and `update_preferences` (`reviewNew`,
+`allowPending`). Reads now resolve account, merchant, category and tag names
+onto every transaction row with a `direction` field, add `netWorthCents` using
+the app's rule, add ISO twins for epoch timestamps, return `continueCursor:
+null` when a page set is finished, strip Convex split-cursor internals, accept
+`merchantSearch` (display name or statement text) and an optional date range,
+and default to 50-row pages. Reports return `warnings` for inflows in expense
+categories and scope `transactionCount` to a category filter; forecasts return
+`returnAssumptionApplies` plus warnings, and the baseline lists `observedFields`
+against its example values. `set_recurring_paid` names the valid dates and the
+descriptions explain that `nextDate` anchors the series. Every result is scanned
+for stored text that reads like assistant instructions and, when found, carries
+`dataWarnings` while leaving the text intact. Initialization instructions were
+rewritten around conventions, efficient call patterns, completeness and safety.
+Consent copy in Settings and on `/agent-authorize` names the new edit scope.
+
+- Live re-test on the development deployment with a fresh consented edit grant
+  and eleven fresh Claude Code sessions: merchant rename, category creation and
+  move, bulk recategorize (one call each way), rules read, preference round
+  trip, rule creation plus `apply_rule` moving 168 rows and a scoped report,
+  recurring create/mark/rename/pause, forecast save and revision update, exact
+  count via `get_report`, and a three-row "most recent" answer in two calls.
+  A re-planted instruction-bearing note was flagged by `dataWarnings`, refused,
+  and reported to the user.
+- Two defects surfaced during the re-test and were fixed with regression tests
+  before the pass ended: the refactored cursor schema inherited the 128-character
+  id bound and rejected real Convex cursors, and rewriting a grant's
+  `lastUsedAt` on every call caused an optimistic-concurrency failure when one
+  assistant issued parallel reads. Grant use is now recorded at most once a
+  minute. Tool-authored guidance moved from `note` to `hint` so the safety scan
+  no longer flags the server's own text.
+- 330 tests across 46 files, typecheck and lint passed. The fictional Quinn
+  workspace was restored: merchant name, 168 categories, schedule, forecast,
+  rule and QA categories removed, preferences unchanged, grant disconnected.
+- Not covered: hosted ChatGPT/Claude connection flows and the WebMCP browser
+  path (it shares these schemas and gained the same tools without a live check).
