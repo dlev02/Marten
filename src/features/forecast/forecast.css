@@ -581,7 +581,8 @@
 .forecast-baseline > ul {
   color: var(--muted);
   font-size: 12px;
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
   margin: 22px 0;
 }
 .forecast-baseline > ul > li + li {

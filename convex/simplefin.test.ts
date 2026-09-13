@@ -854,3 +854,55 @@ test("SimpleFIN enriches only untouched uncategorized rows when a hint arrives l
     );
   }
 });
+
+test("SimpleFIN recognizes investment names without classifying investor checking as brokerage", () => {
+  for (const name of [
+    "Stocks ...837",
+    "Mutual Funds ...262",
+    "Investment Account",
+    "Roth IRA",
+  ]) {
+    expect(guessKind({ name, holdings: 0 })).toBe("investment");
+  }
+  expect(guessKind({ name: "Investor Checking", holdings: 0 })).toBe("cash");
+  expect(guessKind({ name: "Gift", holdings: 0 })).toBe("cash");
+  expect(guessKind({ name: "Gift", holdings: 2 })).toBe("investment");
+});
+
+test("SimpleFIN asset types can be corrected without changing provider balances or history", async () => {
+  const { t, asUser, asOther, importArgs } = await fixture();
+  await asUser.action(api.simplefin.importAccounts, importArgs);
+  const account = (await t.run((ctx) => ctx.db.query("accounts").collect()))[0];
+  const input = {
+    id: account._id,
+    name: account.name,
+    institution: account.institution,
+    mask: account.mask,
+    kind: "investment" as const,
+    subtype: "brokerage",
+    balanceCents: account.balanceCents,
+    currency: account.currency,
+    hidden: account.hidden,
+    excludeNetWorth: account.excludeNetWorth,
+    closed: account.closed,
+  };
+  await expect(
+    asOther.mutation(api.workspace.saveAccount, input),
+  ).rejects.toThrow();
+  await expect(
+    asUser.mutation(api.workspace.saveAccount, { ...input, balanceCents: 1 }),
+  ).rejects.toThrow();
+  await expect(
+    asUser.mutation(api.workspace.saveAccount, { ...input, kind: "credit" }),
+  ).rejects.toThrow();
+  const history = await t.run((ctx) => ctx.db.query("balances").collect());
+  await asUser.mutation(api.workspace.saveAccount, input);
+  expect(await t.run((ctx) => ctx.db.get(account._id))).toMatchObject({
+    kind: "investment",
+    balanceCents: account.balanceCents,
+    simplefinAccountId: account.simplefinAccountId,
+  });
+  expect(await t.run((ctx) => ctx.db.query("balances").collect())).toEqual(
+    history,
+  );
+});

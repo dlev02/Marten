@@ -65,6 +65,7 @@ const additionalBrands = [
     name: "Charles Schwab",
     aliases: [
       "Charles Schwab",
+      "Charles Schwab US",
       "Schwab",
       "Charles Schwab Bank",
       "Charles Schwab & Co., Inc.",
@@ -84,7 +85,7 @@ const additionalBrands = [
   {
     name: "American Express",
     aliases: ["American Express", "Amex", "American Express Bank"],
-    url: "/brands/americanexpress.ico",
+    url: "/brands/americanexpress.svg",
   },
   {
     name: "Equinox",

@@ -65,9 +65,13 @@ follows the [SimpleFIN protocol](https://www.simplefin.org/protocol.html):
 
 - **Accounts**: SimpleFIN provides no account type. The review screen guesses
   from the name (checking/savings → cash, card names → credit, mortgage/loan →
-  loan, holdings or retirement words → investment) and the user confirms.
+  loan, holdings, stocks, mutual funds, securities, or retirement words → investment) and the user confirms.
   Balances are signed from the owner's view, so credit and loan balances are
-  inverted into Marten's amount-owed convention. Available balances and the
+  inverted into Marten's amount-owed convention. Existing SimpleFIN cash and
+  investment accounts can be corrected in the account editor without changing
+  balances or history; ambiguous names such as Gift need user review. Checking
+  and cash-management names remain cash even at a brokerage institution.
+  Available balances and the
   balance date are kept; the institution name comes from the bridge's `org`.
 - **Transactions**: positive SimpleFIN amounts are deposits, so Marten negates
   them (outflows positive). Dates use `transacted_at`, then `posted`, as UTC

@@ -290,6 +290,10 @@ export async function saveAccountForUser(
     throw new ConvexError("Enter a valid APY.");
   if (id) {
     const current = await owned(ctx, id);
+    const simplefinAssetType =
+      !!current.simplefinConnectionId &&
+      (current.kind === "cash" || current.kind === "investment") &&
+      (fields.kind === "cash" || fields.kind === "investment");
     if (
       !current.manual &&
       (
@@ -307,7 +311,12 @@ export async function saveAccountForUser(
           "statementDate",
           "apy",
         ] as const
-      ).some((key) => key in fields && fields[key] !== current[key])
+      ).some(
+        (key) =>
+          !(simplefinAssetType && (key === "kind" || key === "subtype")) &&
+          key in fields &&
+          fields[key] !== current[key],
+      )
     )
       throw new ConvexError(
         "Your bank manages this account's balances and statement details.",

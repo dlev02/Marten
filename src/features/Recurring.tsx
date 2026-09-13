@@ -543,10 +543,11 @@ export function Recurring() {
             )}
           </div>
           {debts.length === 0 && (
-            <p className="recurring-statement-empty">
-              No statement dates this month. Add a reminder when your bank
-              doesn’t provide a due date.
-            </p>
+            <Empty
+              icon={<CreditCard size={24} />}
+              title="No statements due this month"
+              description="Your card payment dates will appear here. Add a statement reminder if your bank doesn’t provide them."
+            />
           )}
           <div className="recurring-statement-grid">
             {debts.map((a) => (
@@ -643,13 +644,15 @@ export function Recurring() {
           </div>
         </section>
       )}
-      <p className="recurring-footnote">
-        Checkmarks include matching posted transactions and your manual choices.
-        They don’t send payments or change your transactions.{" "}
-        <Link to="/settings/preferences#reminders" className="text-link">
-          Set up reminders
-        </Link>
-      </p>
+      {debts.length > 0 && (
+        <p className="recurring-footnote">
+          Checkmarks include matching posted transactions and your manual
+          choices. They don’t send payments or change your transactions.{" "}
+          <Link to="/settings/preferences#reminders" className="text-link">
+            Set up reminders
+          </Link>
+        </p>
+      )}
       {editor !== null && (
         <RecurringEditor
           initial={editor === "new" ? undefined : editor}

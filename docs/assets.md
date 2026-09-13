@@ -53,10 +53,11 @@ first-party compact icons, bundled locally on September 12, 2026:
 | `capitalone.png` | https://www.capitalone.com/assets/shell/apple-touch-icon.png |
 | `schwab.png` | https://www.schwab.com/themes/custom/sch_beacon_retail/favicons/apple-icon.png |
 | `fidelity.ico` | https://www.fidelity.com/favicon.ico |
-| `americanexpress.ico` | https://www.americanexpress.com/favicon.ico |
+| `americanexpress.svg` | Existing reviewed Simple Icons vector listed above |
 
-These are original brand assets, not CC0 artwork. The Amex icon replaces the
-padded SVG in fallback matching, removing its extra white inset at small sizes.
+These are original brand assets, not CC0 artwork. The Amex fallback uses the reviewed vector artwork without the outer presentation
+padding, replacing the grainy 16px favicon. The Schwab aliases include
+`Charles Schwab US`, as supplied by SimpleFIN.
 Exact aliases include the named banks and common institution-name variants;
 unknown institutions still use initials. Uploaded or provider-supplied images
 retain precedence.

@@ -466,7 +466,9 @@ export function guessKind(
     return "credit";
   if (
     account.holdings > 0 ||
-    /\b(ira|401\(?k\)?|403b|roth|brokerage|invest|retirement|hsa)\b/.test(key)
+    /\b(ira|401\(?k\)?|403b|roth|brokerage|invest|investment|investments|retirement|hsa|stocks?|mutual funds?|securities)\b/.test(
+      key,
+    )
   )
     return "investment";
   return "cash";

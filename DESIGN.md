@@ -608,3 +608,10 @@ Transaction details keep the review action visible and place Hide/Unhide and
 eligible Delete in the adjacent overflow menu. Delete uses the negative color
 and retains confirmation. Date uses a stacked label and full-width DatePicker,
 consistent with the other editable fields; the merchant summary has a 16px top inset.
+
+
+Public FAQ search applies the focus outline to the full search container via
+`:focus-within`, with the inner input outline suppressed. Empty statement lists
+use the shared `Empty` component; payment-checkmark guidance is shown only when
+there are recurring occurrences or statements to act on. Reports initially opens
+Cash Flow, while explicit saved-report links retain their selected report.

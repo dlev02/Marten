@@ -269,6 +269,9 @@ export function AccountForm({
       account?.paymentPlan ?? "statement",
     );
   const bankManaged = !!account && !account.manual;
+  const editableSimplefinType =
+    !!account?.simplefinConnectionId &&
+    (account.kind === "cash" || account.kind === "investment");
   const subtypeOptions =
     kind === "cash"
       ? [
@@ -378,7 +381,7 @@ export function AccountForm({
           />
         </Field>
       </div>
-      {!bankManaged && (
+      {(!bankManaged || editableSimplefinType) && (
         <div className="account-form-grid">
           <Field label="Account type">
             <Picker
@@ -399,7 +402,15 @@ export function AccountForm({
                           : "other",
                 );
               }}
-              options={kinds}
+              options={
+                editableSimplefinType
+                  ? kinds.filter(
+                      (option) =>
+                        option.value === "cash" ||
+                        option.value === "investment",
+                    )
+                  : kinds
+              }
             />
           </Field>
           <Field label="Subtype">
@@ -457,7 +468,9 @@ export function AccountForm({
       </div>
       {bankManaged && (
         <p className="account-notice">
-          Your bank keeps the balance and account type up to date.
+          {editableSimplefinType
+            ? "SimpleFIN supplies the balance. You can correct the account type here."
+            : "Your bank keeps the balance and account type up to date."}
         </p>
       )}
       {(kind === "credit" || kind === "loan") && (

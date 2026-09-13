@@ -33,7 +33,6 @@ export function Forecast({ onAddAccount }: { onAddAccount: () => void }) {
   return (
     <div className="forecast-page">
       <PageHeader title="Forecast" />
-      <p className="forecast-intro">Explore the choices ahead.</p>
       <Tabs
         value={mode}
         onChange={(value) => {

@@ -551,3 +551,26 @@ summary's top inset is reduced from 25px to 16px. Reviewed the fictional Target
 drawer at desktop and phone widths, opened the calendar, and used arrow keys to
 open then cancel the delete confirmation. No transaction data was changed.
 Focused ESLint, production build and diff whitespace checks passed.
+
+## SimpleFIN account types and interface fixes — September 12, 2026
+
+- Expanded new-import investment name recognition for stocks, mutual funds and
+  investment accounts, while keeping Investor Checking as cash. Existing
+  SimpleFIN cash/investment accounts now allow an owner to correct type and
+  subtype through Edit account; balances and other bank fields remain protected.
+  Ambiguous names such as Gift still need the owner's classification.
+- Added Charles Schwab US to the shared logo aliases and switched Amex to crisp
+  vector artwork without the inset white padding.
+- FAQ focus outlines the entire search pill. Reports opens Cash flow. Removed
+  the requested Investments and Forecast copy, aligned starting-data notes with
+  the table, and replaced the statement empty text with the shared empty state.
+  Statement checkmark guidance is hidden when no statements are due.
+- All 315 tests across 44 files, typecheck, lint and production build passed.
+  The final statement-footer condition also passed focused ESLint. Regression
+  coverage checks institution aliases, inference, account ownership, protected
+  bank balances and cash-to-investment correction without balance/history changes.
+- Browser review used fictional demo data: full-pill FAQ focus in dark appearance,
+  Cash flow selected on entering Reports, aligned scrolled Forecast modal notes,
+  and the October statement empty state in light appearance with no footer.
+- Development and production Convex deployments succeeded. Existing real bank
+  account classifications have not yet been edited through the owner's session.

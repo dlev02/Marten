@@ -1046,7 +1046,7 @@ export function Reports() {
     task = useTask(),
     saveReport = useMutation(api.workspace.saveReport),
     deleteReport = useMutation(api.workspace.deleteReport);
-  const [report, setReport] = useState<ReportKind>("spending"),
+  const [report, setReport] = useState<ReportKind>("cashflow"),
     [from, setFrom] = useState(() => monthOffset(monthStart(), -5)),
     [to, setTo] = useState(monthEnd()),
     [groupBy, setGroupBy] = useState("category"),

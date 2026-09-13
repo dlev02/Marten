@@ -830,10 +830,6 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
               )}
             </Panel>
             <div className="investment-source-note">
-              <span>
-                Account balances are counted once in net worth. Holdings explain
-                those balances; they are not added again.
-              </span>
               <Link to="/accounts">
                 View accounts <ArrowUpRight size={14} />
               </Link>
