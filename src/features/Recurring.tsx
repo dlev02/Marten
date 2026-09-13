@@ -570,7 +570,21 @@ export function Recurring() {
               <Empty
                 icon={<CreditCard size={24} />}
                 title="No statements due this month"
-                description="Your card payment dates will appear here. Add a statement reminder if your bank doesn’t provide them."
+                description={
+                  creditAccounts.length > 0
+                    ? "Your card payment dates will appear here. Add a reminder if your bank doesn’t provide them."
+                    : "Your card payment dates will appear here."
+                }
+                action={
+                  creditAccounts.length > 0 ? (
+                    <Button
+                      icon={<Plus size={16} />}
+                      onClick={() => setStatementEditor("")}
+                    >
+                      Add statement reminder
+                    </Button>
+                  ) : undefined
+                }
               />
             </Panel>
           )}
