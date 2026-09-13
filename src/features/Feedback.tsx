@@ -86,7 +86,7 @@ export function FeedbackDialog({
             placeholder={placeholder}
           />
         </Field>
-        {kind !== "idea" && environment && (
+        {environment && (
           <label className="feedback-environment">
             <input
               type="checkbox"

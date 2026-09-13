@@ -1,6 +1,10 @@
 .feedback-modal .segments {
   width: 100%;
 }
+/* Three equal segments read as one control across the full bar. */
+.feedback-modal .segments > button {
+  flex: 1;
+}
 .feedback-modal textarea {
   width: 100%;
   resize: vertical;
