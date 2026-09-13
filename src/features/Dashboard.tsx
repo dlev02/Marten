@@ -521,10 +521,16 @@ function CustomizeDashboard({
       open={open}
       onClose={onClose}
       title="Customize dashboard"
-      description="Choose what you see and arrange it your way."
+      description="Choose what you see and arrange it the way it appears on your dashboard."
+      className="customize-modal"
     >
       <div className="reorder-list">
-        <SortableList ids={order} onReorder={commit}>
+        <SortableList
+          ids={order}
+          onReorder={commit}
+          layout="grid"
+          className="reorder-grid"
+        >
           {(sorted) => (
             <>
               {Object.keys(widgetNames)
@@ -538,7 +544,7 @@ function CustomizeDashboard({
                     id={w}
                     name={widgetNames[w]}
                     disabled={!order.includes(w)}
-                    className="reorder-row"
+                    className={`reorder-row${w === "cashFlow" ? " reorder-wide" : ""}${order.includes(w) ? "" : " reorder-off"}`}
                     key={w}
                   >
                     <SortableHandle

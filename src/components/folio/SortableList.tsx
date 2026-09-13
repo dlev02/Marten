@@ -17,6 +17,7 @@ import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   arrayMove,
 } from "@dnd-kit/sortable";
@@ -29,6 +30,8 @@ type Handle = Pick<
   "attributes" | "listeners" | "setActivatorNodeRef"
 >;
 const HandleContext = createContext<Handle | null>(null);
+// A list only slides items vertically; a grid lets them move in both directions.
+const LayoutContext = createContext<"list" | "grid">("list");
 
 /** One list owns one ordering scope, including nested category groups. */
 export function SortableList<T extends string>({
@@ -36,11 +39,16 @@ export function SortableList<T extends string>({
   onReorder,
   children,
   disabled = false,
+  layout = "list",
+  className = "",
 }: {
   ids: T[];
   onReorder: (ids: T[]) => Promise<boolean | void> | void;
   children: (ids: T[]) => ReactNode;
   disabled?: boolean;
+  /** `grid` mirrors a multi-column layout such as the dashboard. */
+  layout?: "list" | "grid";
+  className?: string;
 }) {
   const [pending, setPending] = useState<T[] | null>(null);
   const [saving, setSaving] = useState(false);
@@ -102,12 +110,19 @@ export function SortableList<T extends string>({
     >
       <SortableContext
         items={order}
-        strategy={verticalListSortingStrategy}
+        strategy={
+          layout === "grid" ? rectSortingStrategy : verticalListSortingStrategy
+        }
         disabled={disabled || saving || ids.length < 2}
       >
-        <div className="sortable-list" data-dragging={dragging || undefined}>
-          {children(order)}
-        </div>
+        <LayoutContext.Provider value={layout}>
+          <div
+            className={`sortable-list ${className}`}
+            data-dragging={dragging || undefined}
+          >
+            {children(order)}
+          </div>
+        </LayoutContext.Provider>
       </SortableContext>
     </DndContext>
   );
@@ -140,6 +155,7 @@ export function SortableItem({
     disabled,
     transition: { duration: 240, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
+  const layout = useContext(LayoutContext);
   return (
     <HandleContext.Provider
       value={{ attributes, listeners, setActivatorNodeRef }}
@@ -150,7 +166,14 @@ export function SortableItem({
         data-active-drag={isDragging || undefined}
         style={{
           transform: CSS.Transform.toString(
-            transform ? { ...transform, x: 0, scaleX: 1, scaleY: 1 } : null,
+            transform
+              ? {
+                  ...transform,
+                  x: layout === "grid" ? transform.x : 0,
+                  scaleX: 1,
+                  scaleY: 1,
+                }
+              : null,
           ),
           transition,
         }}

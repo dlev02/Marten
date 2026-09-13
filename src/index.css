@@ -1400,6 +1400,55 @@ label select {
   border-bottom: 1px solid var(--border);
   padding: 13px 0;
 }
+/* The dashboard customizer mirrors the two-column dashboard grid. */
+.reorder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.reorder-grid .reorder-row {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 10px 8px 10px 6px;
+  min-width: 0;
+  transition:
+    border-color 160ms,
+    opacity 160ms;
+}
+.reorder-grid .reorder-row:hover {
+  border-color: var(--strong-border);
+}
+.reorder-grid .reorder-wide {
+  grid-column: 1 / -1;
+}
+.reorder-grid .reorder-off {
+  border-style: dashed;
+  background: transparent;
+}
+.reorder-grid .reorder-off > label {
+  color: var(--muted);
+}
+.reorder-grid .reorder-row > label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+.reorder-grid .icon-button {
+  width: 26px;
+  height: 26px;
+}
+.customize-modal {
+  max-width: 640px;
+}
+@media (max-width: 560px) {
+  .reorder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reorder-grid .reorder-wide {
+    grid-column: auto;
+  }
+}
 .reorder-row > label {
   flex: 1;
   display: flex;
