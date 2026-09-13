@@ -637,3 +637,7 @@ Preferences → Default charts uses shared selects for spending, income and cash
 Use `InfoTip` with `disclosure` for secondary guidance such as PDF limits, chart defaults and connection maintenance. It opens on click or touch, has a 44px target, supports links, and closes with Escape or an outside click. Keep requirements needed to complete a form visible. Leave 16px between connection choices and their scope note. Recharts pointer focus must not draw a chart border; preserve visible keyboard focus and arrow-key navigation.
 
 Starter categories are included at workspace creation and reset, organized into focused household groups, using the existing CategoryIcon artwork. Categories opens directly with the groups, without a suggestions banner. Bank-account hover rows have 12px horizontal padding and a minimum 44px height; grouped service rows retain their bank-heading indent.
+
+### Import and connection refinements
+
+Recognized expense sheets expose the year and destination account first; advanced mappings and migration/duplicate explanations remain expandable. Plaid uses a separate step with a Back action, consistent provider icons, and existing dark/light tokens. Institution avatars must keep width, height and min-width at 26px in grouped rows. Connection notices preserve the form beneath them and give recovery steps without a blocking overlay or forced reload.

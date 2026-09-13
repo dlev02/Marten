@@ -4,6 +4,10 @@ Marten is a React/Vite single-page application with Convex as its only applicati
 
 ## Source map
 
+Connection interruptions use a delayed, non-blocking `ConnectionNotice`. It keeps the current form mounted and distinguishes waiting requests from idle disconnections; it never claims a queued mutation was saved. Intentional server validation messages remain intact, while network, backend, and version mismatch failures receive actionable copy. Technical details are collapsed on route error screens.
+
+Category-only spreadsheet rows carry `transactions.importMatchDisabled`, excluding them from automatic cross-source matching. Plaid stores an optional history cutoff per item. Email verification records have an optional purpose so bank-access verification cannot silently enable reminder delivery. These optional fields preserve existing records.
+
 For visual and interaction contracts, use [DESIGN.md](../DESIGN.md). It maps
 shared controls and design sources; historical concepts remain in `docs/design/`
 as provenance rather than implementation specifications.

@@ -1,5 +1,18 @@
 # Verification record
 
+## September 13 — Family imports, bank cutover and resilient connection UI
+
+- Inspected the supplied Expense spreadsheet template directly: row 2 contains Month, Date, Amount, Category and Notes; no expenses are filled in. Browser upload detects row 2 and reports the empty sheet without phantom transactions. The original workbook was not edited.
+- A fictional filled copy of that workbook produced six ready rows and two rejected invalid dates. Tested full Excel dates, Month/day/year, refunds, zero amounts, multiline notes, repeated expenses, category creation and an explicit destination account. Saving survived reload; retry inserted zero and skipped all six saved rows. Category-only entries do not invent a merchant or auto-match bank purchases.
+- Edge/Playwright on an isolated local Convex backend exercised desktop 1440×1000, tablet 1024×1366 and phone 390×844 in light/dark themes. Page identity, nonblank content, no framework overlay, no page errors, and no document overflow passed. Advanced import mappings/help are collapsed; Plaid setup is a separate step with Back. Final screenshots were visually inspected after theme transitions settled.
+- A fictional personal login saw Plaid first when eligible but unverified; verification was required and no email was sent. A local self-host configuration exercised the history control without calling Plaid. A fictional sheet ending today selected After spreadsheet history and tomorrow's date automatically. History suggestions are per owned account; multiple accounts are not silently conflated. Backend tests cover cutoff boundaries, corrections, email-purpose isolation, OAuth cutoff persistence, ownership, category-only matching and retry safety.
+- Source filtering isolated six spreadsheet entries; bulk Hide from reports saved. Offline/reconnect showed and cleared the non-blocking notice with a transaction form's draft retained. The real error component displayed the concise refresh state with technical details collapsed. The real Avatar component measured 26×26 for five bank marks in the institution-row stylesheet.
+- Validation: 351 tests across the 47 non-PDF suites passed, plus a focused rerun of all five error-message tests after copy edits. Typecheck, ESLint, production build and whitespace checks passed. The full suite also exposed three PDF-reader failures (`hashOriginal.toHex is not a function`) in the existing credit PDF suite on both available Node 24 runtimes; those unrelated failures remain unresolved.
+- Local Convex schema/functions deployment succeeded, including the history lookup index. No production deployment, real bank connection, bank transaction write or email send was performed. Live provider consent and deployment-interruption behavior remain outside this local simulation.
+- Impeccable harden/clarify/polish guidance and the frontend design/testing skills informed the final pass. Mobbin was registered and OAuth login succeeded; its tools were unavailable in this active task, so no Mobbin reference review is claimed.
+
+Screenshot evidence is stored outside the repository in the session's Codex visualizations folder: `marten-import-tablet.png`, `marten-import-phone.png`, `marten-connect-phone.png`, `marten-icons.png`, `marten-refresh.png`, and `marten-offline.png`. All displayed finances are fictional.
+
 ## September 13 — Complete starter categories and institution-row spacing
 
 - New and reset workspaces now receive 77 categories across 15 groups: 6 income,

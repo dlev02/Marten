@@ -24,6 +24,10 @@ Production credentials, Trial access, OAuth allowlists, and an actual institutio
 
 ## Link and accounts
 
+The connection chooser uses server-reported eligibility. Eligible household emails see Plaid before the subscription providers; an unverified eligible email sees an email-verification step. Verification is bound to the current sign-in email and does not subscribe the person to reminders. Public FAQ copy does not advertise the private exception.
+
+Transaction connections offer available history, from today, or a custom start date. The optional `plaidItems.importFromDate` persists through OAuth and every sync. It filters only new rows; existing provider rows still receive corrections. Reconnect/update mode does not change that cutoff. See [importing](importing.md#spreadsheet-history-and-bank-connections) for category-only spreadsheets and reversible overlap review.
+
 The checking/cards choice initializes Transactions, collecting additional consent for Liabilities and Investments. The investments choice initializes Investments and collects additional consent for Transactions and Liabilities. Marten calls cached investment holdings and paginated investment activity endpoints for consented investment accounts; see [Investments](investments.md). Investment and IRA totals use the institution's cached current account balance, not available cash. Holdings are never added to net worth a second time.
 
 Anonymous public-demo users cannot create or update Link, exchange a public token, store a live Item, or start/commit a bank sync, even if a profile incorrectly claims to be personal. The check uses the authenticated user's server-side `isAnonymous` flag before provider access. Registered sample-workspace users still need to clear sample data before connecting. Existing owned-Item disconnection remains available to revoke access; it cannot create bank access.

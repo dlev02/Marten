@@ -20,8 +20,9 @@ data persistence, working imports and attachments, and truthful calculations.
 
 ## Operating Context
 
-The existing spreadsheet workflow includes merchant, amount, date, and notes,
-with roughly five or six columns. Excel and CSV imports must make those columns
+The family spreadsheet uses Month, Date, Amount, Category, and Notes, without
+merchant names. Date can be a full date or a day number; day numbers need an
+explicit year. Excel and CSV imports must make those columns
 easy to map, preview, and validate. Intended banks include Chase, American
 Express, and Charles Schwab. Brokerage and IRA balances belong in net worth.
 
