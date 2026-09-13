@@ -515,7 +515,12 @@ export function Transactions() {
               />
               <Popover.Root>
                 <Popover.Trigger asChild>
-                  <Button icon={<Columns3 size={15} />}>Columns</Button>
+                  <Button
+                    icon={<Columns3 size={15} />}
+                    className="transaction-columns"
+                  >
+                    Columns
+                  </Button>
                 </Popover.Trigger>
                 <Popover.Portal>
                   <Popover.Content

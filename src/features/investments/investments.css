@@ -117,6 +117,10 @@
 .investment-controls > .folio-select {
   min-width: 220px;
 }
+/* Wide enough that its menu never outgrows the trigger. */
+.investment-date-controls > .folio-select {
+  min-width: 178px;
+}
 .investment-date-controls .date-picker-field {
   width: 170px;
   max-width: 100%;
@@ -578,7 +582,11 @@
     grid-column: 1 / -1;
     width: 100%;
   }
-  .investment-date-controls .date-picker-field {
+  /* Wide enough that its menu never outgrows the trigger. */
+.investment-date-controls > .folio-select {
+  min-width: 178px;
+}
+.investment-date-controls .date-picker-field {
     width: 100%;
     min-width: 0;
   }

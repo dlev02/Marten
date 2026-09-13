@@ -286,9 +286,12 @@ label select {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.f-button:hover:not(:disabled) {
-  background: var(--hover) !important;
-  border-color: var(--muted) !important;
+/* Hover only for pointers that hover; on touch a tapped button must not stay lit. */
+@media (hover: hover) {
+  .f-button:hover:not(:disabled) {
+    background: var(--hover) !important;
+    border-color: var(--muted) !important;
+  }
 }
 .f-button.primary {
   background: var(--accent) !important;
@@ -334,9 +337,11 @@ label select {
   padding: 0;
   color: var(--muted);
 }
-.icon-button:hover {
-  background: var(--hover);
-  color: var(--text);
+@media (hover: hover) {
+  .icon-button:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
 }
 .tooltip {
   z-index: 1200;
@@ -444,8 +449,10 @@ label select {
   background: var(--selected);
   font-weight: 600;
 }
-.nav-item:hover {
-  background: var(--selected);
+@media (hover: hover) {
+  .nav-item:hover {
+    background: var(--selected);
+  }
 }
 .nav-item svg {
   color: var(--text);
@@ -3221,6 +3228,9 @@ label select {
     padding: 14px 12px;
     gap: 12px;
   }
+  .transaction-columns {
+    display: none;
+  }
   .table-tools {
     width: 100%;
     justify-content: flex-start;
@@ -3823,6 +3833,12 @@ body,
   }
 }
 @media (max-width: 760px) {
+  /* Let the sort control give way so the overflow menu stays on the same row. */
+  .transactions-panel .transaction-sort.folio-select {
+    width: auto;
+    flex: 1 1 128px;
+    min-width: 128px;
+  }
   .table-tools-mode {
     gap: 8px;
   }

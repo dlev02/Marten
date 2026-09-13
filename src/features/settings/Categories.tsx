@@ -90,9 +90,8 @@ export function Categories() {
       </div>
       <div className="settings-section-header category-suggestions">
         <p>
-          Add missing everyday and travel categories, including accommodation,
-          transit, pharmacy, and video games. Your existing categories stay as
-          they are.
+          Add everyday and travel categories you don’t have yet, such as transit
+          or pharmacy. Existing categories stay as they are.
         </p>
         <Button
           disabled={task.busy}

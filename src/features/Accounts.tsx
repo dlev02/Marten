@@ -20,7 +20,6 @@ import {
   Merge,
   Pencil,
   Plus,
-  RefreshCw,
   Upload,
   WalletCards,
 } from "lucide-react";
@@ -471,16 +470,6 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
                   <strong>{money(netWorth, false)}</strong>
                 </div>
               </Panel>
-              <div className="account-side-note">
-                <RefreshCw size={17} />
-                <p>
-                  {data.accounts.some(
-                    (account) => account.simplefinConnectionId,
-                  )
-                    ? "Plaid updates automatically. SimpleFIN imports daily and on request from Bank connections; edit manual balances anytime."
-                    : "Connected accounts update automatically. You can update manual balances anytime."}
-                </p>
-              </div>
             </aside>
           </div>
         </>

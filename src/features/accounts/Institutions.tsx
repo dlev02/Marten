@@ -8,7 +8,6 @@ import {
   Loader2,
   Plus,
   RefreshCw,
-  ShieldCheck,
   Unplug,
 } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -65,7 +64,10 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
       <div className="institutions-heading">
         <div>
           <h2>Institutions</h2>
-          <p>Manage the banks connected to your workspace.</p>
+          <p>
+            Manage the banks connected to your workspace. Connections are
+            read-only.
+          </p>
         </div>
         <Button tone="primary" icon={<Plus size={16} />} onClick={onAddAccount}>
           Add connection
@@ -206,13 +208,6 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
         </div>
       )}
       <SimpleFinConnection />
-      <div className="institution-privacy">
-        <ShieldCheck size={19} />
-        <p>
-          Connections are read-only. Disconnecting stops future updates and
-          retains your saved balances and transaction history.
-        </p>
-      </div>
       {disconnecting && (
         <Modal
           open
