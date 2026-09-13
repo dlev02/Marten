@@ -269,9 +269,17 @@ export function AccountForm({
       account?.paymentPlan ?? "statement",
     );
   const bankManaged = !!account && !account.manual;
+  // SimpleFIN never says what kind of account it sent, so the owner can correct it.
   const editableSimplefinType =
-    !!account?.simplefinConnectionId &&
-    (account.kind === "cash" || account.kind === "investment");
+    !!account?.simplefinConnectionId && account.kind !== "asset";
+  const isDebt = (value: Doc<"accounts">["kind"]) =>
+    value === "credit" || value === "loan";
+  // Debt is stored as the amount owed, so a corrected type mirrors the balance.
+  const mirroredBalance =
+    !!account && editableSimplefinType && isDebt(kind) !== isDebt(account.kind);
+  const shownBalance = mirroredBalance
+    ? (-account.balanceCents / 100).toFixed(2)
+    : balance;
   const subtypeOptions =
     kind === "cash"
       ? [
@@ -314,7 +322,10 @@ export function AccountForm({
           mask,
           kind,
           subtype,
-          balanceCents: parseMoney(balance),
+          // A bank-managed balance is sent back unchanged; the server mirrors it for a type correction.
+          balanceCents: bankManaged
+            ? account.balanceCents
+            : parseMoney(balance),
           currency: "USD",
           hidden,
           excludeNetWorth: excluded,
@@ -404,11 +415,7 @@ export function AccountForm({
               }}
               options={
                 editableSimplefinType
-                  ? kinds.filter(
-                      (option) =>
-                        option.value === "cash" ||
-                        option.value === "investment",
-                    )
+                  ? kinds.filter((option) => option.value !== "asset")
                   : kinds
               }
             />
@@ -442,7 +449,7 @@ export function AccountForm({
               aria-label="Current balance"
               required
               inputMode="decimal"
-              value={balance}
+              value={shownBalance}
               onChange={(e) => setBalance(e.target.value)}
               placeholder="0.00"
               disabled={bankManaged}
@@ -468,9 +475,13 @@ export function AccountForm({
       </div>
       {bankManaged && (
         <p className="account-notice">
-          {editableSimplefinType
-            ? "SimpleFIN supplies the balance. You can correct the account type here."
-            : "Your bank keeps the balance and account type up to date."}
+          {mirroredBalance
+            ? isDebt(kind)
+              ? "SimpleFIN supplies the balance. Saving shows it as an amount owed and updates its balance history to match."
+              : "SimpleFIN supplies the balance. Saving shows it as money you hold and updates its balance history to match."
+            : editableSimplefinType
+              ? "SimpleFIN supplies the balance. You can correct the account type here."
+              : "Your bank keeps the balance and account type up to date."}
         </p>
       )}
       {(kind === "credit" || kind === "loan") && (

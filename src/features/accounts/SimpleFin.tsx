@@ -447,7 +447,11 @@ export function SimpleFinImport({
                           <div className="simplefin-account-options">
                             <Field
                               label="Account type"
-                              hint="SimpleFIN doesn’t say what kind of account this is. Debt accounts show the amount owed."
+                              hint={
+                                account.alreadyImported
+                                  ? "Already imported. To correct its type, open the account on the Accounts page and choose Edit."
+                                  : "SimpleFIN doesn’t say what kind of account this is. Marten guesses from the name; debt accounts show the amount owed."
+                              }
                             >
                               <Picker
                                 label={`Account type for ${account.name}`}

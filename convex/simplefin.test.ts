@@ -259,6 +259,37 @@ describe("SimpleFIN protocol helpers", () => {
     expect(guessKind({ name: "Venture X", holdings: 0 })).toBe("credit");
     expect(guessKind({ name: "Home Mortgage", holdings: 0 })).toBe("loan");
     expect(guessKind({ name: "360 Checking", holdings: 0 })).toBe("cash");
+    // Cash-back card names must not read as cash accounts.
+    expect(
+      guessKind({ name: "Blue Cash Everyday® (4008)", holdings: 0 }),
+    ).toBe("credit");
+    expect(guessKind({ name: "Double Cash", holdings: 0 })).toBe("credit");
+    expect(guessKind({ name: "Aeroplan (5566)", holdings: 0 })).toBe("credit");
+    expect(
+      guessKind({ name: "Cash Management (Individual)", holdings: 0 }),
+    ).toBe("cash");
+    expect(guessKind({ name: "Platinum Savings", holdings: 0 })).toBe("cash");
+    expect(guessKind({ name: "Freedom Checking", holdings: 0 })).toBe("cash");
+    expect(
+      guessKind({ name: "Navy Federal Credit Union Checking", holdings: 0 }),
+    ).toBe("cash");
+    expect(
+      guessKind({ name: "Line of Credit", holdings: 0, balanceCents: -50000 }),
+    ).toBe("loan");
+    // Card issuers and owed balances settle names that say nothing.
+    expect(
+      guessKind({
+        name: "Everyday (4008)",
+        holdings: 0,
+        institution: "American Express",
+      }),
+    ).toBe("credit");
+    expect(
+      guessKind({ name: "Rewards (1234)", holdings: 0, balanceCents: -21045 }),
+    ).toBe("credit");
+    expect(
+      guessKind({ name: "Rewards (1234)", holdings: 0, balanceCents: 21045 }),
+    ).toBe("cash");
     const set = parseAccountSet({
       errors: ["Fixture Bank needs re-authentication"],
       accounts: [checking, { ...card, balance: "abc" }],
@@ -893,7 +924,11 @@ test("SimpleFIN asset types can be corrected without changing provider balances 
     asUser.mutation(api.workspace.saveAccount, { ...input, balanceCents: 1 }),
   ).rejects.toThrow();
   await expect(
-    asUser.mutation(api.workspace.saveAccount, { ...input, kind: "credit" }),
+    asUser.mutation(api.workspace.saveAccount, {
+      ...input,
+      kind: "asset",
+      subtype: "property",
+    }),
   ).rejects.toThrow();
   const history = await t.run((ctx) => ctx.db.query("balances").collect());
   await asUser.mutation(api.workspace.saveAccount, input);
@@ -905,6 +940,58 @@ test("SimpleFIN asset types can be corrected without changing provider balances 
   expect(await t.run((ctx) => ctx.db.query("balances").collect())).toEqual(
     history,
   );
+});
+
+test("A SimpleFIN account imported as cash can become a credit card, mirroring its balance and history", async () => {
+  const f = await fixture({ connected: true });
+  // The bridge sends a card with an owed balance; the owner accepted the cash guess.
+  Object.assign(f.remote.accounts[0], {
+    name: "Blue Cash Everyday (4008)",
+    balance: "-210.45",
+  });
+  await f.asUser.action(api.simplefin.importAccounts, {
+    ...f.importArgs,
+    accounts: [{ externalAccountId: "acct-checking", kind: "cash" as const }],
+  });
+  const account = (
+    await f.t.run((ctx) => ctx.db.query("accounts").collect())
+  )[0];
+  expect(account).toMatchObject({ kind: "cash", balanceCents: -21045 });
+  await f.asUser.mutation(api.workspace.saveAccount, {
+    id: account._id,
+    name: account.name,
+    institution: account.institution,
+    mask: account.mask,
+    kind: "credit",
+    subtype: "credit card",
+    balanceCents: account.balanceCents,
+    currency: account.currency,
+    hidden: account.hidden,
+    excludeNetWorth: account.excludeNetWorth,
+    closed: account.closed,
+    paymentPlan: "minimum",
+  });
+  const corrected = await f.t.run((ctx) => ctx.db.get(account._id));
+  expect(corrected).toMatchObject({
+    kind: "credit",
+    subtype: "credit card",
+    balanceCents: 21045,
+    paymentPlan: "minimum",
+    simplefinAccountId: "acct-checking",
+  });
+  const history = await f.t.run((ctx) => ctx.db.query("balances").collect());
+  expect(history.map((row) => row.balanceCents)).toEqual([21045]);
+  // The daily import reads the corrected type, so the owed amount stays positive.
+  await f.asUser.action(api.simplefin.sync, {});
+  expect(await f.t.run((ctx) => ctx.db.get(account._id))).toMatchObject({
+    kind: "credit",
+    balanceCents: 21045,
+  });
+  expect(
+    (await f.t.run((ctx) => ctx.db.query("balances").collect())).map(
+      (row) => row.balanceCents,
+    ),
+  ).toEqual([21045]);
 });
 
 test("SimpleFIN keeps brokerage activity out of Transactions until the owner opts in, and removal takes it back out", async () => {

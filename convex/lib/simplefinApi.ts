@@ -450,27 +450,43 @@ export function parseAccountSet(value: unknown): AccountSet {
   }
   return { errors, accounts };
 }
-/** SimpleFIN reports no account type; the name usually reveals it. */
+/**
+ * Card product names that do not say "card": issuers name cards after rewards
+ * ("Blue Cash Everyday", "Double Cash", "Aeroplan"), so these must be checked
+ * before the generic deposit words, or a cash-back card reads as a cash account.
+ */
+const CARD_PRODUCTS =
+  /\b(blue cash|double cash|custom cash|active cash|cash rewards|cash back|cashback|cash wise|cash magnet|quicksilver|savor|venture|sapphire|freedom|slate|ink|aeroplan|prime visa|amazon prime|bonvoy|hilton honors|skymiles|aadvantage|mileageplus|rapid rewards|world of hyatt|ihg|platinum card|gold card|green card|apple card|discover it|simplicity|diamond preferred|strata|prestige|costco anywhere|bilt|autograph|marriott|united explorer|southwest)\b/;
+/** Generic card words; "credit union" is a bank, not a card. */
+const CARD_WORDS = /\b(card|visa|mastercard|amex|credit(?! union))\b/;
+/** Deposit words are the strongest signal: "Platinum Savings" and "Freedom Checking" are not cards. */
+const DEPOSIT_WORDS =
+  /\b(checking|savings|saving|money market|deposit|certificate|cd)\b/;
+const LOAN_WORDS = /\b(mortgage|loan|heloc|line of credit)\b/;
+const INVESTMENT_WORDS =
+  /\b(ira|401\(?k\)?|403b|roth|brokerage|invest|investment|investments|retirement|hsa|stocks?|mutual funds?|securities)\b/;
+/** Institutions that mainly issue cards; their deposit products say so in the name. */
+const CARD_ISSUERS =
+  /american express|amex|discover|synchrony|barclays|comenity/;
+/**
+ * SimpleFIN reports no account type, so the name, the institution, and the
+ * sign of the balance have to reveal it. Balances are signed from the owner's
+ * view, so a negative balance with no deposit words is almost always a card.
+ */
 export function guessKind(
-  account: Pick<ParsedAccount, "name" | "holdings">,
+  account: Pick<ParsedAccount, "name" | "holdings"> &
+    Partial<Pick<ParsedAccount, "institution" | "balanceCents">>,
 ): Infer<typeof accountKind> {
   const key = account.name.toLowerCase();
-  if (/\b(checking|savings|saving|money market|cash|deposit)\b/.test(key))
-    return "cash";
-  if (/\b(mortgage|loan|heloc|line of credit)\b/.test(key)) return "loan";
-  if (
-    /\b(card|credit|visa|mastercard|amex|venture|quicksilver|sapphire|freedom)\b/.test(
-      key,
-    )
-  )
+  const institution = (account.institution ?? "").toLowerCase();
+  if (LOAN_WORDS.test(key)) return "loan";
+  if (DEPOSIT_WORDS.test(key)) return "cash";
+  if (CARD_PRODUCTS.test(key) || CARD_WORDS.test(key)) return "credit";
+  if (/\bcash\b/.test(key)) return "cash";
+  if (account.holdings > 0 || INVESTMENT_WORDS.test(key)) return "investment";
+  if (CARD_ISSUERS.test(institution)) return "credit";
+  if (typeof account.balanceCents === "number" && account.balanceCents < 0)
     return "credit";
-  if (
-    account.holdings > 0 ||
-    /\b(ira|401\(?k\)?|403b|roth|brokerage|invest|investment|investments|retirement|hsa|stocks?|mutual funds?|securities)\b/.test(
-      key,
-    )
-  )
-    return "investment";
   return "cash";
 }
 /**

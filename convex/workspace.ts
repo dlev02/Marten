@@ -291,10 +291,18 @@ export async function saveAccountForUser(
     throw new ConvexError("Enter a valid APY.");
   if (id) {
     const current = await owned(ctx, id);
-    const simplefinAssetType =
+    // SimpleFIN never reports an account type, so the owner may correct it.
+    // Property is not a bank feed, so "asset" stays out of the correction.
+    const simplefinType =
       !!current.simplefinConnectionId &&
-      (current.kind === "cash" || current.kind === "investment") &&
-      (fields.kind === "cash" || fields.kind === "investment");
+      current.kind !== "asset" &&
+      fields.kind !== "asset";
+    const isDebt = (kind: Infer<typeof accountKind>) =>
+      kind === "credit" || kind === "loan";
+    // Marten stores debt as the amount owed, so moving an account across the
+    // asset/debt line mirrors its balance and history instead of the sign convention.
+    const mirrorBalances =
+      simplefinType && isDebt(current.kind) !== isDebt(fields.kind);
     if (
       !current.manual &&
       (
@@ -314,7 +322,7 @@ export async function saveAccountForUser(
         ] as const
       ).some(
         (key) =>
-          !(simplefinAssetType && (key === "kind" || key === "subtype")) &&
+          !(simplefinType && (key === "kind" || key === "subtype")) &&
           key in fields &&
           fields[key] !== current[key],
       )
@@ -323,6 +331,29 @@ export async function saveAccountForUser(
         "Your bank manages this account's balances and statement details.",
       );
     if (!current.manual) {
+      if (mirrorBalances) {
+        const accountId = current._id;
+        const history = await ctx.db
+          .query("balances")
+          .withIndex("by_accountId_and_date", (q) =>
+            q.eq("accountId", accountId),
+          )
+          .take(4001);
+        if (history.length > 4000)
+          throw new ConvexError(
+            "This account has too much balance history to change its type here.",
+          );
+        for (const row of history)
+          await ctx.db.patch(row._id, { balanceCents: -row.balanceCents });
+        await ctx.db.patch(id, {
+          ...fields,
+          balanceCents: -current.balanceCents,
+          // A card's due-date fields do not carry over from a cash account and vice versa.
+          paymentPlan: isDebt(fields.kind) ? fields.paymentPlan : undefined,
+          updatedAt: Date.now(),
+        });
+        return id;
+      }
       await ctx.db.patch(id, fields);
       return id;
     }

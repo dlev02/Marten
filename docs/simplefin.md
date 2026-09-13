@@ -64,15 +64,23 @@ follows the [SimpleFIN protocol](https://www.simplefin.org/protocol.html):
 ## Supported data and conventions
 
 - **Accounts**: SimpleFIN provides no account type. The review screen guesses
-  from the name (checking/savings → cash, card names → credit, mortgage/loan →
-  loan, holdings, stocks, mutual funds, securities, or retirement words → investment) and the user confirms.
-  Balances are signed from the owner's view, so credit and loan balances are
-  inverted into Marten's amount-owed convention. Existing SimpleFIN cash and
-  investment accounts can be corrected in the account editor without changing
-  balances or history; ambiguous names such as Gift need user review. Checking
-  and cash-management names remain cash even at a brokerage institution.
-  Available balances and the
-  balance date are kept; the institution name comes from the bridge's `org`.
+  and the user confirms. Deposit words (checking, savings, money market,
+  deposit, CD) win first, so "Platinum Savings" and "Freedom Checking" stay
+  cash; then mortgage/loan/line-of-credit words mean loan; then card product
+  names ("Blue Cash Everyday", "Double Cash", "Aeroplan", "Sapphire",
+  "Venture") and generic card words mean credit, with "credit union" excluded;
+  a bare "cash" (Fidelity's Cash Management) is cash; holdings or retirement
+  words mean investment. When the name says nothing, a card-only issuer
+  (American Express, Discover, Synchrony, Barclays, Comenity) or a negative
+  reported balance means credit, because SimpleFIN signs balances from the
+  owner's view. Credit and loan balances are inverted into Marten's
+  amount-owed convention. Any imported SimpleFIN account can later be corrected
+  through Edit account (cash, credit, investment, or loan); switching between
+  an asset and a debt type mirrors the stored balance and every balance-history
+  row, and the next import keeps the corrected sign. The review screen keeps an
+  already-imported account's type and points to Edit account. Ambiguous names
+  such as Gift need user review. Available balances and the balance date are
+  kept; the institution name comes from the bridge's `org`.
 - **Transactions**: positive SimpleFIN amounts are deposits, so Marten negates
   them (outflows positive). Dates use `transacted_at`, then `posted`, as UTC
   calendar dates. Pending records are counted and skipped; the protocol does not
