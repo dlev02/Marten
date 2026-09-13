@@ -1207,36 +1207,48 @@
 
 /* Changelog ---------------------------------------------------------------- */
 .changelog {
+  /* Secondary text that still has to be read: muted pulled toward ink (about 7:1). */
+  --site-muted-strong: color-mix(
+    in oklab,
+    var(--site-muted) 60%,
+    var(--site-ink)
+  );
   max-width: var(--site-max);
   margin: 0 auto;
   padding: clamp(40px, 7vw, 88px) var(--site-gutter) clamp(64px, 8vw, 120px);
 }
 .changelog-head {
-  max-width: 60ch;
-  padding-bottom: clamp(32px, 5vw, 64px);
+  padding-bottom: clamp(28px, 4vw, 44px);
   border-bottom: 1px solid var(--site-line);
-}
-.changelog-kicker {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--site-accent);
-  margin-bottom: 18px;
 }
 .changelog-head h1 {
   font-size: clamp(36px, 5.2vw, 62px);
   line-height: 1;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .changelog-summary {
   font-size: 18px;
-  color: var(--site-muted);
+  color: var(--site-muted-strong);
   max-width: 48ch;
+}
+.changelog-head-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--site-ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--site-ink) 30%, transparent);
+  text-underline-offset: 4px;
+  transition: text-decoration-color 160ms;
+}
+.changelog-head-link:hover {
+  text-decoration-color: currentColor;
 }
 .changelog-grid {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   gap: clamp(28px, 5vw, 80px);
   padding-top: clamp(28px, 4vw, 48px);
 }
@@ -1260,31 +1272,21 @@
   padding: 7px 14px;
   margin-left: -1px;
   border-left: 2px solid transparent;
-  color: var(--site-muted);
+  color: var(--site-muted-strong);
   font-size: 14px;
   transition:
     color 160ms,
     border-color 160ms;
 }
+/* The year only appears where it changes, so the rail reads as days, not dates. */
 .changelog-rail a small {
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--site-muted);
 }
 .changelog-rail a:hover,
 .changelog-rail a.is-current {
   color: var(--site-ink);
   border-color: var(--site-accent);
-}
-.changelog-rail-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 22px 0 0 14px;
-  font-size: 13px;
-  color: var(--site-muted);
-}
-.changelog-rail-link:hover {
-  color: var(--site-ink);
 }
 .changelog-entries {
   max-width: 72ch;
@@ -1296,6 +1298,10 @@
   gap: clamp(18px, 3vw, 36px);
   padding: clamp(28px, 4vw, 52px) 0;
   scroll-margin-top: 100px;
+}
+/* The header rule already separates the first entry; don't stack a second gap on it. */
+.release:first-child {
+  padding-top: 0;
 }
 .release + .release {
   border-top: 1px solid var(--site-line);
@@ -1312,26 +1318,42 @@
   line-height: 1;
   padding-top: 6px;
 }
+/* Big but light, so the numeral is a stamp beside the title rather than a rival to it. */
 .release-day {
-  font-size: 54px;
-  font-weight: 560;
-  letter-spacing: -0.04em;
+  font-size: 46px;
+  font-weight: 470;
+  letter-spacing: -0.035em;
 }
 .release-month {
   margin-top: 8px;
   font-family: var(--font-app);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--site-muted);
+  color: var(--site-muted-strong);
 }
-.release-date {
+.release-meta {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 20px;
+}
+.release-date {
   font-size: 13px;
-  color: var(--site-muted);
+  color: var(--site-muted-strong);
+}
+/* With the stamp showing, the written date is for assistive tech and the URL only. */
+@media (min-width: 641px) {
+  .release-date {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 .release-latest {
   display: inline-flex;
@@ -1355,23 +1377,23 @@
 .release-lead {
   font-size: 17px;
   line-height: 1.6;
-  color: var(--site-muted);
+  color: var(--site-muted-strong);
   max-width: 58ch;
 }
 .release-group {
-  margin-top: 28px;
+  margin-top: 26px;
 }
 .release-group h3 {
   display: flex;
   align-items: center;
   gap: 8px;
   font-family: var(--font-app);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--site-muted);
-  margin-bottom: 12px;
+  color: var(--site-muted-strong);
+  margin-bottom: 6px;
 }
 .release-group h3 i {
   width: 8px;
@@ -1392,38 +1414,38 @@
   display: flex;
   flex-direction: column;
 }
+/* Plain bullets: the group heading and the space around it do the structuring. */
 .release-group li {
   position: relative;
-  padding: 10px 0 10px 20px;
+  padding: 5px 0 5px 20px;
   font-size: 16px;
   line-height: 1.6;
-  border-top: 1px solid color-mix(in oklab, var(--site-line) 70%, transparent);
 }
 .release-group li::before {
   content: "";
   position: absolute;
   left: 2px;
-  top: 21px;
+  top: 15px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: color-mix(in oklab, var(--site-ink) 30%, transparent);
+  background: color-mix(in oklab, var(--site-ink) 36%, transparent);
 }
 .release-group li strong {
   font-weight: 600;
   color: var(--site-ink);
 }
 .changelog-foot {
-  margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid var(--site-line);
-  font-size: 14px;
-  color: var(--site-muted);
+  font-size: 15px;
+  color: var(--site-muted-strong);
+  max-width: 56ch;
 }
 @media (max-width: 900px) {
   .changelog-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
+    gap: 28px;
   }
   .changelog-rail {
     position: static;
@@ -1443,11 +1465,15 @@
   .changelog-rail a.is-current {
     border-color: var(--site-accent);
   }
-  .changelog-rail-link {
-    margin-left: 2px;
-  }
 }
 @media (max-width: 640px) {
+  /* On a phone the page is one scroll; a row of date pills reads like filters. */
+  .changelog-rail {
+    display: none;
+  }
+  .changelog-grid {
+    padding-top: 0;
+  }
   .release {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
@@ -1460,5 +1486,8 @@
   }
   .release-group li {
     font-size: 15px;
+  }
+  .release-group li::before {
+    top: 14px;
   }
 }

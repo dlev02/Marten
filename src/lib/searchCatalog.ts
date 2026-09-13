@@ -127,7 +127,7 @@ export const searchDestinations: SearchDestination[] = [
   },
   {
     id: "changelog",
-    title: "What’s new",
+    title: "Changelog",
     section: "Help",
     path: "/changelog",
     keywords: "changelog release notes updates whats new version history",

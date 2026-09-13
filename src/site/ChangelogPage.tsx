@@ -47,50 +47,48 @@ function useCurrentRelease(ids: string[]) {
 
 export function ChangelogPage() {
   useDocumentTitle(
-    "What's new · Marten",
+    "Changelog · Marten",
     "Everything that changed in Marten, release by release.",
   );
   const ids = changelog.map(entryId);
   const current = useCurrentRelease(ids);
-  const latest = changelog[0];
+  const years = changelog.map((entry) => year.format(parse(entry.date)));
+  const spansYears = new Set(years).size > 1;
   return (
     <SiteLayout tone="paper">
       <div className="changelog">
         <header className="changelog-head">
-          <p className="changelog-kicker">Release notes</p>
-          <h1>What’s new in Marten</h1>
+          <h1>Changelog</h1>
           <p className="changelog-summary">
-            Marten changes quickly. Every release is written up here in plain
-            words, newest first
-            {latest
-              ? `, last on ${monthDay.format(parse(latest.date))}, ${year.format(parse(latest.date))}`
-              : ""}
-            .
+            What changed in Marten, written in plain words, newest first.
           </p>
+          <a
+            className="changelog-head-link"
+            href={`${site.github}/commits/main`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Every commit on GitHub <ArrowUpRight size={14} aria-hidden />
+          </a>
         </header>
         <div className="changelog-grid">
           <aside className="changelog-rail" aria-label="Releases">
             <ol>
-              {changelog.map((entry) => (
+              {changelog.map((entry, index) => (
                 <li key={entry.date}>
                   <a
                     href={`#${entryId(entry)}`}
                     className={current === entryId(entry) ? "is-current" : ""}
                   >
                     <span>{monthDay.format(parse(entry.date))}</span>
-                    <small>{year.format(parse(entry.date))}</small>
+                    {spansYears &&
+                      (index === 0 || years[index - 1] !== years[index]) && (
+                        <small>{years[index]}</small>
+                      )}
                   </a>
                 </li>
               ))}
             </ol>
-            <a
-              className="changelog-rail-link"
-              href={`${site.github}/commits/main`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Every commit on GitHub <ArrowUpRight size={13} aria-hidden />
-            </a>
           </aside>
           <div className="changelog-entries">
             {changelog.map((entry, index) => (
@@ -107,13 +105,15 @@ export function ChangelogPage() {
                   </span>
                 </div>
                 <div className="release-body">
-                  <time dateTime={entry.date} className="release-date">
-                    {monthDay.format(parse(entry.date))},{" "}
-                    {year.format(parse(entry.date))}
+                  <div className="release-meta">
+                    <time dateTime={entry.date} className="release-date">
+                      {monthDay.format(parse(entry.date))},{" "}
+                      {year.format(parse(entry.date))}
+                    </time>
                     {index === 0 && (
                       <span className="release-latest">Latest</span>
                     )}
-                  </time>
+                  </div>
                   <h2>{entry.title}</h2>
                   <p className="release-lead">
                     <Inline text={entry.lead} />
@@ -141,8 +141,7 @@ export function ChangelogPage() {
             ))}
             <footer className="changelog-foot">
               <p>
-                Spotted something off, or want a change written up in more
-                detail?{" "}
+                Spotted something off?{" "}
                 <a
                   className="site-link"
                   href={site.newIssue}
