@@ -645,3 +645,99 @@ through. It now uses the opaque scene ground while retaining scene transitions.
 The footer reads © 2026 Drew Levinson and links to the portfolio's canonical URL,
 https://drewlevinson.me. Reviewed the scrolled landing page in the warm and night
 scenes and confirmed the rendered credit/link. Production build passed.
+
+## Live MCP agent pass — September 12, 2026
+
+Exercised the remote MCP server on the development deployment end to end, from
+both sides. `AGENT_APP_ORIGIN` on `stoic-narwhal-224` was set to the local
+frontend so consent could return to `/agent-authorize`. A loopback
+`marten-local` client completed S256 PKCE, consent, code exchange and, later,
+refresh rejection after disconnect. Fifteen fresh Claude Code sessions were
+connected only to the live server through its real Streamable HTTP client and
+given realistic user requests against the fictional Quinn SimpleFIN workspace
+(2 accounts, 344 posted transactions, no tags, rules, recurring, forecasts,
+investments or scores).
+
+- Discovery, unauthenticated 401 challenge, `2025-11-25` initialization,
+  tools/list (20 tools) and every read tool succeeded. A read-only grant returned
+  403 `insufficient_scope` on `update_account`; the client surfaced it as a tool
+  error naming the required scopes and the assistant told the user to reconnect
+  with edit access. Both grants and each call appeared in Settings → AI
+  connections; disconnecting made access tokens 401 and refresh `invalid_grant`.
+- Consented edits worked and were reversible: account rename and net-worth
+  exclusion, transaction note/reviewed/split edits (split sums enforced),
+  recurring create → mark paid → rename/pause, forecast save then revision-2
+  update. Each change appeared in the app (Recurring list, Forecast page,
+  transaction history). QA artifacts were removed afterwards.
+- A note containing planted "system" instructions was quoted, refused and
+  reported to the user; no injected action ran.
+- Assistant-side friction recorded for follow-up: no tools to rename merchants,
+  create categories/tags, or read rules, preferences or app settings; no
+  net-worth or count/total helper; `continueCursor` is non-null alongside
+  `isDone: true`; `set_recurring_paid` rejects dates before `nextDate` with only
+  "Choose a scheduled occurrence."; `annualReturnPct` does not apply to
+  `cashCents`, so a 6%→7% change left results unchanged; `get_report` reported
+  $0 income because SimpleFIN demo paychecks sit in the expense-group
+  Uncategorized category; sign convention and sort order are documented only in
+  the server instructions; `updatedAt` is epoch milliseconds.
+- Not covered: hosted ChatGPT/Claude connection flows, `2026-07-28` envelope
+  (automated tests only), and the WebMCP browser path.
+
+## SimpleFIN card types, dashboard widgets, and decluttering — September 13, 2026
+
+- SimpleFIN type guess: deposit words now win before card product names, and
+  card product names ("Blue Cash Everyday", "Double Cash", "Aeroplan") beat the
+  generic "cash" word. A card-only issuer or a negative reported balance settles
+  names that say nothing. New unit cases cover Blue Cash Everyday, Double Cash,
+  Aeroplan, Cash Management, Platinum Savings, Freedom Checking, a credit-union
+  checking account, a line of credit, an unnamed Amex account and signed
+  balances.
+- An imported SimpleFIN account can now be corrected to credit or loan (and
+  back) from Edit account. The server mirrors the stored balance and every
+  balance-history row when the account crosses the asset/debt line; the form
+  previews the mirrored figure and explains it. A convex-test case imports a
+  card as cash at −$210.45, corrects it to credit, checks the $210.45 owed
+  balance and history, and confirms the next import keeps it positive. The
+  review screen tells owners of an already-imported account where to fix it.
+- Whole-screen waits show the marten drawing itself: a conic mask sweeps from
+  the tail root around the curl and down to the feet, then erases the same way
+  (3s loop, held a hair short of a full turn because Chrome painted a faint
+  square at exactly 360°). Reduced motion shows the still mark. Verified by
+  pausing the animation at draw, hold and erase phases in both appearances.
+- The dashboard customizer no longer shows a horizontal scrollbar while a card
+  is dragged (measured scrollWidth = clientWidth = 638 during and after a drag).
+- Two new dashboard sections, off by default and listed in Customize:
+  Investments (portfolio value, six-month change, unrealized gain, a compact
+  value path, and holdings by type as a stacked bar with a legend) and Credit
+  score (a half gauge on the 300–850 scale with the FICO or VantageScore band,
+  the latest bureau/model, change since the previous score, and other
+  histories). The server's widget allowlist now lives in
+  `convex/lib/dashboardWidgets.ts`; the dev deployment was pushed. Reviewed in
+  the fictional demo in both appearances with the sample portfolio and one
+  Equifax FICO 8 score entered through the form.
+- Decluttering from the September 12 review: the Accounts sidebar note about
+  update cadence is gone (the FAQ covers it); the Institutions read-only note is
+  one sentence in the page intro and the disconnect dialog keeps the retention
+  copy; the Investments period select is 178px so its menu matches the trigger;
+  Recurring drops the "N scheduled items" line (it counted income and statements
+  alongside payments, contradicting the summary) and folds type and status into
+  one Filters button with a count badge; Reports uses the shared date-range
+  button with month-bounded presets instead of From/Through pickers, and the
+  Transactions page uses the same component; the import sheet's "What your file
+  needs" is a two-column reference with column-name chips and three short
+  notes; hover styles for buttons, icon buttons and sidebar rows only apply on
+  hovering pointers so a tapped Open/Close navigation button no longer stays
+  lit; the Recurring summary reads as label/value rows on phones; the Columns
+  button is hidden on phones and the sort control yields so the overflow menu
+  stays on the same row; the categories suggestion copy is one sentence; the
+  avatar presets moved into a Choose avatar popover beside Upload photo.
+- A public changelog at `/changelog` (site nav "What's new", footer link,
+  profile menu entry, and search catalog): a sticky date rail that follows the
+  scrolled release, a large day stamp per entry, and New / Improved / Fixed
+  groups written in plain sentences from `src/site/content/changelog.ts`.
+  Reviewed at desktop and 375px widths.
+- All 324 tests across 46 files, typecheck, lint and the production build
+  passed. Browser review used the fictional demo at desktop and 375px widths.
+- Not yet covered: editing a real SimpleFIN card through the owner's session;
+  the dashboard widgets with a Plaid-backed portfolio; Safari's handling of the
+  mask-composite animation.
