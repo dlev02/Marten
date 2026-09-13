@@ -6,10 +6,15 @@ import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { Loading } from "../components/folio/ui";
 import { CategoryIcon } from "../components/folio/CategoryIcon";
+import { demoLoadingText, isDemoSession } from "./demo";
 const DataContext = createContext<Metadata | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const data = useQuery(api.workspace.metadata, {});
-  if (data === undefined) return <Loading />;
+  // A whole-screen wait, so it sits centered like the auth check before it.
+  if (data === undefined)
+    return (
+      <Loading full text={isDemoSession() ? demoLoadingText : undefined} />
+    );
   return <DataContext.Provider value={data}>{children}</DataContext.Provider>;
 }
 export function useData() {

@@ -4,7 +4,7 @@ import { Loading } from "./components/folio/ui";
 import { AuthScreen, Onboarding } from "./features/Auth";
 import { Shell } from "./features/Shell";
 import { DemoStartup } from "./features/Demo";
-import { isDemoSession } from "./lib/demo";
+import { demoLoadingText, isDemoSession } from "./lib/demo";
 import { Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { publicPaths, visitorOnlyPaths } from "./site/paths";
@@ -46,7 +46,10 @@ export default function App() {
         <Site />
       </Suspense>
     );
-  if (isLoading) return <Loading full />;
+  if (isLoading)
+    return (
+      <Loading full text={isDemoSession() ? demoLoadingText : undefined} />
+    );
   if (isAuthenticated) {
     if (pathname === "/sign-in") return <Navigate to="/dashboard" replace />;
     return (

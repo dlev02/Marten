@@ -1,5 +1,8 @@
 const DEMO_FLAG = "folio-demo-session";
 
+/** Every whole-screen wait on the way into the demo says the same thing. */
+export const demoLoadingText = "Preparing your fictional household…";
+
 type DemoContext = {
   active: boolean;
   storage?: Storage;
