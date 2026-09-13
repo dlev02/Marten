@@ -1,5 +1,12 @@
-import { useEffect, type ReactNode } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { useEffect, useRef, type ReactNode } from "react";
+import {
+  Link,
+  NavigationType,
+  NavLink,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { ArrowUpRight, Heart, Menu, X } from "lucide-react";
 import { GitHubIcon } from "./GitHubIcon";
@@ -15,6 +22,12 @@ const primaryNav = [
   { to: "/support", label: "Support" },
 ];
 
+function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "instant"
+    : "smooth";
+}
+
 export function SiteLayout({
   children,
   tone = "day",
@@ -25,18 +38,26 @@ export function SiteLayout({
 }) {
   const { isAuthenticated } = useConvexAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [menu, setMenu] = useState(false);
+  const settled = useRef(false);
   useEffect(() => {
     setMenu(false);
+    // A fresh page lands in place; moving within a page glides there.
+    const behavior = settled.current ? scrollBehavior() : "instant";
+    settled.current = true;
     if (location.hash) {
       const target = document.getElementById(location.hash.slice(1));
       if (target) {
-        target.scrollIntoView({ block: "start" });
+        target.scrollIntoView({ block: "start", behavior });
         return;
       }
     }
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [location.pathname, location.hash]);
+    // Back and forward keep the browser's own scroll position.
+    if (navigationType === NavigationType.Pop) return;
+    window.scrollTo({ top: 0, behavior });
+  }, [location.key, location.pathname, location.hash, navigationType]);
   return (
     <div className={`site site-${tone}`} data-menu={menu ? "open" : "closed"}>
       <a href="#site-main" className="skip-link">
@@ -44,7 +65,17 @@ export function SiteLayout({
       </a>
       <header className="site-header">
         <div className="site-header-inner">
-          <Link to="/" className="site-brand" aria-label="Marten home">
+          <Link
+            to="/"
+            className="site-brand"
+            aria-label="Marten home"
+            onClick={(event) => {
+              if (location.pathname !== "/") return;
+              event.preventDefault();
+              if (location.hash) void navigate("/", { replace: true });
+              else window.scrollTo({ top: 0, behavior: scrollBehavior() });
+            }}
+          >
             <Brand />
           </Link>
           <nav className="site-nav" aria-label="Site">
