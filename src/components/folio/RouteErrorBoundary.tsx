@@ -4,6 +4,8 @@ import { RefreshCw, Home, Bug } from "lucide-react";
 import { Button } from "./ui";
 import { buildIssueUrl } from "../../lib/feedbackReport";
 import { isStaleChunkError, reloadForStaleChunk } from "../../lib/staleChunk";
+import { message as friendlyMessage } from "../../lib/format";
+import { serviceErrorKind } from "../../lib/serviceErrors";
 
 export function ErrorScreen({
   error,
@@ -13,16 +15,23 @@ export function ErrorScreen({
   onRetry?: () => void;
 }) {
   const stale = isStaleChunkError(error);
+  const kind = serviceErrorKind(error);
   const message =
     error instanceof Error ? error.message : "An unexpected error occurred.";
   return (
     <div className="route-error" role="alert">
       <div className="route-error-mark" aria-hidden="true" />
-      <h1>{stale ? "Marten was updated" : "Something went wrong"}</h1>
+      <h1>
+        {stale || kind === "update"
+          ? "Marten needs a refresh"
+          : kind === "connection"
+            ? "We can’t reach Marten"
+            : "This page couldn’t load"}
+      </h1>
       <p>
         {stale
           ? "A newer version of Marten is available. Reload to pick it up; nothing you saved is lost."
-          : "This page hit an error it couldn’t recover from. Your data is safe on the server."}
+          : friendlyMessage(error)}
       </p>
       <div className="route-error-actions">
         <Button
@@ -56,7 +65,12 @@ export function ErrorScreen({
           </a>
         )}
       </div>
-      {!stale && <pre className="route-error-detail">{message}</pre>}
+      {!stale && (
+        <details className="route-error-detail">
+          <summary>Technical details</summary>
+          <pre>{message}</pre>
+        </details>
+      )}
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { serviceErrorKind, serviceMessages } from "./serviceErrors";
+
 export const money = (cents: number, decimals = true, currency = "USD") =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -48,16 +50,8 @@ export const message = (error: unknown) => {
   if (convex?.[1]) return convex[1].trim();
   if (raw.includes("InvalidAccountId") || raw.includes("InvalidSecret"))
     return "The email or password is incorrect.";
-  if (
-    /Failed to fetch|NetworkError|Load failed|ECONNREFUSED|offline/i.test(raw)
-  )
-    return "Marten can’t reach the server right now. Check your connection and try again.";
-  if (
-    /\[CONVEX|Server Error|Request ID|Uncaught Error|InternalServerError/i.test(
-      raw,
-    )
-  )
-    return "Something went wrong on the server. Please try again in a moment.";
+  const kind = serviceErrorKind(error);
+  if (kind) return serviceMessages[kind];
   const first = raw.split("\n")[0].trim();
   return first || "Something went wrong. Please try again.";
 };

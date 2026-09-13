@@ -9,6 +9,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { publicPaths, visitorOnlyPaths } from "./site/paths";
 import { WebMCPProvider } from "./features/agents/WebMCPProvider";
+import { ConnectionNotice } from "./components/folio/ConnectionNotice";
 const AgentAuthorize = lazy(() =>
   import("./features/agents/AgentAuthorize").then((module) => ({
     default: module.AgentAuthorize,
@@ -37,6 +38,14 @@ function Workspace() {
   );
 }
 export default function App() {
+  return (
+    <>
+      <ConnectionNotice />
+      <AppContent />
+    </>
+  );
+}
+function AppContent() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { pathname } = useLocation();
   // The marketing and policy pages render for everyone, signed in or not.
