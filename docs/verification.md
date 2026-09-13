@@ -1,5 +1,32 @@
 # Verification record
 
+## September 12 — Visual refinement pass (reports basis, dashboard customizer, statements, support, buttons)
+
+- Reports and Cash Flow: the "Based on N transactions…" footnote at the page
+  bottom is gone. The chart panel header now shows "N transactions" with an
+  `InfoTip` whose tooltip explains that pending, hidden and transfer entries
+  are left out. Seen in the demo Reports page at 1280×900; the tooltip reuses
+  the IconButton tooltip styling.
+- Dashboard customizer: the dialog mirrors the dashboard's two-column grid
+  (`SortableList layout="grid"` with rect sorting, Cash flow spanning both
+  columns, unchecked sections dashed). Dragged Net worth into the second column
+  and back in the demo; arrows and checkboxes still work.
+- Recurring: the "No statements due this month" empty state sits inside a
+  panel like the schedules above it. The demo has statements, so this was
+  verified through the markup change only.
+- Investments: the SimpleFIN note is prose again, so its Bank connections
+  link stays inside the sentence instead of a second flex item running off
+  the edge; an empty Holdings allocation shows one sentence instead of two
+  separated lines. Verified in code; the demo portfolio has holdings.
+- Rules: the search row is hidden until a rule exists, matching Tags.
+- Support (in-app): the statement steps down to 22–26px under the page title
+  and the art is slightly smaller, so the page reads title → statement → body.
+- Preferences → Appearance: 20px of room between the sidebar-labels switch and
+  the Theme field. Danger buttons keep their coral fill on hover (previously the
+  default hover turned them grey with unreadable ink); checked on Delete tag.
+- Transactions reviewed at 1280×900 in dark appearance: no changes needed.
+- `npm run lint` and `npx vitest run` (45 files, 320 tests) pass.
+
 ## September 12 — Start fresh, investment activity, rule editor, feedback, Discover statements
 
 - `clearWorkspace` (Preferences → Start fresh) empties every owned table in

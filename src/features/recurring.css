@@ -300,6 +300,10 @@
 .recurring-statements {
   margin-top: 30px;
 }
+.recurring-statement-empty .empty {
+  min-height: 0;
+  padding: 34px 24px;
+}
 .recurring-section-title h2 {
   font-size: 18px;
   font-weight: 600;

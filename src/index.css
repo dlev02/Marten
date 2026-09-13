@@ -313,6 +313,14 @@ label select {
   border-color: var(--negative) !important;
   color: var(--negative-ink) !important;
 }
+.f-button.danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--negative) 86%, var(--text)) !important;
+  border-color: color-mix(
+    in oklab,
+    var(--negative) 86%,
+    var(--text)
+  ) !important;
+}
 .icon-button {
   display: inline-flex;
   align-items: center;

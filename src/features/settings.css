@@ -679,7 +679,8 @@
 .settings-preference-panel .field {
   max-width: 410px;
 }
-.settings-preference-panel .field + .field {
+.settings-preference-panel .field + .field,
+.settings-preference-panel > .toggle-row + .field {
   margin-top: 20px;
 }
 .settings-preference-panel .field .folio-select {

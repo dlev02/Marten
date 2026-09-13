@@ -18,6 +18,25 @@
   line-height: 1.08;
   margin-bottom: 14px;
 }
+/* In the app the page header is the title, so the statement steps down a level. */
+.support-content.compact .support-hero h2 {
+  font-size: clamp(22px, 2.4vw, 26px);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+.support-content.compact .support-hero p {
+  font-size: 14.5px;
+}
+.support-content.compact .support-art {
+  width: 128px;
+  height: 128px;
+  border-radius: 34px;
+}
+.support-content.compact .support-mark {
+  width: 82px;
+  height: 86px;
+}
 .support-hero p {
   font-size: 15.5px;
   line-height: 1.6;

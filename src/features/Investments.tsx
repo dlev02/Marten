@@ -333,7 +333,7 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
             account.simplefinConnectionId &&
             (!accountId || account._id === accountId),
         ) && (
-          <p className="investment-note">
+          <p className="investment-note investment-note-text">
             SimpleFIN positions update with your bank connection. Unit prices
             are calculated from position value and quantity. Cost basis, gains
             and security price history are unavailable here because their
@@ -529,14 +529,18 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                   </div>
                 ) : (
                   <p className="investment-allocation-empty">
-                    Allocation appears once holdings are available.
+                    {allocation === "type"
+                      ? "A breakdown by security type appears once your brokerage shares its holdings."
+                      : "A breakdown by account appears once your brokerage shares its holdings."}
                   </p>
                 )}
-                <p className="investment-panel-note">
-                  {allocation === "type"
-                    ? "By reported security type; fund holdings are not broken down."
-                    : "By account; account balances may include amounts outside these holdings."}
-                </p>
+                {allocationRows.length > 0 && (
+                  <p className="investment-panel-note">
+                    {allocation === "type"
+                      ? "By reported security type; fund holdings are not broken down."
+                      : "By account; account balances may include amounts outside these holdings."}
+                  </p>
+                )}
                 {!!overview.holdings.length &&
                   Math.abs(accountValue - metrics.value) > 1 && (
                     <p className="investment-panel-note">

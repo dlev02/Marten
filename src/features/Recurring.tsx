@@ -543,11 +543,13 @@ export function Recurring() {
             )}
           </div>
           {debts.length === 0 && (
-            <Empty
-              icon={<CreditCard size={24} />}
-              title="No statements due this month"
-              description="Your card payment dates will appear here. Add a statement reminder if your bank doesn’t provide them."
-            />
+            <Panel className="recurring-statement-empty">
+              <Empty
+                icon={<CreditCard size={24} />}
+                title="No statements due this month"
+                description="Your card payment dates will appear here. Add a statement reminder if your bank doesn’t provide them."
+              />
+            </Panel>
           )}
           <div className="recurring-statement-grid">
             {debts.map((a) => (

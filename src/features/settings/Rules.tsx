@@ -147,16 +147,18 @@ export function Rules() {
           Drag a rule to change its order.
         </p>
       </div>
-      <div className="settings-search">
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder="Search rules…"
-        />
-        <span className="muted">
-          {rules.filter((r) => r.enabled).length} active
-        </span>
-      </div>
+      {rules.length > 0 && (
+        <div className="settings-search">
+          <SearchBox
+            value={search}
+            onChange={setSearch}
+            placeholder="Search rules…"
+          />
+          <span className="muted">
+            {rules.filter((r) => r.enabled).length} active
+          </span>
+        </div>
+      )}
       <Panel className="settings-list">
         {filtered.length ? (
           <SortableList
