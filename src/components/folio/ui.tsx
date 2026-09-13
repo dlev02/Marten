@@ -12,7 +12,15 @@ import {
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Check, ChevronDown, Loader2, Plus, Search, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Loader2,
+  Plus,
+  Search,
+  X,
+  Info,
+} from "lucide-react";
 import { Button as BaseButton } from "../ui/button";
 import { message } from "../../lib/format";
 import { brandLogo } from "../../lib/brandLogos";
@@ -73,6 +81,24 @@ export const IconButton = forwardRef<
   );
 });
 IconButton.displayName = "IconButton";
+/** A small "i" that explains a number or label on hover, focus, or tap. */
+export function InfoTip({ label, text }: { label: string; text: string }) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <button type="button" className="info-tip" aria-label={label}>
+          <Info size={13} aria-hidden="true" />
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tooltip tooltip-wide" sideOffset={7}>
+          {text}
+          <Tooltip.Arrow />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
 export function Panel({
   title,
   action,

@@ -66,6 +66,7 @@ import {
   Picker,
   Tabs,
   useTask,
+  InfoTip,
 } from "../components/folio/ui";
 import {
   BreakdownLegend,
@@ -559,13 +560,16 @@ function chartTitle(report: ReportKind, chart: ChartKind) {
         : "Cash flow";
   return `${subject} ${chart === "bar" ? "over time" : "breakdown"}`;
 }
-function ReportFooter({ count }: { count: number }) {
-  useAmountsHidden();
+/** Sits in the chart header so the basis for the numbers is beside them. */
+function ReportBasis({ count }: { count: number }) {
   return (
-    <p className="report-footnote">
-      Based on {count.toLocaleString()} transactions in this period. Pending,
-      hidden, and transfer entries are excluded from income and expenses.
-    </p>
+    <span className="report-basis">
+      {count.toLocaleString()} transactions
+      <InfoTip
+        label="How this period is counted"
+        text="Pending, hidden and transfer entries are left out of income and expenses."
+      />
+    </span>
   );
 }
 function exportReport(
@@ -984,13 +988,16 @@ export function CashFlow() {
             title={chartTitle("cashflow", chart)}
             className="report-chart-panel"
             action={
-              <ChartSwitcher
-                chart={chart}
-                report="cashflow"
-                onChange={setChart}
-                stacked={stacked}
-                onStackedChange={setStacked}
-              />
+              <div className="report-chart-actions">
+                <ReportBasis count={count} />
+                <ChartSwitcher
+                  chart={chart}
+                  report="cashflow"
+                  onChange={setChart}
+                  stacked={stacked}
+                  onStackedChange={setStacked}
+                />
+              </div>
             }
           >
             <div className={`report-chart-body chart-${chart}`}>
@@ -1029,7 +1036,6 @@ export function CashFlow() {
             from={range.from}
             to={range.to}
           />
-          <ReportFooter count={count} />
         </>
       ) : (
         <Loading text="Calculating the complete period…" />
@@ -1311,13 +1317,16 @@ export function Reports() {
             title={chartTitle(report, chart)}
             className="report-chart-panel"
             action={
-              <ChartSwitcher
-                chart={chart}
-                report={report}
-                onChange={setChart}
-                stacked={stacked}
-                onStackedChange={setStacked}
-              />
+              <div className="report-chart-actions">
+                {complete && <ReportBasis count={count} />}
+                <ChartSwitcher
+                  chart={chart}
+                  report={report}
+                  onChange={setChart}
+                  stacked={stacked}
+                  onStackedChange={setStacked}
+                />
+              </div>
             }
           >
             <div className={`report-chart-body chart-${chart}`}>
@@ -1378,7 +1387,6 @@ export function Reports() {
                 from={from}
                 to={to}
               />
-              <ReportFooter count={count} />
             </>
           )}
         </>

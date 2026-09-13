@@ -343,6 +343,32 @@ label select {
 .tooltip svg {
   fill: var(--text);
 }
+.tooltip-wide {
+  max-width: 260px;
+  line-height: 1.5;
+  padding: 7px 10px;
+}
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: help;
+  transition:
+    background 160ms,
+    color 160ms;
+}
+.info-tip:hover,
+.info-tip:focus-visible {
+  background: var(--hover);
+  color: var(--text);
+}
 .app-shell {
   min-height: 100vh;
 }

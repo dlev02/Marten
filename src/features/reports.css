@@ -325,18 +325,24 @@
   border-radius: inherit;
 }
 .report-table-note,
-.report-footnote {
-  margin: 0;
+.report-chart-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.report-basis {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .report-table-note {
   padding: 0 20px 18px;
 }
-.report-footnote {
-  margin-top: 20px;
-}
+
 .report-donut-layout {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(240px, 1fr);
