@@ -43,12 +43,8 @@
   max-width: 240px;
   flex: 1 1 135px;
 }
-.recurring-filter-summary {
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
+.recurring-filters {
+  margin-bottom: 20px;
 }
 .recurring-summary > div {
   display: flex;
@@ -537,21 +533,33 @@
   }
 }
 @media (max-width: 650px) {
+  /* Three narrow columns wrap badly; stack the figures as label / value rows. */
   .recurring-summary {
-    padding: 20px 0;
+    grid-template-columns: 1fr;
+    padding: 0;
   }
   .recurring-summary > div {
-    padding: 0 12px;
-    gap: 7px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    row-gap: 2px;
+    padding: 14px 18px;
+  }
+  .recurring-summary > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--border);
   }
   .recurring-summary span {
-    font-size: 11px;
+    font-size: 13px;
   }
   .recurring-summary strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
     font-size: 21px;
   }
   .recurring-summary small {
-    font-size: 10px;
+    grid-column: 1;
+    font-size: 11px;
     line-height: 1.4;
   }
   .recurring-month h2 {

@@ -9,12 +9,14 @@ import { AnimatedMoney } from "../components/folio/AnimatedMoney";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { Link, useSearchParams } from "react-router-dom";
+import * as Popover from "@radix-ui/react-popover";
 import {
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Filter,
   List,
   Pencil,
   Plus,
@@ -108,6 +110,9 @@ export function Recurring() {
     filters.kind !== "all" ||
     filters.status !== "all";
   const clearFilters = () => setFilters(emptyRecurringFilters);
+  // Type and status live behind one Filters button; the badge counts the ones in use.
+  const detailFilters =
+    (filters.kind !== "all" ? 1 : 0) + (filters.status !== "all" ? 1 : 0);
   const end = monthEnd(new Date(`${month}T12:00:00`));
   const {
     results: payments,
@@ -269,51 +274,69 @@ export function Recurring() {
             })),
           ]}
         />
-        <Select
-          aria-label="Recurring type filter"
-          value={filters.kind}
-          onValueChange={(kind) =>
-            setFilters({ ...filters, kind: kind as RecurringFilters["kind"] })
-          }
-          options={[
-            { value: "all", label: "All types" },
-            { value: "expense", label: "Payments" },
-            { value: "income", label: "Income" },
-            { value: "credit", label: "Credit card schedules" },
-          ]}
-        />
-        <Select
-          aria-label="Recurring payment status filter"
-          value={filters.status}
-          onValueChange={(status) =>
-            setFilters({
-              ...filters,
-              status: status as RecurringFilters["status"],
-            })
-          }
-          options={[
-            { value: "all", label: "Any status" },
-            { value: "paid", label: "Paid / received" },
-            { value: "unpaid", label: "Unpaid / expected" },
-          ]}
-        />
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <Button
+              icon={<Filter size={16} />}
+              className={detailFilters ? "filter-active" : ""}
+            >
+              Filters
+              {detailFilters > 0 && (
+                <span className="count-badge">{detailFilters}</span>
+              )}
+            </Button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              className="filter-popover"
+              align="end"
+              sideOffset={8}
+            >
+              <h3>Filter scheduled items</h3>
+              <label>
+                Type
+                <Select
+                  aria-label="Recurring type filter"
+                  value={filters.kind}
+                  onValueChange={(kind) =>
+                    setFilters({
+                      ...filters,
+                      kind: kind as RecurringFilters["kind"],
+                    })
+                  }
+                  options={[
+                    { value: "all", label: "All types" },
+                    { value: "expense", label: "Payments" },
+                    { value: "income", label: "Income" },
+                    { value: "credit", label: "Credit card schedules" },
+                  ]}
+                />
+              </label>
+              <label>
+                Status
+                <Select
+                  aria-label="Recurring payment status filter"
+                  value={filters.status}
+                  onValueChange={(status) =>
+                    setFilters({
+                      ...filters,
+                      status: status as RecurringFilters["status"],
+                    })
+                  }
+                  options={[
+                    { value: "all", label: "Any status" },
+                    { value: "paid", label: "Paid / received" },
+                    { value: "unpaid", label: "Unpaid / expected" },
+                  ]}
+                />
+              </label>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
         {filtering && (
           <Button tone="quiet" onClick={clearFilters}>
             Clear filters
           </Button>
-        )}
-      </div>
-      <div className="recurring-filter-summary" aria-live="polite">
-        {paymentsLoaded ? (
-          <span>
-            {filtering
-              ? `${occurrences.length} of ${allOccurrences.length}`
-              : allOccurrences.length}{" "}
-            scheduled {allOccurrences.length === 1 ? "item" : "items"} this
-            month{filtering ? " · Totals reflect filters" : ""}
-          </span>
-        ) : (
-          <span>Loading scheduled items…</span>
         )}
       </div>
       <Panel className="recurring-summary">
