@@ -2678,6 +2678,75 @@ label select {
   min-height: 100vh;
   min-height: 100dvh;
   box-sizing: border-box;
+  flex-direction: column;
+  gap: 22px;
+}
+/*
+ * Whole-screen waits show the marten drawing itself: a conic mask sweeps from
+ * the tail root, around the curl, over the head and down to the feet, then
+ * erases the same way. Browsers without mask compositing show the still mark.
+ */
+@property --marten-start {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 170deg;
+}
+@property --marten-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 359.9deg;
+}
+.loading-mark {
+  width: 68px;
+  height: 72px;
+  flex-shrink: 0;
+  background: var(--accent);
+  mask: url("/marten-mark.png") center / contain no-repeat;
+  -webkit-mask: url("/marten-mark.png") center / contain no-repeat;
+}
+@supports (mask-composite: intersect) {
+  .loading-mark {
+    mask-image:
+      url("/marten-mark.png"),
+      conic-gradient(
+        from var(--marten-start) at 44% 50%,
+        #000 0deg,
+        #000 var(--marten-sweep),
+        transparent var(--marten-sweep)
+      );
+    mask-size: contain, cover;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-composite: intersect;
+    animation: marten-draw 3s infinite;
+  }
+}
+@keyframes marten-draw {
+  0% {
+    --marten-start: 170deg;
+    --marten-sweep: 0deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* A hair short of a full turn: Chrome paints a faint square when the wedge closes completely. */
+  48% {
+    --marten-start: 170deg;
+    --marten-sweep: 359.9deg;
+    animation-timing-function: linear;
+  }
+  60% {
+    --marten-start: 170deg;
+    --marten-sweep: 359.9deg;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  100% {
+    --marten-start: 530deg;
+    --marten-sweep: 0deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark {
+    animation: none;
+  }
 }
 .empty {
   display: flex;

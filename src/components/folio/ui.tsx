@@ -410,8 +410,12 @@ export function Loading({
   full?: boolean;
 }) {
   return (
-    <div className={`loading ${full ? "full" : ""}`}>
-      <Loader2 className="spin" size={22} />
+    <div className={`loading ${full ? "full" : ""}`} role="status">
+      {full ? (
+        <span className="loading-mark" aria-hidden="true" />
+      ) : (
+        <Loader2 className="spin" size={22} />
+      )}
       <span>{text}</span>
     </div>
   );
