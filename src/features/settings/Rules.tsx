@@ -3,7 +3,7 @@ import {
   useAmountsHidden,
   displayMoney as money,
 } from "../../lib/amountVisibility";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useConvex, useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -38,6 +38,7 @@ import {
   Panel,
   Picker,
   SearchBox,
+  Tabs,
   useTask,
 } from "../../components/folio/ui";
 import { OrderControls } from "./Categories";
@@ -295,6 +296,53 @@ export function Rules() {
     </>
   );
 }
+type ActionKey =
+  | "merchant"
+  | "category"
+  | "tags"
+  | "hidden"
+  | "reviewed"
+  | "splits";
+/** One change a rule can make: a switch in the row head, its controls beneath. */
+function ActionRow({
+  label,
+  hint,
+  on,
+  onToggle,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  on: boolean;
+  onToggle: (value: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`rule-action${on ? " on" : ""}`}>
+      <label className="toggle-row">
+        <div>
+          <strong>{label}</strong>
+          {hint && <p>{hint}</p>}
+        </div>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-label={label}
+          checked={on}
+          onChange={(e) => onToggle(e.target.checked)}
+        />
+        <span className="switch" />
+      </label>
+      <div className="rule-action-body" aria-hidden={!on}>
+        <div>
+          <fieldset className="rule-action-inner" disabled={!on}>
+            {children}
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  );
+}
 function RuleEditor({
   rule,
   onClose,
@@ -307,6 +355,7 @@ function RuleEditor({
     client = useConvex(),
     task = useTask(),
     save = useMutation(api.settings.saveRule),
+    saveMerchant = useMutation(api.settings.saveMerchant),
     apply = useMutation(api.settings.applyRule);
   const [name, setName] = useState(rule?.name ?? ""),
     [match, setMatch] = useState<RuleFields["match"]>(rule?.match ?? "all"),
@@ -319,28 +368,30 @@ function RuleEditor({
     [actions, setActions] = useState<RuleFields["actions"]>(
       rule?.actions ?? {},
     ),
-    [applyExisting, setApplyExisting] = useState(false),
-    [savedId, setSavedId] = useState(rule?._id);
-  const [splitEnabled, setSplitEnabled] = useState(
-      rule?.actions.splits !== undefined,
-    ),
+    // A merchant name typed into the picker is created when the rule is saved,
+    // so cancelling never leaves an empty merchant behind.
+    [newMerchant, setNewMerchant] = useState(""),
+    [on, setOn] = useState<Record<ActionKey, boolean>>({
+      merchant: !!rule?.actions.merchantId,
+      category: !!rule?.actions.categoryId,
+      tags: rule?.actions.tagIds !== undefined,
+      hidden: rule?.actions.hidden !== undefined,
+      reviewed: rule?.actions.reviewed !== undefined,
+      splits: rule?.actions.splits !== undefined,
+    }),
     [splits, setSplits] = useState<SplitDraft[]>(
       rule?.actions.splits?.map((s) => ({
         categoryId: s.categoryId,
         amount: (s.amountCents / 100).toFixed(2),
         note: s.note ?? "",
       })) ?? [],
-    );
+    ),
+    [applyExisting, setApplyExisting] = useState(false),
+    [savedId, setSavedId] = useState(rule?._id);
   const [preview, setPreview] = useState<Doc<"transactions">[] | null>(null),
     [previewRunning, setPreviewRunning] = useState(false),
     [applied, setApplied] = useState<number | null>(null);
-  const signature = JSON.stringify({
-    match,
-    conditions,
-    actions,
-    splitEnabled,
-    splits,
-  });
+  const signature = JSON.stringify({ match, conditions, on, splits });
   useEffect(() => {
     setPreview(null);
   }, [signature]);
@@ -350,6 +401,18 @@ function RuleEditor({
     );
   const updateActions = (patch: Partial<RuleFields["actions"]>) =>
     setActions((previous) => ({ ...previous, ...patch }));
+  const toggleAction = (key: ActionKey, value: boolean) => {
+    setOn((previous) => ({ ...previous, [key]: value }));
+    if (!value) return;
+    // Switching a change on gives it a sensible starting value right away.
+    if (key === "hidden" && actions.hidden === undefined)
+      updateActions({ hidden: true });
+    if (key === "reviewed" && actions.reviewed === undefined)
+      updateActions({ reviewed: true });
+    if (key === "tags" && actions.tagIds === undefined)
+      updateActions({ tagIds: [] });
+  };
+  const merchantValue = newMerchant ? "new" : (actions.merchantId ?? "");
   function build(requireActions: boolean): RuleFields {
     if (conditions.some((c) => !c.value.trim()))
       throw new Error("Complete each matching condition.");
@@ -359,12 +422,20 @@ function RuleEditor({
       )
     )
       throw new Error("Enter a valid amount to match.");
-    const clean = Object.fromEntries(
-      Object.entries(actions).filter(
-        ([key, value]) => value !== undefined && key !== "splits",
-      ),
-    ) as RuleFields["actions"];
-    if (splitEnabled) {
+    const clean: RuleFields["actions"] = {};
+    if (on.merchant) {
+      if (!actions.merchantId && !newMerchant.trim())
+        throw new Error("Choose the merchant name to apply.");
+      if (actions.merchantId) clean.merchantId = actions.merchantId;
+    }
+    if (on.category) {
+      if (!actions.categoryId) throw new Error("Choose the category to apply.");
+      clean.categoryId = actions.categoryId;
+    }
+    if (on.tags) clean.tagIds = actions.tagIds ?? [];
+    if (on.hidden) clean.hidden = actions.hidden ?? true;
+    if (on.reviewed) clean.reviewed = actions.reviewed ?? true;
+    if (on.splits) {
       if (splits.length === 1)
         throw new Error(
           "Use at least two split allocations, or remove all allocations to clear splits.",
@@ -378,8 +449,12 @@ function RuleEditor({
         };
       });
     }
-    if (requireActions && !Object.keys(clean).length)
-      throw new Error("Choose at least one action for this rule.");
+    if (
+      requireActions &&
+      !Object.keys(clean).length &&
+      !(on.merchant && newMerchant.trim())
+    )
+      throw new Error("Switch on at least one change for this rule.");
     return {
       name: name.trim() || "Rule preview",
       match,
@@ -412,8 +487,18 @@ function RuleEditor({
       setPreviewRunning(false);
     }
   }
+  /** Reuses a merchant that already exists under the typed name instead of failing. */
+  async function resolveNewMerchant(): Promise<Id<"merchants">> {
+    const typed = newMerchant.trim();
+    const key = typed.toLowerCase().replace(/\s+/g, " ");
+    const existing = data.merchants.find((m) => m.normalizedName === key);
+    if (existing) return existing._id;
+    return await saveMerchant({ name: typed, color: "#64748b" });
+  }
   async function saveRule() {
     const fields = build(true);
+    if (on.merchant && !fields.actions.merchantId)
+      fields.actions.merchantId = await resolveNewMerchant();
     const id = await save({ ...(savedId ? { id: savedId } : {}), ...fields });
     setSavedId(id);
     if (applyExisting && enabled) {
@@ -441,9 +526,10 @@ function RuleEditor({
       onClose={() => !task.busy && onClose()}
       title={rule ? "Edit rule" : "Create rule"}
       wide
-      description="Set conditions on the left and choose the changes to apply on the right."
+      description="Describe the transactions on the left and switch on the changes to make on the right."
     >
       <form
+        className="rule-editor"
         onSubmit={(e) => {
           e.preventDefault();
           void task.run(
@@ -452,8 +538,8 @@ function RuleEditor({
           );
         }}
       >
-        <fieldset disabled={task.busy} className="settings-rule-fieldset">
-          <div className="settings-rule-name">
+        <fieldset disabled={task.busy} className="rule-editor-fieldset">
+          <div className="rule-editor-name">
             <Field label="Rule name">
               <input
                 aria-label="Rule name"
@@ -465,72 +551,64 @@ function RuleEditor({
                 autoFocus
               />
             </Field>
-            <label>
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-              />
-              Enabled
-            </label>
+            {rule && (
+              <label className="toggle-row rule-editor-enabled">
+                <div>
+                  <strong>{enabled ? "Rule is on" : "Rule is off"}</strong>
+                </div>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Rule enabled"
+                  checked={enabled}
+                  onChange={(e) => setEnabled(e.target.checked)}
+                />
+                <span className="switch" />
+              </label>
+            )}
           </div>
-          <div className="settings-rule-columns">
+          <div className="rule-editor-columns">
             <section>
               <h3>
                 <span>1</span>If a transaction matches
               </h3>
-              <label className="settings-match-label">
-                Match{" "}
+              <label className="rule-match">
                 <Select
                   aria-label="Rule match mode"
                   value={match}
                   onValueChange={(value) => setMatch(value as typeof match)}
                   options={[
-                    { value: "all", label: "all" },
-                    { value: "any", label: "any" },
+                    { value: "all", label: "All" },
+                    { value: "any", label: "Any" },
                   ]}
                 />
                 of these conditions
               </label>
-              <div className="settings-conditions">
+              <div className="rule-conditions">
                 {conditions.map((condition, index) => (
-                  <div className="settings-condition" key={index}>
-                    <div>
-                      <Select
-                        aria-label={`Condition ${index + 1} field`}
-                        value={condition.field}
-                        onValueChange={(value) => {
-                          const field = value as Condition["field"];
-                          updateCondition(index, {
-                            field,
-                            value: "",
-                            operator:
-                              field === "merchant" || field === "statement"
-                                ? "contains"
-                                : "equals",
-                          });
-                        }}
-                        options={[
-                          { value: "merchant", label: "Merchant name" },
-                          { value: "statement", label: "Original statement" },
-                          { value: "amount", label: "Amount" },
-                          { value: "account", label: "Account" },
-                          { value: "category", label: "Category" },
-                        ]}
-                      />
-                      <IconButton
-                        type="button"
-                        label={`Remove condition ${index + 1}`}
-                        disabled={conditions.length === 1}
-                        onClick={() =>
-                          setConditions((list) =>
-                            list.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        <X size={14} />
-                      </IconButton>
-                    </div>
+                  <div className="rule-condition" key={index}>
+                    <Select
+                      aria-label={`Condition ${index + 1} field`}
+                      value={condition.field}
+                      onValueChange={(value) => {
+                        const field = value as Condition["field"];
+                        updateCondition(index, {
+                          field,
+                          value: "",
+                          operator:
+                            field === "merchant" || field === "statement"
+                              ? "contains"
+                              : "equals",
+                        });
+                      }}
+                      options={[
+                        { value: "merchant", label: "Merchant name" },
+                        { value: "statement", label: "Original statement" },
+                        { value: "amount", label: "Amount" },
+                        { value: "account", label: "Account" },
+                        { value: "category", label: "Category" },
+                      ]}
+                    />
                     <Select
                       aria-label={`Condition ${index + 1} comparison`}
                       value={condition.operator}
@@ -540,20 +618,33 @@ function RuleEditor({
                         })
                       }
                       options={[
-                        { value: "equals", label: "is exactly" },
                         ...(["merchant", "statement"].includes(condition.field)
                           ? [{ value: "contains", label: "contains" }]
                           : []),
+                        { value: "equals", label: "is exactly" },
                         ...(condition.field === "amount"
                           ? [
-                              { value: "greater", label: "is greater than" },
+                              { value: "greater", label: "is more than" },
                               { value: "less", label: "is less than" },
                             ]
                           : []),
                       ]}
                     />
+                    <IconButton
+                      type="button"
+                      label={`Remove condition ${index + 1}`}
+                      disabled={conditions.length === 1}
+                      onClick={() =>
+                        setConditions((list) =>
+                          list.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      <X size={14} />
+                    </IconButton>
                     {condition.field === "account" ? (
                       <Picker
+                        className="rule-condition-value"
                         label={`Condition ${index + 1} account`}
                         value={condition.value}
                         onChange={(value) => updateCondition(index, { value })}
@@ -561,6 +652,7 @@ function RuleEditor({
                       />
                     ) : condition.field === "category" ? (
                       <Picker
+                        className="rule-condition-value"
                         label={`Condition ${index + 1} category`}
                         value={condition.value}
                         onChange={(value) => updateCondition(index, { value })}
@@ -568,6 +660,7 @@ function RuleEditor({
                       />
                     ) : (
                       <AmountInput
+                        className="rule-condition-value"
                         sensitive={condition.field === "amount"}
                         aria-label={`Condition ${index + 1} value`}
                         value={condition.value}
@@ -577,7 +670,9 @@ function RuleEditor({
                         placeholder={
                           condition.field === "amount"
                             ? "0.00"
-                            : "Enter text to match"
+                            : condition.field === "statement"
+                              ? "Text from the bank’s description"
+                              : "Text in the merchant name"
                         }
                         inputMode={
                           condition.field === "amount" ? "decimal" : "text"
@@ -602,156 +697,169 @@ function RuleEditor({
                 Add condition
               </Button>
               <p className="settings-helper">
-                Amounts use positive numbers for spending and negative numbers
-                for deposits and refunds.
+                Amounts are positive for spending and negative for deposits and
+                refunds.
               </p>
             </section>
             <section>
               <h3>
-                <span>2</span>Make these changes
+                <span>2</span>Then make these changes
               </h3>
-              <Field label="Merchant">
-                <Picker
-                  label="Rule merchant action"
-                  value={actions.merchantId ?? ""}
-                  onChange={(value) =>
-                    updateActions({
-                      merchantId: value
-                        ? (value as Id<"merchants">)
-                        : undefined,
-                    })
-                  }
-                  options={[
-                    { value: "", label: "Keep current merchant" },
-                    ...merchantOptions(data),
-                  ]}
-                />
-              </Field>
-              <Field label="Category">
-                <Picker
-                  label="Rule category action"
-                  value={actions.categoryId ?? ""}
-                  onChange={(value) =>
-                    updateActions({
-                      categoryId: value
-                        ? (value as Id<"categories">)
-                        : undefined,
-                    })
-                  }
-                  options={[
-                    { value: "", label: "Keep current category" },
-                    ...categoryOptions(data),
-                  ]}
-                />
-              </Field>
-              <div className="settings-rule-bools">
-                <Field label="Visibility">
-                  <Select
-                    aria-label="Rule visibility action"
-                    value={
-                      actions.hidden === undefined
-                        ? "unchanged"
-                        : String(actions.hidden)
-                    }
-                    onValueChange={(value) =>
+              <div className="rule-actions">
+                <ActionRow
+                  label="Rename merchant"
+                  hint="Pick an existing merchant or type a new name."
+                  on={on.merchant}
+                  onToggle={(value) => toggleAction("merchant", value)}
+                >
+                  <Picker
+                    label="Merchant to apply"
+                    placeholder="Choose or create a merchant"
+                    value={merchantValue}
+                    onChange={(value) => {
+                      if (value === "new") return;
+                      setNewMerchant("");
                       updateActions({
-                        hidden:
-                          value === "unchanged" ? undefined : value === "true",
-                      })
-                    }
+                        merchantId: value
+                          ? (value as Id<"merchants">)
+                          : undefined,
+                      });
+                    }}
+                    onCreate={(search) => {
+                      if (!search) return;
+                      setNewMerchant(search);
+                      updateActions({ merchantId: undefined });
+                    }}
+                    createLabel="Create merchant"
                     options={[
-                      { value: "unchanged", label: "Keep current" },
-                      { value: "true", label: "Hide transaction" },
-                      { value: "false", label: "Show transaction" },
+                      ...(newMerchant
+                        ? [{ value: "new", label: `${newMerchant} · new` }]
+                        : []),
+                      ...merchantOptions(data),
                     ]}
                   />
-                </Field>
-                <Field label="Review status">
-                  <Select
-                    aria-label="Rule review action"
-                    value={
-                      actions.reviewed === undefined
-                        ? "unchanged"
-                        : String(actions.reviewed)
-                    }
-                    onValueChange={(value) =>
+                </ActionRow>
+                <ActionRow
+                  label="Update category"
+                  on={on.category}
+                  onToggle={(value) => toggleAction("category", value)}
+                >
+                  <Picker
+                    label="Category to apply"
+                    placeholder="Choose a category"
+                    value={actions.categoryId ?? ""}
+                    onChange={(value) =>
                       updateActions({
-                        reviewed:
-                          value === "unchanged" ? undefined : value === "true",
+                        categoryId: value
+                          ? (value as Id<"categories">)
+                          : undefined,
                       })
                     }
-                    options={[
-                      { value: "unchanged", label: "Keep current" },
-                      { value: "true", label: "Reviewed" },
-                      { value: "false", label: "Unreviewed" },
+                    options={categoryOptions(data)}
+                  />
+                </ActionRow>
+                <ActionRow
+                  label="Set tags"
+                  hint="Replaces any tags already on the transaction."
+                  on={on.tags}
+                  onToggle={(value) => toggleAction("tags", value)}
+                >
+                  {data.tags.length ? (
+                    <div className="rule-tags">
+                      {data.tags.map((tag) => (
+                        <label
+                          key={tag._id}
+                          className={
+                            chosenTags.includes(tag._id) ? "chosen" : ""
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={chosenTags.includes(tag._id)}
+                            onChange={(e) =>
+                              updateActions({
+                                tagIds: e.target.checked
+                                  ? [...chosenTags, tag._id]
+                                  : chosenTags.filter((id) => id !== tag._id),
+                              })
+                            }
+                          />
+                          <span
+                            className="settings-tag-symbol"
+                            style={{ color: tag.color }}
+                          >
+                            ●
+                          </span>
+                          {tag.name}
+                        </label>
+                      ))}
+                      <small className="muted">
+                        No tags selected clears existing tags.
+                      </small>
+                    </div>
+                  ) : (
+                    <p className="settings-helper">
+                      Create tags under Settings → Tags first. Saving with none
+                      selected clears existing tags.
+                    </p>
+                  )}
+                </ActionRow>
+                <ActionRow
+                  label="Visibility"
+                  hint="Hidden transactions stay out of reports and cash flow."
+                  on={on.hidden}
+                  onToggle={(value) => toggleAction("hidden", value)}
+                >
+                  <Tabs
+                    pill
+                    value={String(actions.hidden ?? true)}
+                    onChange={(value) =>
+                      updateActions({ hidden: value === "true" })
+                    }
+                    items={[
+                      { value: "true", label: "Hide" },
+                      { value: "false", label: "Show" },
                     ]}
                   />
-                </Field>
-              </div>
-              <label className="settings-action-check">
-                <input
-                  type="checkbox"
-                  checked={actions.tagIds !== undefined}
-                  onChange={(e) =>
-                    updateActions({ tagIds: e.target.checked ? [] : undefined })
-                  }
-                />
-                Replace tags
-              </label>
-              {actions.tagIds !== undefined && (
-                <div className="settings-rule-tags">
-                  {data.tags.map((tag) => (
-                    <label key={tag._id}>
-                      <input
-                        type="checkbox"
-                        checked={chosenTags.includes(tag._id)}
-                        onChange={(e) =>
-                          updateActions({
-                            tagIds: e.target.checked
-                              ? [...chosenTags, tag._id]
-                              : chosenTags.filter((id) => id !== tag._id),
-                          })
-                        }
-                      />
-                      <span
-                        className="settings-tag-symbol"
-                        style={{ color: tag.color }}
-                      >
-                        ●
-                      </span>
-                      {tag.name}
-                    </label>
-                  ))}
-                  <small className="muted">
-                    Leaving all tags unselected clears existing tags.
-                  </small>
-                </div>
-              )}
-              <label className="settings-action-check">
-                <input
-                  type="checkbox"
-                  checked={splitEnabled}
-                  onChange={(e) => setSplitEnabled(e.target.checked)}
-                />
-                Set split allocations
-              </label>
-              {splitEnabled && (
-                <div className="settings-rule-splits">
-                  {splits.map((split, index) => (
-                    <div className="settings-rule-split" key={index}>
-                      <Picker
-                        label={`Split ${index + 1} category`}
-                        value={split.categoryId}
-                        onChange={(categoryId) =>
-                          setSplits((list) =>
-                            list.map((s, i) =>
-                              i === index ? { ...s, categoryId } : s,
-                            ),
-                          )
-                        }
-                        options={categoryOptions(data)}
-                      />
-                      <div>
+                </ActionRow>
+                <ActionRow
+                  label="Review status"
+                  on={on.reviewed}
+                  onToggle={(value) => toggleAction("reviewed", value)}
+                >
+                  <Tabs
+                    pill
+                    value={String(actions.reviewed ?? true)}
+                    onChange={(value) =>
+                      updateActions({ reviewed: value === "true" })
+                    }
+                    items={[
+                      { value: "true", label: "Mark reviewed" },
+                      { value: "false", label: "Needs review" },
+                    ]}
+                  />
+                </ActionRow>
+                <ActionRow
+                  label="Split allocations"
+                  hint="Applies only when the amounts add up to the transaction total."
+                  on={on.splits}
+                  onToggle={(value) => toggleAction("splits", value)}
+                >
+                  <div className="rule-splits">
+                    {splits.map((split, index) => (
+                      <div className="rule-split" key={index}>
+                        <Picker
+                          label={`Split ${index + 1} category`}
+                          value={split.categoryId}
+                          onChange={(categoryId) =>
+                            setSplits((list) =>
+                              list.map((s, i) =>
+                                i === index ? { ...s, categoryId } : s,
+                              ),
+                            )
+                          }
+                          options={categoryOptions(data)}
+                        />
                         <AmountInput
                           aria-label={`Split ${index + 1} amount`}
                           value={split.amount}
@@ -778,41 +886,43 @@ function RuleEditor({
                         >
                           <X size={14} />
                         </IconButton>
+                        <input
+                          aria-label={`Split ${index + 1} note`}
+                          placeholder="Optional note"
+                          value={split.note}
+                          onChange={(e) =>
+                            setSplits((list) =>
+                              list.map((s, i) =>
+                                i === index
+                                  ? { ...s, note: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                        />
                       </div>
-                      <input
-                        aria-label={`Split ${index + 1} note`}
-                        placeholder="Optional note"
-                        value={split.note}
-                        onChange={(e) =>
-                          setSplits((list) =>
-                            list.map((s, i) =>
-                              i === index ? { ...s, note: e.target.value } : s,
-                            ),
-                          )
-                        }
-                      />
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    icon={<Plus size={14} />}
-                    disabled={splits.length >= 50}
-                    onClick={() =>
-                      setSplits((list) => [
-                        ...list,
-                        { categoryId: "", amount: "", note: "" },
-                      ])
-                    }
-                  >
-                    Add allocation
-                  </Button>
-                  <p className="settings-helper">
-                    Fixed splits apply only when the allocations exactly total
-                    the transaction amount. No allocations removes existing
-                    splits.
-                  </p>
-                </div>
-              )}
+                    ))}
+                    <Button
+                      type="button"
+                      icon={<Plus size={14} />}
+                      disabled={splits.length >= 50}
+                      onClick={() =>
+                        setSplits((list) => [
+                          ...list,
+                          { categoryId: "", amount: "", note: "" },
+                        ])
+                      }
+                    >
+                      Add allocation
+                    </Button>
+                    {!splits.length && (
+                      <p className="settings-helper">
+                        No allocations removes existing splits.
+                      </p>
+                    )}
+                  </div>
+                </ActionRow>
+              </div>
             </section>
           </div>
           <div className="settings-preview-heading">
@@ -885,7 +995,7 @@ function RuleEditor({
           <span>
             Also apply to existing matching transactions
             <small>
-              The selected actions replace existing values, including previous
+              The selected changes replace existing values, including previous
               manual edits.
             </small>
           </span>

@@ -438,6 +438,14 @@ trapping, first-input focus, Escape dismissal, and return focus to the opener.
 Check nested popover dismissal before the parent dialog, especially the year
 menu and category picker.
 
+For a dialog that offers several optional changes, such as the rule editor in
+[Rules.tsx](src/features/settings/Rules.tsx), list each change as a row with a
+switch in the row head and its controls unfolding beneath it (grid rows
+animating from 0fr to 1fr over 240ms, disabled and invisible while off). This
+keeps the dialog's shape stable, shows every capability at a glance, and avoids
+"keep current" placeholder options. Reuse the `.toggle-row` switch visuals for
+the row head; do not add a second switch style.
+
 ### Icon vocabulary
 
 Use **Lucide outline** for interface actions and navigation. Navigation icons
@@ -608,7 +616,6 @@ Transaction details keep the review action visible and place Hide/Unhide and
 eligible Delete in the adjacent overflow menu. Delete uses the negative color
 and retains confirmation. Date uses a stacked label and full-width DatePicker,
 consistent with the other editable fields; the merchant summary has a 16px top inset.
-
 
 Public FAQ search applies the focus outline to the full search container via
 `:focus-within`, with the inner input outline suppressed. Empty statement lists
