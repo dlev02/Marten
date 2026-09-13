@@ -126,6 +126,13 @@ export const searchDestinations: SearchDestination[] = [
       "settings category groups reorder rename income expense transfer disable icon library artwork gaming transit suggested categories pharmacy accommodation hotels eSIM ferries video games",
   },
   {
+    id: "changelog",
+    title: "What’s new",
+    section: "Help",
+    path: "/changelog",
+    keywords: "changelog release notes updates whats new version history",
+  },
+  {
     id: "support",
     title: "Support Marten",
     section: "Pages",

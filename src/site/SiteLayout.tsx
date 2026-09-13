@@ -11,6 +11,7 @@ const primaryNav = [
   { to: "/#features", label: "Product" },
   { to: "/faq", label: "FAQ" },
   { to: "/about", label: "About" },
+  { to: "/changelog", label: "What’s new" },
   { to: "/support", label: "Support" },
 ];
 
@@ -145,6 +146,7 @@ export function SiteLayout({
                 Live demo
               </a>
               <Link to="/faq">FAQ</Link>
+              <Link to="/changelog">What’s new</Link>
               <Link to="/support">Support the project</Link>
             </div>
             <div>

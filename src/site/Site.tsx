@@ -5,6 +5,7 @@ import "./site.css";
 import { Loading } from "../components/folio/ui";
 import { DocumentPage } from "./DocumentPage";
 import { FaqPage } from "./FaqPage";
+import { ChangelogPage } from "./ChangelogPage";
 import { privacyPolicy } from "./content/privacy";
 import { termsOfService } from "./content/terms";
 import { securityOverview } from "./content/security";
@@ -30,6 +31,8 @@ export function Site() {
         return <DocumentPage document={securityOverview} />;
       case "/about":
         return <DocumentPage document={aboutStory} />;
+      case "/changelog":
+        return <ChangelogPage />;
       case "/support":
         return <SupportPage />;
       default:

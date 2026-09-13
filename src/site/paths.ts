@@ -6,6 +6,7 @@ export const publicPaths = new Set([
   "/terms",
   "/security",
   "/about",
+  "/changelog",
 ]);
 
 /** Public routes that a signed-in user sees inside the app shell instead. */

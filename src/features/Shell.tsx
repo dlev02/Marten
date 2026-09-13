@@ -18,6 +18,7 @@ import {
   PieChart,
   Search,
   Settings2,
+  Sparkles,
   Sun,
   TrendingUp,
   WalletCards,
@@ -458,6 +459,12 @@ function SidebarContent({
                 <NavLink to="/settings/faq" onClick={onClose}>
                   <CircleHelp size={16} />
                   Help & FAQ
+                </NavLink>
+              </Popover.Close>
+              <Popover.Close asChild>
+                <NavLink to="/changelog" onClick={onClose}>
+                  <Sparkles size={16} />
+                  What’s new
                 </NavLink>
               </Popover.Close>
               <Popover.Close asChild>
