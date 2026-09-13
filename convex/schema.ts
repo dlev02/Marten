@@ -164,6 +164,10 @@ export default defineSchema({
     demo: v.boolean(),
     reviewNew: v.boolean(),
     allowPending: v.boolean(),
+    // Whether trades, dividends and sweeps from investment accounts are imported
+    // as transactions. Off (the default) keeps brokerage activity to balances
+    // and holdings so a share purchase never reads as spending.
+    investmentActivity: v.optional(v.boolean()),
     widgets: v.array(v.string()),
     // Set when the owner asked to delete the account; the scheduled sweep in
     // accountDeletion.ts is emptying every table and will remove the sign-in last.

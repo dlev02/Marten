@@ -129,6 +129,7 @@ type ImportContext = {
   connection: Doc<"simplefinConnections">;
   accounts: Doc<"accounts">[];
   allowPending: boolean;
+  investmentActivity: boolean;
 };
 /** Loads the caller's connection and opens the stored access URL for requests. */
 async function importContext(
@@ -292,6 +293,7 @@ async function runImport(
     connection,
     accounts: existing,
     accessUrl,
+    investmentActivity,
   } = await importContext(ctx);
   if (!args && connection.status === "disconnected")
     throw new ConvexError("Review and import your SimpleFIN accounts first.");
@@ -367,11 +369,16 @@ async function runImport(
       skippedUnsupported = 0,
       total = 0;
     for (const entry of prepared) {
-      const result = normalizeSimplefinTransactions(
-        entry.raw,
-        fetchFrom > entry.fromDate ? fetchFrom : entry.fromDate,
-        toDate,
-      );
+      // Brokerage activity stays out of Transactions unless the owner opted in;
+      // balances and holdings for the account are still refreshed below.
+      const result =
+        entry.selection.kind === "investment" && !investmentActivity
+          ? { transactions: [], skippedPending: 0, skippedUnsupported: 0 }
+          : normalizeSimplefinTransactions(
+              entry.raw,
+              fetchFrom > entry.fromDate ? fetchFrom : entry.fromDate,
+              toDate,
+            );
       total += result.transactions.length;
       if (total > 20000)
         throw new ConvexError(

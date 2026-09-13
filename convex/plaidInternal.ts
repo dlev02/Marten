@@ -335,6 +335,9 @@ export const ingestTransactions = internalMutation({
         throw new ConvexError(
           "A transaction account is unavailable. Reconnect to update the shared accounts.",
         );
+      // Investment activity is opt-in; see profiles.investmentActivity.
+      if (account.kind === "investment" && !profile?.investmentActivity)
+        continue;
       const posted = await ctx.db
         .query("transactions")
         .withIndex("by_userId_and_plaidTransactionId", (q) =>

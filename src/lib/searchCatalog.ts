@@ -276,6 +276,14 @@ export const searchDestinations: SearchDestination[] = [
     path: "/settings/preferences#delete-account",
     keywords: "delete account remove data close erase privacy",
   },
+  {
+    id: "investment-activity",
+    title: "Investment account activity",
+    section: "Preferences",
+    path: "/settings/preferences#transaction-preferences",
+    keywords:
+      "settings preferences investment brokerage retirement trades stock purchases dividends sweeps transactions exclude cash flow merchants",
+  },
 ];
 
 export function searchMatches(items: SearchDestination[], query: string) {

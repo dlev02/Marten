@@ -100,6 +100,14 @@ follows the [SimpleFIN protocol](https://www.simplefin.org/protocol.html):
   Add statement reminder when these details are unavailable. Plaid can supply
   them through its Liabilities product for supported institutions and consented
   connections; SimpleFIN does not offer an equivalent documented endpoint.
+- **Investment activity**: transactions on accounts imported as investment
+  accounts (trades, dividends, cash sweeps) are skipped unless the workspace
+  profile has `investmentActivity` on (Preferences → Transactions → Investment
+  account activity; off by default). Balances and holdings still refresh. The
+  Plaid transaction path applies the same switch. Turning it off later offers
+  to remove rows an earlier import created, together with merchants that only
+  existed for them; turning it on offers a backfill that re-reads the bridged
+  investment accounts from their import start date.
 - **Holdings**: the bridge returns a `holdings` array for investment accounts.
   Marten imports a complete array of identifiable positions into Investments,
   preserving fractional quantities and reported market values. Unit price is

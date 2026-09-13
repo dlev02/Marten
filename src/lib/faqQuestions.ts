@@ -190,4 +190,11 @@ export const faqQuestions = [
     to: "/settings/preferences",
     linkLabel: "Open preferences",
   },
+  {
+    question: "Why don’t my stock purchases show up as transactions?",
+    answer:
+      "Trades, dividends and cash sweeps from brokerage and retirement accounts stay out of Transactions unless you turn on Preferences → Transactions → Investment account activity. Off is the default so buying shares never counts as spending in cash flow or reports and never fills the Merchants list; balances and holdings for those accounts still update. When you turn it on, daily imports include the activity and you can fetch what SimpleFIN already holds. Turning it off again offers to remove the rows an earlier import brought in.",
+    to: "/settings/preferences#transaction-preferences",
+    linkLabel: "Open transaction preferences",
+  },
 ];

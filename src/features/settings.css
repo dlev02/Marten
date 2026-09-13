@@ -716,6 +716,26 @@
 .settings-acknowledge input {
   margin-top: 3px;
 }
+.settings-inline-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 14px 22px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--hover);
+}
+.settings-inline-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.settings-inline-note .f-button {
+  flex: none;
+}
 .settings-delete-form {
   margin-top: 20px;
 }

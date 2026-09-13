@@ -370,6 +370,7 @@ export const saveProfile = userMutation({
     name: v.optional(v.string()),
     reviewNew: v.optional(v.boolean()),
     allowPending: v.optional(v.boolean()),
+    investmentActivity: v.optional(v.boolean()),
     widgets: v.optional(v.array(v.string())),
   },
   returns: v.null(),

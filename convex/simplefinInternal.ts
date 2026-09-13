@@ -95,6 +95,7 @@ export const context = internalQuery({
     connection: schema.doc("simplefinConnections"),
     accounts: v.array(schema.doc("accounts")),
     allowPending: v.boolean(),
+    investmentActivity: v.boolean(),
   }),
   handler: async (ctx, { userId }) => {
     const connection = await requireConnection(ctx, userId);
@@ -114,6 +115,7 @@ export const context = internalQuery({
       connection,
       accounts,
       allowPending: profile?.allowPending ?? false,
+      investmentActivity: profile?.investmentActivity ?? false,
     };
   },
 });

@@ -906,3 +906,56 @@ test("SimpleFIN asset types can be corrected without changing provider balances 
     history,
   );
 });
+
+test("SimpleFIN keeps brokerage activity out of Transactions until the owner opts in, and removal takes it back out", async () => {
+  const f = await fixture({ connected: true });
+  Object.assign(f.remote.accounts[0], { name: "Fictional brokerage" });
+  const investment = {
+    externalAccountId: "acct-checking",
+    kind: "investment" as const,
+  };
+  const first = await f.asUser.action(api.simplefin.importAccounts, {
+    ...f.importArgs,
+    accounts: [investment],
+  });
+  expect(first.imported).toBe(0);
+  expect(
+    await f.t.run((ctx) => ctx.db.query("transactions").collect()),
+  ).toHaveLength(0);
+  // The account itself, with its balance, still arrives.
+  const account = await f.t.run((ctx) => ctx.db.query("accounts").first());
+  expect(account).toMatchObject({ kind: "investment", balanceCents: 123456 });
+  await f.t.run((ctx) =>
+    ctx.db.patch(f.profileId, { investmentActivity: true }),
+  );
+  const second = await f.asUser.action(api.simplefin.importAccounts, {
+    ...f.importArgs,
+    accounts: [investment],
+  });
+  expect(second.imported).toBe(2);
+  expect(await f.asUser.query(api.transactions.investmentActivity, {})).toEqual(
+    { count: 2, capped: false },
+  );
+  expect(
+    await f.t.run((ctx) => ctx.db.query("merchants").collect()),
+  ).toHaveLength(2);
+  let result = { done: false, removed: 0 };
+  while (!result.done)
+    result = await f.asUser.mutation(
+      api.transactions.removeInvestmentActivity,
+      {},
+    );
+  expect(
+    await f.t.run((ctx) => ctx.db.query("transactions").collect()),
+  ).toHaveLength(0);
+  // Merchants that only existed for the removed trades go with them.
+  expect(
+    await f.t.run((ctx) => ctx.db.query("merchants").collect()),
+  ).toHaveLength(0);
+  expect(await f.asUser.query(api.transactions.investmentActivity, {})).toEqual(
+    { count: 0, capped: false },
+  );
+  expect(await f.t.run((ctx) => ctx.db.query("accounts").first())).not.toBe(
+    null,
+  );
+});

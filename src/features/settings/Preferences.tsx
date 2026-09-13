@@ -1,7 +1,7 @@
 import { useAmountsHidden, setAmountsHidden } from "../../lib/amountVisibility";
 import { useState } from "react";
 import { useSidebarLabels, setSidebarLabels } from "../../lib/sidebarLabels";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useTheme } from "next-themes";
 import { AlertTriangle } from "lucide-react";
@@ -29,6 +29,7 @@ import {
   Panel,
   Toggle,
   useTask,
+  useToast,
 } from "../../components/folio/ui";
 export function Preferences() {
   const hideAmounts = useAmountsHidden();
@@ -37,8 +38,14 @@ export function Preferences() {
     task = useTask(),
     save = useMutation(api.workspace.saveProfile),
     clearSample = useMutation(api.workspace.clearSample),
+    removeInvestmentActivity = useMutation(
+      api.transactions.removeInvestmentActivity,
+    ),
+    importInvestmentActivity = useAction(api.simplefin.importAccounts),
+    investment = useQuery(api.transactions.investmentActivity, {}),
     deleteAccount = useMutation(api.accountDeletion.deleteAccount),
     deletion = useQuery(api.accountDeletion.status, {}),
+    toast = useToast(),
     { signOut } = useAuthActions(),
     { theme, setTheme } = useTheme();
   const [font, setFont] = useState(readFont),
@@ -49,7 +56,10 @@ export function Preferences() {
     [deleted, setDeleted] = useState(0),
     [confirmDelete, setConfirmDelete] = useState(false),
     [deleteWord, setDeleteWord] = useState(""),
-    [deleteEmail, setDeleteEmail] = useState("");
+    [deleteEmail, setDeleteEmail] = useState(""),
+    [confirmRemove, setConfirmRemove] = useState(false),
+    [removing, setRemoving] = useState(false),
+    [removedCount, setRemovedCount] = useState(0);
   // Guests explore with an anonymous sign-in; only real accounts can be deleted.
   const guest = isDemoSession() || !!deletion?.anonymous || !deletion?.email;
   const normalizeEmail = (value: string) => value.trim().toLowerCase();
@@ -57,6 +67,56 @@ export function Preferences() {
     deleteWord === "DELETE" &&
     !!deletion?.email &&
     normalizeEmail(deleteEmail) === normalizeEmail(deletion.email);
+  const investmentActivity = data.profile?.investmentActivity ?? false;
+  // Investment accounts the bridge already serves; a backfill re-reads them
+  // from their import start date once the preference is switched on.
+  const bridgedInvestmentAccounts = data.accounts.filter(
+    (account) =>
+      account.kind === "investment" &&
+      !!account.simplefinConnectionId &&
+      !!account.simplefinAccountId &&
+      !account.closed,
+  );
+  const importedInvestmentRows = investment?.count ?? 0;
+  const importedInvestmentLabel = investment?.capped
+    ? "More than 500"
+    : importedInvestmentRows.toLocaleString();
+  async function runInBatches(
+    step: () => Promise<{ done: boolean; deleted?: number; removed?: number }>,
+    onProgress: (total: number) => void,
+  ) {
+    let done = false,
+      total = 0;
+    while (!done) {
+      const result = await step();
+      done = result.done;
+      total += result.deleted ?? result.removed ?? 0;
+      onProgress(total);
+    }
+  }
+  function backfillInvestmentActivity() {
+    const fromDate = bridgedInvestmentAccounts
+      .map((account) => account.simplefinImportFromDate ?? "")
+      .filter(Boolean)
+      .sort()[0];
+    void task.run(async () => {
+      const result = await importInvestmentActivity({
+        fromDate:
+          fromDate ??
+          new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10),
+        accounts: bridgedInvestmentAccounts.map((account) => ({
+          externalAccountId: account.simplefinAccountId!,
+          targetAccountId: account._id,
+          kind: account.kind,
+        })),
+      });
+      toast(
+        result.imported
+          ? `${result.imported.toLocaleString()} investment transactions imported.`
+          : "SimpleFIN had no new investment activity for those accounts.",
+      );
+    });
+  }
   return (
     <>
       <div className="settings-section-header">
@@ -161,6 +221,49 @@ export function Preferences() {
               void task.run(() => save({ allowPending }))
             }
           />
+          <Toggle
+            label="Investment account activity"
+            description="Bring trades, dividends and cash sweeps from brokerage and retirement accounts into Transactions. Off keeps those accounts to balances and holdings, so buying shares never counts as spending or clutters Merchants."
+            checked={investmentActivity}
+            disabled={task.busy}
+            onChange={(value) =>
+              void task.run(() => save({ investmentActivity: value }))
+            }
+          />
+          {!investmentActivity && importedInvestmentRows > 0 && (
+            <div className="settings-inline-note">
+              <p>
+                {importedInvestmentLabel} imported investment transactions are
+                still in your history, reports and merchant list.
+              </p>
+              <Button
+                type="button"
+                disabled={task.busy}
+                onClick={() => setConfirmRemove(true)}
+              >
+                Remove them
+              </Button>
+            </div>
+          )}
+          {investmentActivity && bridgedInvestmentAccounts.length > 0 && (
+            <div className="settings-inline-note">
+              <p>
+                Daily imports include investment activity from now on. Fetch
+                what SimpleFIN already holds for{" "}
+                {bridgedInvestmentAccounts.length === 1
+                  ? "your investment account"
+                  : `${bridgedInvestmentAccounts.length} investment accounts`}
+                , back to the import start date.
+              </p>
+              <Button
+                type="button"
+                disabled={task.busy}
+                onClick={backfillInvestmentActivity}
+              >
+                {task.busy ? "Importing…" : "Import past activity"}
+              </Button>
+            </div>
+          )}
         </Panel>
       </div>
       <ReminderSettings />
@@ -283,6 +386,51 @@ export function Preferences() {
             </Button>
           </div>
         </form>
+      </Modal>
+      <Modal
+        open={confirmRemove}
+        onClose={() => !removing && setConfirmRemove(false)}
+        title={
+          removing
+            ? "Removing investment activity"
+            : "Remove imported investment activity?"
+        }
+        description={
+          removing
+            ? "Keep this tab open while the imported rows are removed."
+            : "Trades, dividends and sweeps that a bank import placed in your investment accounts are deleted, along with merchants that only existed for them. Manual and spreadsheet rows stay. Turning the preference back on and importing brings the activity back."
+        }
+      >
+        {removing ? (
+          <Loading
+            text={`${removedCount.toLocaleString()} transactions removed…`}
+          />
+        ) : (
+          <div className="settings-dialog-actions">
+            <Button onClick={() => setConfirmRemove(false)}>Cancel</Button>
+            <Button
+              tone="danger"
+              disabled={task.busy}
+              onClick={() =>
+                void task.run(async () => {
+                  setRemoving(true);
+                  setRemovedCount(0);
+                  try {
+                    await runInBatches(
+                      () => removeInvestmentActivity({}),
+                      setRemovedCount,
+                    );
+                    setConfirmRemove(false);
+                  } finally {
+                    setRemoving(false);
+                  }
+                }, "Investment activity removed")
+              }
+            >
+              Remove activity
+            </Button>
+          </div>
+        )}
       </Modal>
       <Modal
         open={confirm}

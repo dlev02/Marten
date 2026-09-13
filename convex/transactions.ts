@@ -4,9 +4,12 @@ import { v, ConvexError } from "convex/values";
 import {
   paginationOptsValidator,
   paginationResultValidator,
+  type FilterBuilder,
 } from "convex/server";
+import type { DataModel } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, type MutationCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import {
   userQuery,
@@ -263,26 +266,136 @@ export const bulkUpdate = userMutation({
     return new Set(ids).size;
   },
 });
+/** Deletes one row with its receipts and activity; merchant counts stay accurate. */
+async function deleteTransactionRow(ctx: MutationCtx, tx: Doc<"transactions">) {
+  const attachments = await ctx.db
+    .query("attachments")
+    .withIndex("by_transactionId", (q) => q.eq("transactionId", tx._id))
+    .take(21);
+  for (const a of attachments) {
+    await ctx.storage.delete(a.storageId);
+    await ctx.db.delete(a._id);
+  }
+  // Rows the bank withdrew were already taken out of the merchant's count.
+  if (!tx.removedFromBank) await changeMerchantCount(ctx, tx.merchantId, null);
+  await ctx.db.delete(tx._id);
+  await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
+    transactionId: tx._id,
+  });
+}
 async function removeOne(ctx: UserWrite, id: Id<"transactions">) {
   const tx = await owned(ctx, id);
   if (tx.source === "plaid" || tx.source === "simplefin")
     throw new ConvexError(
       "Hide a bank transaction to exclude it from reports.",
     );
-  const attachments = await ctx.db
-    .query("attachments")
-    .withIndex("by_transactionId", (q) => q.eq("transactionId", id))
-    .take(21);
-  for (const a of attachments) {
-    await ctx.storage.delete(a.storageId);
-    await ctx.db.delete(a._id);
-  }
-  await changeMerchantCount(ctx, tx.merchantId, null);
-  await ctx.db.delete(id);
-  await ctx.scheduler.runAfter(0, internal.transactions.clearActivity, {
-    transactionId: id,
-  });
+  await deleteTransactionRow(ctx, tx);
 }
+async function investmentAccounts(ctx: UserRead) {
+  const accounts = await ctx.db
+    .query("accounts")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(201);
+  return accounts.filter((account) => account.kind === "investment");
+}
+const providerRows = (q: FilterBuilder<DataModel["transactions"]>) =>
+  q.or(q.eq(q.field("source"), "plaid"), q.eq(q.field("source"), "simplefin"));
+/**
+ * Bank-imported rows sitting in investment accounts: trades, dividends, sweeps.
+ * Shown beside the investment activity preference so turning it off can offer
+ * to remove what an earlier import already brought in.
+ */
+export const investmentActivity = userQuery({
+  args: {},
+  returns: v.object({ count: v.number(), capped: v.boolean() }),
+  handler: async (ctx) => {
+    let count = 0,
+      capped = false;
+    for (const account of await investmentAccounts(ctx)) {
+      const rows = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_and_accountId_and_date", (q) =>
+          q.eq("userId", ctx.userId).eq("accountId", account._id),
+        )
+        .filter(providerRows)
+        .take(501);
+      count += Math.min(rows.length, 500);
+      if (rows.length > 500) capped = true;
+    }
+    return { count, capped };
+  },
+});
+/**
+ * Deletes a merchant that this removal emptied, unless a rule, recurring item
+ * or saved report still points at it. Manually created merchants keep their
+ * count and are never touched here.
+ */
+async function pruneEmptiedMerchants(
+  ctx: UserWrite,
+  merchantIds: Set<Id<"merchants">>,
+) {
+  let referenced: Set<Id<"merchants">> | null = null;
+  for (const merchantId of merchantIds) {
+    const merchant = await ctx.db.get(merchantId);
+    if (!merchant || merchant.transactionCount > 0) continue;
+    if (!referenced) {
+      referenced = new Set();
+      const [rules, recurring, reports] = await Promise.all([
+        ctx.db
+          .query("rules")
+          .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+          .take(201),
+        ctx.db
+          .query("recurring")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(501),
+        ctx.db
+          .query("savedReports")
+          .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+          .take(101),
+      ]);
+      for (const rule of rules)
+        if (rule.actions.merchantId) referenced.add(rule.actions.merchantId);
+      for (const row of recurring) referenced.add(row.merchantId);
+      for (const report of reports)
+        if (report.merchantId) referenced.add(report.merchantId);
+    }
+    if (referenced.has(merchantId)) continue;
+    if (merchant.logoStorageId)
+      await ctx.storage.delete(merchant.logoStorageId);
+    await ctx.db.delete(merchantId);
+  }
+}
+/**
+ * Removes bank-imported investment activity in batches of 100 rows. Manual and
+ * spreadsheet rows in the same accounts stay; merchants that only existed for
+ * the removed trades go with them so the Merchants list is not cluttered.
+ * The rows return through a later import once the preference is on again.
+ */
+export const removeInvestmentActivity = userMutation({
+  args: {},
+  returns: v.object({ done: v.boolean(), removed: v.number() }),
+  handler: async (ctx) => {
+    for (const account of await investmentAccounts(ctx)) {
+      const rows = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_and_accountId_and_date", (q) =>
+          q.eq("userId", ctx.userId).eq("accountId", account._id),
+        )
+        .filter(providerRows)
+        .take(100);
+      if (!rows.length) continue;
+      const touched = new Set<Id<"merchants">>();
+      for (const tx of rows) {
+        await deleteTransactionRow(ctx, tx);
+        touched.add(tx.merchantId);
+      }
+      await pruneEmptiedMerchants(ctx, touched);
+      return { done: false, removed: rows.length };
+    }
+    return { done: true, removed: 0 };
+  },
+});
 export const bulkRemove = userMutation({
   args: { ids: v.array(v.id("transactions")) },
   returns: v.number(),
