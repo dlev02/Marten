@@ -649,55 +649,53 @@ export function ImportTransactions({
         <details className="import-optional import-guide" open={!source}>
           <summary>What your file needs</summary>
           <div className="import-guide-columns">
-            <div>
+            <section>
               <h4>Required columns</h4>
-              <ul>
-                <li>
-                  <strong>Date</strong> · YYYY-MM-DD, or month/day/year with a
-                  four-digit year. Excel date cells work too.
-                </li>
-                <li>
-                  <strong>Description</strong> · the statement text. Headers
-                  such as Original Statement, Payee, Name, or Memo are
-                  recognized.
-                </li>
-                <li>
-                  <strong>Amount</strong> · one signed column, or separate Money
-                  out / Money in (Debit / Credit) columns. $1,234.56 and (42.50)
-                  are accepted.
-                </li>
-              </ul>
-            </div>
-            <div>
+              <dl>
+                <dt>Date</dt>
+                <dd>2026-09-13 or 9/13/2026. Excel date cells work.</dd>
+                <dt>Description</dt>
+                <dd>
+                  The statement text. Original Statement, Payee, Name, or Memo
+                  headers are read too.
+                </dd>
+                <dt>Amount</dt>
+                <dd>
+                  One signed column, or Money out / Money in. $1,234.56 and
+                  (42.50) are fine.
+                </dd>
+              </dl>
+            </section>
+            <section>
               <h4>Optional columns</h4>
-              <ul>
-                <li>
-                  <strong>Merchant</strong> · a clean name; without one the
-                  description is used.
-                </li>
-                <li>
-                  <strong>Category</strong> and <strong>Account</strong> ·
-                  matched to your Marten names, with a choice for any that do
-                  not match. Account labels ending in the last digits, like
-                  “Checking (...1234)”, match by those digits.
-                </li>
-                <li>
-                  <strong>Notes</strong>, <strong>Tags</strong>{" "}
-                  (comma-separated), <strong>Reviewed</strong>, and a{" "}
-                  <strong>Transaction ID</strong>.
-                </li>
-              </ul>
-            </div>
+              <dl>
+                <dt>Merchant</dt>
+                <dd>A clean name; otherwise the description is used.</dd>
+                <dt>Category, Account</dt>
+                <dd>
+                  Matched to your Marten names; anything unmatched gets a
+                  choice. “Checking (…1234)” matches by its last digits.
+                </dd>
+                <dt>Notes, Tags, Reviewed, ID</dt>
+                <dd>Tags are comma-separated; the ID keeps rows unique.</dd>
+              </dl>
+            </section>
           </div>
-          <p>
-            Headers are matched by name and can sit on any of the first 50 rows,
-            so a bank download or your own spreadsheet works without renaming.
-            Columns you cannot match automatically can be picked by hand below.
-            In the template, expenses are positive and income is negative; if
-            your file does the opposite, choose “Expenses are negative”. Monarch
-            Money transaction and balance exports are recognized automatically.
-          </p>
+          <ul className="import-guide-notes">
+            <li>
+              Headers can sit on any of the first 50 rows, so a bank download
+              works without renaming. Unmatched columns can be picked by hand.
+            </li>
+            <li>
+              Expenses are positive and income negative; choose “Expenses are
+              negative” if your file is the other way round.
+            </li>
+            <li>
+              Monarch Money transaction and balance exports are recognized.
+            </li>
+          </ul>
           <Button
+            tone="quiet"
             icon={<Download size={15} />}
             disabled={locked}
             onClick={() =>

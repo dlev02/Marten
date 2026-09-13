@@ -269,35 +269,100 @@
 .attach-receipt-list .import-hint {
   padding: 14px 10px;
 }
+/* The file guide reads as two short reference lists, not a paragraph wall. */
+.transaction-import .import-guide {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  background: var(--canvas);
+}
+.transaction-import .import-guide[open] {
+  gap: 16px;
+}
+.transaction-import .import-guide summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.transaction-import .import-guide summary::-webkit-details-marker {
+  display: none;
+}
+.transaction-import .import-guide summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 160ms;
+  margin: 0 3px 0 1px;
+}
+.transaction-import .import-guide[open] summary::before {
+  transform: rotate(45deg);
+}
 .transaction-import .import-guide-columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px 28px;
 }
 .transaction-import .import-guide h4 {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
-  margin: 0 0 6px;
+  margin: 0 0 10px;
 }
-.transaction-import .import-guide ul {
-  margin: 0;
-  padding-left: 18px;
+.transaction-import .import-guide dl {
   display: grid;
-  gap: 5px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  gap: 9px 12px;
+  margin: 0;
 }
-.transaction-import .import-guide li {
+.transaction-import .import-guide dt {
+  justify-self: start;
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 18px;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  white-space: nowrap;
+}
+.transaction-import .import-guide dd {
+  margin: 0;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.55;
+  padding-top: 1px;
+}
+.transaction-import .import-guide-notes {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
 }
 .transaction-import .import-guide .f-button {
   justify-self: start;
+  margin: -4px 0 0 -12px;
 }
 @media (max-width: 640px) {
   .transaction-import .import-guide-columns {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .transaction-import .import-guide dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px 0;
+  }
+  .transaction-import .import-guide dd {
+    margin-bottom: 7px;
   }
 }
 .transaction-import .import-preview-table-compact {
