@@ -584,8 +584,7 @@ export const write = internalMutation({
       success: true,
       createdAt: Date.now(),
     });
-    if (access.grantId)
-      await ctx.db.patch(access.grantId, { lastUsedAt: Date.now() });
+    await touchGrant(ctx, access.grantId);
     return agentData(result);
   },
 });
@@ -605,9 +604,28 @@ export const logRead = internalMutation({
       success: args.success,
       createdAt: Date.now(),
     });
-    if (access.grantId)
-      await ctx.db.patch(access.grantId, { lastUsedAt: Date.now() });
+    await touchGrant(ctx, access.grantId);
     return null;
+  },
+});
+export const applyRulePage = internalMutation({
+  args: {
+    auth: executionAuth,
+    id: v.string(),
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const access = await authorizeExecution(
+      ctx,
+      args.auth,
+      "apply_rule",
+      Date.now(),
+    );
+    const owner = { ...ctx, userId: access.userId };
+    return await applyRuleForUser(owner, {
+      id: agentId(owner, "rules", args.id),
+      paginationOpts: { cursor: args.cursor, numItems: 100 },
+    });
   },
 });
 export const reportPage = internalQuery({
