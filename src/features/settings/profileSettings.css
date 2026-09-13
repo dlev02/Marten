@@ -1,5 +1,4 @@
-.profile-settings > .profile-photo-row,
-.profile-settings > .profile-avatar-picker {
+.profile-settings > .profile-photo-row {
   margin-inline: 22px;
 }
 .profile-photo-row {
@@ -33,20 +32,15 @@
 .profile-photo-input {
   display: none;
 }
-.profile-avatar-picker,
 .profile-crop-controls {
   border: 0;
   margin: 0;
   padding: 0;
   min-width: 0;
 }
-.profile-avatar-picker {
-  margin-top: 22px;
-}
-.profile-avatar-picker legend {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 11px;
+.profile-avatar-popover {
+  width: auto;
+  max-width: min(316px, calc(100vw - 20px));
 }
 .profile-avatar-options {
   display: flex;

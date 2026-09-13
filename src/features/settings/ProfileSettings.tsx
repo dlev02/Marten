@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useAction, useMutation } from "convex/react";
-import { Camera, Check, RotateCcw } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { Camera, Check, RotateCcw, Smile } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { useData } from "../../lib/data";
 import { profileAvatars, profileAvatarUrl } from "../../lib/profileAvatar";
@@ -28,6 +29,7 @@ export function ProfileSettings() {
   const uploadPhoto = useAction(api.workspace.uploadProfilePhoto);
   const task = useTask();
   const [name, setName] = useState(profile?.name ?? "");
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const [image, setImage] = useState<ImageBitmap | null>(null);
   const [crop, setCrop] = useState<Crop>(initialCrop);
   const [cropError, setCropError] = useState<string | null>(null);
@@ -128,6 +130,60 @@ export function ProfileSettings() {
             >
               {profile.avatarUrl ? "Change photo" : "Upload photo"}
             </Button>
+            <Popover.Root open={avatarOpen} onOpenChange={setAvatarOpen}>
+              <Popover.Trigger asChild>
+                <Button icon={<Smile size={16} />} disabled={task.busy}>
+                  Choose avatar
+                </Button>
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content
+                  className="filter-popover profile-avatar-popover"
+                  align="start"
+                  sideOffset={8}
+                >
+                  <h3>Choose an avatar</h3>
+                  <div
+                    className="profile-avatar-options"
+                    role="group"
+                    aria-label="Avatar options"
+                  >
+                    {profileAvatars.map((avatar) => {
+                      const selected =
+                        !profile.avatarUrl &&
+                        profile.avatarPreset === avatar.id;
+                      return (
+                        <button
+                          key={avatar.id}
+                          type="button"
+                          aria-label={`${avatar.name} avatar`}
+                          aria-pressed={selected}
+                          className={`profile-avatar-option ${selected ? "selected" : ""}`}
+                          disabled={task.busy}
+                          onClick={() =>
+                            void task
+                              .run(
+                                () => saveAvatar({ preset: avatar.id }),
+                                "Avatar saved",
+                              )
+                              .then((ok) => {
+                                if (ok) setAvatarOpen(false);
+                              })
+                          }
+                        >
+                          <img src={avatar.url} alt="" />
+                          {selected && (
+                            <span className="profile-avatar-check">
+                              <Check size={11} />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
             {(profile.avatarUrl || profile.avatarPreset) && (
               <Button
                 tone="quiet"
@@ -160,37 +216,6 @@ export function ProfileSettings() {
           }}
         />
       </div>
-      <fieldset className="profile-avatar-picker" disabled={task.busy}>
-        <legend>Or choose an avatar</legend>
-        <div className="profile-avatar-options">
-          {profileAvatars.map((avatar) => {
-            const selected =
-              !profile.avatarUrl && profile.avatarPreset === avatar.id;
-            return (
-              <button
-                key={avatar.id}
-                type="button"
-                aria-label={`${avatar.name} avatar`}
-                aria-pressed={selected}
-                className={`profile-avatar-option ${selected ? "selected" : ""}`}
-                onClick={() =>
-                  void task.run(
-                    () => saveAvatar({ preset: avatar.id }),
-                    "Avatar saved",
-                  )
-                }
-              >
-                <img src={avatar.url} alt="" />
-                {selected && (
-                  <span className="profile-avatar-check">
-                    <Check size={11} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
       <form
         className="profile-name-form"
         onSubmit={(event) => {
