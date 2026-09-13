@@ -209,10 +209,6 @@ export function SiteLayout({
           <span>
             © 2026 <a href={site.portfolio}>{site.authorName}</a>
           </span>
-          <span>
-            Marten is not a bank and does not give financial advice. Bank data
-            arrives through Plaid or your own SimpleFIN Bridge subscription.
-          </span>
         </div>
       </footer>
     </div>
