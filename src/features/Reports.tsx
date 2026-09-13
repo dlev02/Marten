@@ -1,3 +1,4 @@
+import { defaultCharts } from "../../convex/lib/chartDefaults";
 import {
   useAmountsHidden,
   displayMoney as money,
@@ -492,7 +493,7 @@ function ReportChart({
 }
 const chartLabels: Record<ChartKind, string> = {
   bar: "Trend bars",
-  donut: "Donut",
+  donut: "Pie chart",
   treemap: "Treemap",
   sankey: "Sankey",
 };
@@ -885,12 +886,14 @@ function DrilldownSection({
 
 export function CashFlow() {
   useAmountsHidden();
+  const data = useData();
   const [anchor, setAnchor] = useState(monthStart()),
     [period, setPeriod] = useState<Period>("monthly"),
     [groupBy, setGroupBy] = useState("category"),
-    [chart, setChart] = useState<ChartKind>("sankey"),
+    [chart, setChart] = useState<ChartKind>(
+      () => data.profile?.chartDefaults?.cashflow ?? defaultCharts.cashflow,
+    ),
     [stacked, setStacked] = useState(false);
-  const data = useData();
   const range = periodDates(anchor, period);
   const periods = comparisonPeriods(anchor, period);
   const transactions = useTransactions(
@@ -1057,7 +1060,9 @@ export function Reports() {
     [from, setFrom] = useState(() => monthOffset(monthStart(), -5)),
     [to, setTo] = useState(monthEnd()),
     [groupBy, setGroupBy] = useState("category"),
-    [chart, setChart] = useState<ChartKind>("bar"),
+    [chart, setChart] = useState<ChartKind>(
+      () => data.profile?.chartDefaults?.cashflow ?? defaultCharts.cashflow,
+    ),
     [stacked, setStacked] = useState(false),
     [saveOpen, setSaveOpen] = useState(false),
     [name, setName] = useState("");
@@ -1170,7 +1175,11 @@ export function Reports() {
           onChange={(v) => {
             const kind = v as ReportKind;
             setReport(kind);
-            setChart(normalizeReportChart(chart, kind));
+            setSelectedId(null);
+            setChart(
+              data.profile?.chartDefaults?.[kind] ??
+                defaultCharts[kind],
+            );
           }}
           items={reportOptions}
         />

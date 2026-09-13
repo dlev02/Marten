@@ -332,7 +332,7 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
             are calculated from position value and quantity. Cost basis, gains
             and security price history are unavailable here because their
             meaning or coverage has not been verified. Sync from{" "}
-            <Link to="/settings/institutions#simplefin">Bank connections</Link>.
+            <Link to="/settings/institutions">Bank connections</Link>.
           </p>
         )}
         {sampleError && (
@@ -676,7 +676,7 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                                 className={`numeric ${holding.basisCents === null ? "muted" : holding.valueCents >= holding.basisCents ? "positive" : "negative"}`}
                               >
                                 {holding.simplefinConnectionId
-                                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                                  ? "Unavailable"
                                   : holding.basisCents === null
                                     ? "Unavailable"
                                     : valueLabel(
@@ -923,7 +923,7 @@ function HoldingDetail({
               <dt>Total cost basis</dt>
               <dd>
                 {holding.simplefinConnectionId
-                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                  ? "Unavailable"
                   : holding.basisCents === null
                     ? "Not provided"
                     : valueLabel(holding.basisCents, holding.currency)}
@@ -933,7 +933,7 @@ function HoldingDetail({
               <dt>Unrealized gain / loss</dt>
               <dd>
                 {holding.simplefinConnectionId
-                  ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+                  ? "Unavailable"
                   : holding.basisCents === null
                     ? "Unavailable"
                     : valueLabel(
@@ -966,7 +966,7 @@ function HoldingDetail({
           </dl>
           <p className="investment-detail-explanation">
             {holding.simplefinConnectionId
-              ? "This SimpleFIN unit price is position value divided by quantity. Its quote date and total cost basis have not been verified, so unrealized gain is unavailable. "
+              ? "This connection does not supply a verified total cost basis or quote date. SimpleFIN derives unit price from position value and quantity; Lunch Flow supplies its reported price. "
               : holding.basisCents === null
                 ? "The institution did not supply cost basis for this position, so its unrealized gain is unavailable. "
                 : "Unrealized gain compares the current position value with its reported total cost basis. "}

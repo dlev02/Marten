@@ -1,5 +1,10 @@
 export const faqQuestions = [
   {
+    question: "Can I choose default charts for reports and cash flow?",
+    answer: "Yes. Choose spending, income and cash-flow defaults in Preferences. Spending and income offer trend bars, pie charts and treemaps; cash flow also offers Sankey. These choices follow your workspace. Saved reports retain their own chart, and temporary chart changes do not replace your defaults.",
+    to: "/settings/preferences#chart-defaults", linkLabel: "Choose default charts",
+  },
+  {
     question: "Can I show Marten without showing my balances?",
     answer:
       "Turn on Hide amounts in Preferences → Privacy. Financial amounts and holding quantities become four dots, including chart amounts and tooltips. Merchants, dates, proportions and chart shapes stay visible. You can also hide or show amounts from the profile menu. The choice stays on this device after reload. Amount fields cannot be edited while hidden. This changes the display only: receipts, notes, statement text, exports and connected assistants still contain original information.",
@@ -66,9 +71,9 @@ export const faqQuestions = [
   {
     question: "Can I connect banks without Plaid?",
     answer:
-      "Yes. SimpleFIN Bridge is a low-cost subscription that links up to 25 institutions. Link your banks there, create a setup token, and paste it into Marten. Balances and posted transactions import daily; Marten never sees your bank passwords.",
-    to: "/settings/institutions#simplefin",
-    linkLabel: "Connect SimpleFIN",
+      "Yes. Bring your own SimpleFIN Bridge setup token or Lunch Flow API key. Link banks with that service, then review the accounts and import date in Marten. Both import balances and posted transactions daily. Lunch Flow offers several bank providers, but its API does not supply transaction categories or credit-card statement details. Manage provider choice and bank consent in Lunch Flow.",
+    to: "/settings/institutions",
+    linkLabel: "Connect a bank",
   },
   {
     question: "How far back can Marten get my bank transactions?",

@@ -1,3 +1,8 @@
+import { useLocation } from "react-router-dom";
+import {
+  providerName,
+  type BankProvider,
+} from "../../../convex/lib/bankProviders";
 import {
   useAmountsHidden,
   displayMoney as money,
@@ -12,7 +17,6 @@ import {
   Download,
   ExternalLink,
   KeyRound,
-  Link2,
   Loader2,
   RefreshCw,
   Trash2,
@@ -25,8 +29,8 @@ import { dateLabel, localDate, message } from "../../lib/format";
 import {
   Avatar,
   Button,
-  Empty,
   Field,
+  InfoTip,
   Loading,
   Modal,
   Panel,
@@ -43,6 +47,18 @@ type Kind = Preview["accounts"][number]["kind"];
 type Choice = { selected: boolean; target: string; kind: Kind };
 
 const BRIDGE_URL = "https://beta-bridge.simplefin.org/";
+function connectionProviderLabel(provider: string) {
+  const labels: Record<string, string> = {
+    mx: "MX",
+    finicity: "Finicity",
+    gocardless: "GoCardless",
+    finverse: "Finverse",
+    pluggy: "Pluggy",
+    akahu: "Akahu",
+    snaptrade: "SnapTrade",
+  };
+  return labels[provider.toLowerCase()] ?? provider;
+}
 const kindOptions = [
   { value: "cash", label: "Cash · checking & savings" },
   { value: "credit", label: "Credit card" },
@@ -62,7 +78,7 @@ function ProviderErrors({ errors }: { errors: string[] }) {
   if (!errors.length) return null;
   return (
     <div className="account-notice simplefin-provider-errors" role="status">
-      <strong>SimpleFIN reported:</strong>
+      <strong>Connection reported:</strong>
       <ul>
         {errors.map((error) => (
           <li key={error}>{error}</li>
@@ -73,14 +89,21 @@ function ProviderErrors({ errors }: { errors: string[] }) {
 }
 /** Step one: paste a setup token. The claim happens once, server-side. */
 export function SimpleFinConnect({
+  provider = "simplefin",
   onClose,
   onConnected,
 }: {
+  provider?: BankProvider;
   onClose: () => void;
   onConnected: (preview: Preview | null, warning: string | null) => void;
 }) {
+  const name = providerName(provider);
+  const lunchflow = provider === "lunchflow";
+  const providerUrl = lunchflow
+    ? "https://lunchflow.app/destinations"
+    : BRIDGE_URL;
   useAmountsHidden();
-  const status = useQuery(api.simplefin.status, {});
+  const status = useQuery(api.simplefin.status, { provider });
   const connect = useAction(api.simplefin.connect);
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,7 +115,8 @@ export function SimpleFinConnect({
     setBusy(true);
     setError("");
     try {
-      const result = await connect({ setupToken: token });
+      const result = await connect({ setupToken: token, provider });
+      setToken("");
       onConnected(result.preview, result.warning);
     } catch (failure) {
       setError(message(failure));
@@ -106,29 +130,42 @@ export function SimpleFinConnect({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title={replacing ? "Reconnect SimpleFIN" : "Connect SimpleFIN Bridge"}
+      title={`${replacing ? "Reconnect" : "Connect"} ${name}`}
     >
       <form
         className="simplefin-connect"
         onSubmit={(event) => void submit(event)}
       >
         <p>
-          SimpleFIN Bridge links your banks once and shares balances and
-          transactions with apps you approve. Marten never sees your bank
-          passwords.
+          {name} links your banks and shares balances and transactions with apps
+          you approve. Marten never sees your bank passwords.
         </p>
         <ol className="simplefin-steps">
           <li>
             Sign in to{" "}
-            <a href={BRIDGE_URL} target="_blank" rel="noreferrer">
-              SimpleFIN Bridge <ExternalLink size={12} />
+            <a href={providerUrl} target="_blank" rel="noreferrer">
+              {name} <ExternalLink size={12} />
             </a>{" "}
             and link the banks you want in Marten.
           </li>
           <li>
-            Choose <strong>New App</strong> (a setup token) and copy the token.
+            {lunchflow ? (
+              <>
+                Open <strong>Destinations → Add Destination → API</strong> and
+                copy your API key. Enable the accounts you want to share in
+                Account Access.
+              </>
+            ) : (
+              <>
+                Choose <strong>New App</strong> and copy the setup token.
+              </>
+            )}
           </li>
-          <li>Paste it below. The token works once and expires quickly.</li>
+          <li>
+            {lunchflow
+              ? "Paste your key below, then review the accounts to import."
+              : "Paste it below. The token works once and expires quickly."}
+          </li>
         </ol>
         {status && !status.availableToUser && (
           <div className="account-notice">{status.setupReason}</div>
@@ -146,25 +183,40 @@ export function SimpleFinConnect({
           </div>
         )}
         <Field
-          label="Setup token"
-          hint="A long block of letters and numbers from SimpleFIN Bridge."
+          label={lunchflow ? "API key" : "Setup token"}
+          hint={
+            lunchflow
+              ? "From your Lunch Flow API destination. Stored on the server and never returned to the browser."
+              : "A long block of letters and numbers from SimpleFIN Bridge."
+          }
         >
-          <textarea
-            aria-label="SimpleFIN setup token"
-            className="simplefin-token"
+          <input
+            type="password"
+            aria-label={`${name} ${lunchflow ? "API key" : "setup token"}`}
             value={token}
             onChange={(event) => setToken(event.target.value)}
-            rows={4}
             spellCheck={false}
             autoComplete="off"
             disabled={busy || !status?.availableToUser}
-            placeholder="aHR0cHM6Ly9icmlkZ2Uuc2ltcGxlZmluLm9yZy9zaW1wbGVmaW4vY2xhaW0v…"
+            placeholder={
+              lunchflow ? "Paste your API key" : "Paste your setup token"
+            }
             required
           />
         </Field>
         <p className="muted simplefin-price">
-          SimpleFIN Bridge is a separate subscription (about $1.50 a month or
-          $15 a year) that covers up to 25 institutions.
+          {lunchflow ? (
+            <>
+              Lunch Flow is a separate subscription.{" "}
+              <a href="https://lunchflow.app" target="_blank" rel="noreferrer">
+                Check coverage and pricing
+              </a>
+              . Choose or repair bank connections in Lunch Flow; Marten imports
+              the accounts shared with this key.
+            </>
+          ) : (
+            "SimpleFIN Bridge sets its own subscription price, currently about $1.50 a month or $15 a year for up to 25 institutions."
+          )}
         </p>
         <div className="account-form-footer">
           <Button onClick={onClose} disabled={busy}>
@@ -191,18 +243,21 @@ export function SimpleFinConnect({
 }
 /** Step two: choose which linked accounts to import and how to map them. */
 export function SimpleFinImport({
+  provider = "simplefin",
   initial,
   initialError,
   onClose,
   onImported,
 }: {
+  provider?: BankProvider;
   initial?: Preview | null;
   initialError?: string | null;
   onClose: () => void;
   onImported?: () => void;
 }) {
+  const name = providerName(provider);
   useAmountsHidden();
-  const status = useQuery(api.simplefin.status, {});
+  const status = useQuery(api.simplefin.status, { provider });
   const preview = useAction(api.simplefin.preview);
   const importAccounts = useAction(api.simplefin.importAccounts);
   const data = useData();
@@ -236,7 +291,7 @@ export function SimpleFinImport({
     setBusy(true);
     setError("");
     try {
-      const next = await preview({});
+      const next = await preview({ provider });
       setLoaded(next);
       setReviewed(false);
       setChoices(initialChoices(next));
@@ -272,6 +327,7 @@ export function SimpleFinImport({
     try {
       setResult(
         await importAccounts({
+          provider,
           fromDate,
           accounts: selected.map((account) => {
             const choice = choices[account.externalId];
@@ -297,12 +353,12 @@ export function SimpleFinImport({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title="Import from SimpleFIN"
+      title={`Import from ${name}`}
       wide={!!loaded && !result}
     >
       <div className="simplefin-import">
         {!status ? (
-          <Loading text="Checking SimpleFIN…" />
+          <Loading text={`Checking ${name}…`} />
         ) : result ? (
           <div className="simplefin-result" role="status">
             <span className="simplefin-result-icon">
@@ -340,14 +396,14 @@ export function SimpleFinImport({
             {!loaded ? (
               <>
                 <p>
-                  Bring in the accounts you linked in SimpleFIN Bridge. You’ll
-                  choose the account type and where each one lands before
-                  anything is saved.
+                  Bring in the accounts you linked in {name}. You’ll choose the
+                  account type and where each one lands before anything is
+                  saved.
                 </p>
                 <div className="simplefin-capabilities">
                   <span>Daily balances</span>
                   <span>Posted transactions</span>
-                  <span>Up to 25 institutions</span>
+                  <span>Review before importing</span>
                 </div>
                 <Button
                   tone="primary"
@@ -367,8 +423,9 @@ export function SimpleFinImport({
             ) : loaded.accounts.length === 0 ? (
               <>
                 <div className="account-notice">
-                  SimpleFIN returned no accounts yet. Link a bank in SimpleFIN
-                  Bridge, wait for its first refresh, then check again.
+                  {name} returned no accounts. Link a bank and enable account
+                  access in {name}, wait for its first refresh, then check
+                  again.
                 </div>
                 <ProviderErrors errors={loaded.providerErrors} />
                 <Button onClick={() => void load()} disabled={busy}>
@@ -392,7 +449,9 @@ export function SimpleFinImport({
                             (item) => item._id === row.itemId,
                           )?.status === "disconnected") &&
                         (!row.simplefinAccountId ||
-                          row.simplefinAccountId === account.externalId),
+                          (row.simplefinConnectionId ===
+                            status.connection?._id &&
+                            row.simplefinAccountId === account.externalId)),
                     );
                     const debt =
                       choice.kind === "credit" || choice.kind === "loan";
@@ -450,7 +509,7 @@ export function SimpleFinImport({
                               hint={
                                 account.alreadyImported
                                   ? "Already imported. To correct its type, open the account on the Accounts page and choose Edit."
-                                  : "SimpleFIN doesn’t say what kind of account this is. Marten guesses from the name; debt accounts show the amount owed."
+                                  : "Confirm the account type. Marten suggests one from the name; debt accounts show the amount owed."
                               }
                             >
                               <Picker
@@ -497,10 +556,10 @@ export function SimpleFinImport({
                 </div>
                 <Field
                   label="Import transactions from"
-                  hint="Up to five years of history. When switching providers, start after the existing account’s latest transaction."
+                  hint="Available history depends on your bank. When switching providers, start after the existing account’s latest transaction."
                 >
                   <DatePicker
-                    label="SimpleFIN import start date"
+                    label={`${name} import start date`}
                     value={fromDate}
                     onChange={(value) => {
                       setFromDate(value);
@@ -552,14 +611,16 @@ export function SimpleFinImport({
 }
 /** Connect → review flow used from Add account and from Bank connections. */
 export function SimpleFinFlow({
+  provider = "simplefin",
   onClose,
   onImported,
 }: {
+  provider?: BankProvider;
   onClose: () => void;
   onImported?: () => void;
 }) {
   useAmountsHidden();
-  const status = useQuery(api.simplefin.status, {});
+  const status = useQuery(api.simplefin.status, { provider });
   // The step is decided once from the first status result, so the reactive
   // status update during a claim cannot skip ahead before the preview arrives.
   const [step, setStep] = useState<"connect" | "import" | null>(null);
@@ -575,6 +636,7 @@ export function SimpleFinFlow({
   if (step === "connect")
     return (
       <SimpleFinConnect
+        provider={provider}
         onClose={onClose}
         onConnected={(preview, warning) => {
           setHandoff({ preview, warning });
@@ -584,6 +646,7 @@ export function SimpleFinFlow({
     );
   return (
     <SimpleFinImport
+      provider={provider}
       initial={handoff.preview}
       initialError={handoff.warning}
       onClose={onClose}
@@ -592,14 +655,28 @@ export function SimpleFinFlow({
   );
 }
 /** Bank connections card. Mirrors the Plaid institution cards. */
-export function SimpleFinConnection() {
+export function SimpleFinConnection({
+  provider = "simplefin",
+}: {
+  provider?: BankProvider;
+}) {
+  const name = providerName(provider);
+  const lunchflow = provider === "lunchflow";
+  const providerUrl = lunchflow
+    ? "https://lunchflow.app/destinations"
+    : BRIDGE_URL;
   useAmountsHidden();
-  const status = useQuery(api.simplefin.status, {});
+  const status = useQuery(api.simplefin.status, { provider });
   const sync = useAction(api.simplefin.sync);
   const disconnect = useMutation(api.simplefin.disconnect);
   const remove = useMutation(api.simplefin.remove);
   const { busy, run } = useTask();
   const [open, setOpen] = useState<"flow" | "connect" | "remove" | null>(null);
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash === `#${provider}` && status?.availableToUser)
+      setOpen("flow");
+  }, [location.hash, provider, status?.availableToUser]);
   const data = useData();
   const connection = status?.connection;
   const accounts = connection
@@ -608,36 +685,13 @@ export function SimpleFinConnection() {
       )
     : [];
   return (
-    <div id="simplefin" tabIndex={-1} className="simplefin-section">
-      {!status ? (
-        <Loading text="Checking SimpleFIN…" />
-      ) : !connection ? (
-        <Panel>
-          <Empty
-            icon={<Link2 size={26} />}
-            title="SimpleFIN Bridge"
-            description={
-              status.availableToUser
-                ? "Link your banks once in SimpleFIN Bridge and import balances and transactions daily. One low-cost subscription covers up to 25 institutions."
-                : (status.setupReason ?? "")
-            }
-            action={
-              <Button
-                onClick={() => setOpen("flow")}
-                disabled={!status.availableToUser}
-                icon={<KeyRound size={16} />}
-              >
-                Connect SimpleFIN
-              </Button>
-            }
-          />
-        </Panel>
-      ) : (
+    <div id={provider} tabIndex={-1} className="simplefin-section">
+      {connection && (
         <Panel className="institution-card">
           <div className="institution-card-top">
-            <Avatar name="SimpleFIN" />
+            <Avatar name={name} />
             <div>
-              <h3>SimpleFIN Bridge</h3>
+              <h3>{name}</h3>
               <span>
                 {accounts.length}{" "}
                 {accounts.length === 1 ? "account" : "accounts"} ·{" "}
@@ -663,15 +717,47 @@ export function SimpleFinConnection() {
           <ProviderErrors errors={connection.providerErrors} />
           {accounts.length > 0 && (
             <div className="institution-accounts">
-              {accounts.map((account) => (
-                <a key={account._id} href={`/accounts?account=${account._id}`}>
-                  <span>
-                    {account.name}
-                    {account.mask && ` · ••${account.mask}`}
-                  </span>
-                  <ArrowUpRight size={13} />
-                </a>
-              ))}
+              {[...new Set(accounts.map((account) => account.institution))].map(
+                (institution) => (
+                  <section
+                    className="institution-account-group"
+                    key={institution}
+                  >
+                    <h4>
+                      <Avatar
+                        name={institution}
+                        logo={
+                          accounts.find(
+                            (account) => account.institution === institution,
+                          )?.logoUrl
+                        }
+                      />
+                      {institution}
+                    </h4>
+                    {accounts
+                      .filter((account) => account.institution === institution)
+                      .map((account) => (
+                        <a
+                          key={account._id}
+                          href={`/accounts?account=${account._id}`}
+                        >
+                          <span>
+                            {account.name}
+                            {account.mask &&
+                              !account.name.includes(account.mask) &&
+                              ` · ••${account.mask}`}
+                            <small>
+                              {account.connectionProvider
+                                ? `Via ${connectionProviderLabel(account.connectionProvider)}`
+                                : ""}
+                            </small>
+                          </span>
+                          <ArrowUpRight size={13} />
+                        </a>
+                      ))}
+                  </section>
+                ),
+              )}
             </div>
           )}
           <div className="institution-actions">
@@ -691,7 +777,7 @@ export function SimpleFinConnection() {
                 disabled={busy || connection.status === "syncing"}
                 icon={<RefreshCw size={14} />}
                 onClick={() =>
-                  void run(() => sync({}), "SimpleFIN import finished.")
+                  void run(() => sync({ provider }), `${name} import finished.`)
                 }
               >
                 Import latest
@@ -702,8 +788,22 @@ export function SimpleFinConnection() {
               icon={<KeyRound size={14} />}
               onClick={() => setOpen("connect")}
             >
-              New token
+              {lunchflow ? "Replace key" : "New token"}
             </Button>
+            <InfoTip
+              disclosure
+              label={`About ${name} imports`}
+              text={
+                <>
+                  When imports are on, Marten reads once a day. Revoke access in{" "}
+                  <a href={providerUrl} target="_blank" rel="noreferrer">
+                    {name}
+                  </a>
+                  . Removing the connection here forgets its credential and
+                  keeps your history.
+                </>
+              }
+            />
             {connection.status !== "disconnected" ? (
               <Button
                 tone="quiet"
@@ -712,7 +812,7 @@ export function SimpleFinConnection() {
                 onClick={() =>
                   void run(
                     () => disconnect({ connectionId: connection._id }),
-                    "SimpleFIN imports stopped. Saved history stays.",
+                    `${name} imports stopped. Saved history stays.`,
                   )
                 }
               >
@@ -729,29 +829,24 @@ export function SimpleFinConnection() {
               </Button>
             )}
           </div>
-          <p className="simplefin-note">
-            Marten reads once a day. To revoke access, delete the app in{" "}
-            <a href={BRIDGE_URL} target="_blank" rel="noreferrer">
-              SimpleFIN Bridge
-            </a>
-            ; removing it here forgets the token and keeps your history.
-          </p>
         </Panel>
       )}
       {open === "flow" && (
         <SimpleFinFlow
+          provider={provider}
           onClose={() => setOpen(null)}
           onImported={() => setOpen(null)}
         />
       )}
       {open === "connect" && (
         <SimpleFinConnect
+          provider={provider}
           onClose={() => setOpen(null)}
           onConnected={() => setOpen(null)}
         />
       )}
       {open === "remove" && connection && (
-        <Modal open onClose={() => setOpen(null)} title="Remove SimpleFIN?">
+        <Modal open onClose={() => setOpen(null)} title={`Remove ${name}?`}>
           <div className="disconnect-confirm">
             <p>
               Marten forgets the access token. Imported accounts stay as manual
@@ -767,9 +862,9 @@ export function SimpleFinConnection() {
                 icon={<Trash2 size={16} />}
                 onClick={() =>
                   void run(async () => {
-                    await remove({});
+                    await remove({ provider });
                     setOpen(null);
-                  }, "SimpleFIN connection removed.")
+                  }, `${name} connection removed.`)
                 }
               >
                 Remove

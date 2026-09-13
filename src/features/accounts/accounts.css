@@ -927,7 +927,7 @@
   margin: 16px 0 8px;
   padding-left: 46px;
 }
-.institution-accounts > a {
+.institution-accounts a {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -935,11 +935,13 @@
   color: var(--muted);
   text-decoration: none;
   font-size: 12px;
-  padding: 9px 0;
+  padding: 10px 12px;
+  min-height: 44px;
   border-bottom: 1px solid var(--border);
 }
-.institution-accounts > a:hover {
+.institution-accounts a:hover {
   color: var(--text);
+  background: var(--selected);
 }
 .institution-actions {
   display: flex;
@@ -951,6 +953,7 @@
 .institution-actions .f-button {
   font-size: 11px;
   padding: 6px 10px;
+  min-height: 44px;
 }
 .institution-actions .f-button:last-child {
   margin-left: auto;
@@ -978,5 +981,79 @@
   }
   .institution-card {
     padding: 15px;
+  }
+}
+
+/* Provider selection starts with the service; Plaid product choice is disclosed inline. */
+.connect-intro {
+  text-align: left;
+  padding: 8px 0 4px;
+}
+.connect-intro h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.connect-intro p,
+.connect-scope {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.connect-scope {
+  font-size: 12px;
+  text-align: left;
+  margin: 16px 0 4px;
+}
+.plaid-product-choice {
+  display: grid;
+  gap: 16px;
+  text-align: left;
+  padding: 16px;
+  background: var(--hover);
+  border-radius: 8px;
+}
+.plaid-product-choice > .btn {
+  justify-self: end;
+}
+.institution-account-group + .institution-account-group {
+  margin-top: 20px;
+}
+.institution-account-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+.institution-account-group h4 .avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+.institution-accounts .institution-account-group a {
+  min-height: 44px;
+  padding-left: 36px;
+}
+.institution-account-group a span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.institution-account-group a small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.institution-card-top > div {
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .institution-card-top {
+    flex-wrap: wrap;
+  }
+  .institution-card-top .institution-status {
+    margin-left: 42px;
+  }
+  .institution-accounts {
+    margin-left: 0;
   }
 }

@@ -81,7 +81,13 @@ function accountConnection(
 ) {
   if (account.manual) return { label: "Manual balance", color: "var(--muted)" };
   if (account.simplefinConnectionId)
-    return { label: "SimpleFIN import", color: "var(--muted)" };
+    return {
+      label:
+        account.bankProvider === "lunchflow"
+          ? "Lunch Flow import"
+          : "SimpleFIN import",
+      color: "var(--muted)",
+    };
   const status = institutions.find(
     (item) => item._id === account.itemId,
   )?.status;
@@ -562,10 +568,15 @@ function AccountDetail({
         </div>
         {account.simplefinConnectionId && (
           <div className="account-notice">
-            SimpleFIN imports run daily and on request from{" "}
-            <a href="/settings/institutions#simplefin">Bank connections</a>.
-            History completeness is unverified; pending activity, holdings, and
-            statement minimums are not included.
+            Bank imports run daily and on request from{" "}
+            <a
+              href={`/settings/institutions#${account.bankProvider ?? "simplefin"}`}
+            >
+              Bank connections
+            </a>
+            . Available history depends on your bank. Posted transactions and
+            supported holdings are imported; statement minimums and due dates
+            are unavailable.
             {account.simplefinUpdatedAt
               ? ` The provider last updated this balance ${new Date(account.simplefinUpdatedAt).toLocaleString()}.`
               : " The provider did not supply a balance update time."}

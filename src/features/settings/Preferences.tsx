@@ -1,3 +1,6 @@
+import { defaultCharts } from "../../../convex/lib/chartDefaults";
+import type { Infer } from "convex/values";
+import type { chartDefaults } from "../../../convex/lib/chartDefaults";
 import { useAmountsHidden, setAmountsHidden } from "../../lib/amountVisibility";
 import { useState } from "react";
 import { useSidebarLabels, setSidebarLabels } from "../../lib/sidebarLabels";
@@ -25,6 +28,7 @@ import { Select } from "../../components/folio/Select";
 import {
   Button,
   Field,
+  InfoTip,
   Loading,
   Modal,
   Panel,
@@ -107,20 +111,29 @@ export function Preferences() {
       .filter(Boolean)
       .sort()[0];
     void task.run(async () => {
-      const result = await importInvestmentActivity({
-        fromDate:
-          fromDate ??
-          new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10),
-        accounts: bridgedInvestmentAccounts.map((account) => ({
-          externalAccountId: account.simplefinAccountId!,
-          targetAccountId: account._id,
-          kind: account.kind,
-        })),
-      });
+      let imported = 0;
+      for (const provider of ["simplefin", "lunchflow"] as const) {
+        const accounts = bridgedInvestmentAccounts.filter(
+          (account) => (account.bankProvider ?? "simplefin") === provider,
+        );
+        if (!accounts.length) continue;
+        const result = await importInvestmentActivity({
+          provider,
+          fromDate:
+            fromDate ??
+            new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10),
+          accounts: accounts.map((account) => ({
+            externalAccountId: account.simplefinAccountId!,
+            targetAccountId: account._id,
+            kind: account.kind,
+          })),
+        });
+        imported += result.imported;
+      }
       toast(
-        result.imported
-          ? `${result.imported.toLocaleString()} investment transactions imported.`
-          : "SimpleFIN had no new investment activity for those accounts.",
+        imported
+          ? `${imported.toLocaleString()} investment transactions imported.`
+          : "Your connections had no new investment activity for those accounts.",
       );
     });
   }
@@ -212,6 +225,62 @@ export function Preferences() {
           </p>
         </Panel>
       </div>
+      <div
+        id="chart-defaults"
+        tabIndex={-1}
+        className="settings-preference-anchor"
+      >
+        <Panel
+          title="Default charts"
+          className="settings-preference-panel"
+          action={
+            <InfoTip
+              disclosure
+              label="About default charts"
+              text="Choose how each view opens. You can still switch charts while exploring; saved reports keep their own chart."
+            />
+          }
+        >
+          {(["spending", "income", "cashflow"] as const).map((kind) => (
+            <Field
+              key={kind}
+              label={
+                kind === "cashflow"
+                  ? "Cash flow"
+                  : kind === "income"
+                    ? "Income"
+                    : "Spending"
+              }
+            >
+              <Select
+                aria-label={`Default ${kind === "cashflow" ? "cash flow" : kind} chart`}
+                value={(data.profile?.chartDefaults ?? defaultCharts)[kind]}
+                disabled={task.busy}
+                onValueChange={(value) =>
+                  void task.run(
+                    () =>
+                      save({
+                        chartDefaults: {
+                          ...(data.profile?.chartDefaults ?? defaultCharts),
+                          [kind]: value,
+                        } as Infer<typeof chartDefaults>,
+                      }),
+                    "Default chart saved",
+                  )
+                }
+                options={[
+                  { value: "bar", label: "Trend bars" },
+                  { value: "donut", label: "Pie chart" },
+                  { value: "treemap", label: "Treemap" },
+                  ...(kind === "cashflow"
+                    ? [{ value: "sankey", label: "Sankey" }]
+                    : []),
+                ]}
+              />
+            </Field>
+          ))}
+        </Panel>
+      </div>
       <div id="transaction-preferences" tabIndex={-1}>
         <Panel title="Transactions" className="settings-preference-panel">
           <Toggle
@@ -256,7 +325,7 @@ export function Preferences() {
             <div className="settings-inline-note">
               <p>
                 Daily imports include investment activity from now on. Fetch
-                what SimpleFIN already holds for{" "}
+                what your connections already hold for{" "}
                 {bridgedInvestmentAccounts.length === 1
                   ? "your investment account"
                   : `${bridgedInvestmentAccounts.length} investment accounts`}
@@ -324,7 +393,7 @@ export function Preferences() {
               ? "You are exploring Marten as a guest, so there is no account to delete. Exit the demo to leave."
               : deletion?.requestedAt
                 ? "Your account is being deleted. This finishes in the background and you will be signed out."
-                : "Permanently deletes your accounts, transactions, receipts, bank connections, and the sign-in itself. Plaid connections are revoked. SimpleFIN access continues in the bridge until you revoke it there."}
+                : "Permanently deletes your accounts, transactions, receipts, bank connections, and the sign-in itself. Plaid connections are revoked. Revoke SimpleFIN and Lunch Flow access in those services separately."}
           </p>
           {!guest && !deletion?.requestedAt && (
             <Button
@@ -352,8 +421,8 @@ export function Preferences() {
             Accounts, transactions, receipts, categories, rules, tags, recurring
             items, reports, credit scores, forecasts, reminders, assistant
             connections, and bank connections are all deleted. Plaid access is
-            revoked; SimpleFIN access continues in the bridge until you revoke
-            it there.
+            revoked; revoke SimpleFIN and Lunch Flow access in those services
+            separately.
           </p>
         </div>
         <form
@@ -435,8 +504,9 @@ export function Preferences() {
                 Accounts, transactions, receipts, categories, merchants, rules,
                 tags, recurring items, reports, credit scores, forecasts and
                 bank connections are all deleted. Plaid access is revoked;
-                SimpleFIN access continues in the bridge until you revoke it
-                there. Reminder, appearance and assistant settings are kept.
+                revoke SimpleFIN and Lunch Flow access in those services
+                separately. Reminder, appearance and assistant settings are
+                kept.
               </p>
             </div>
             <form

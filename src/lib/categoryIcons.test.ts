@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { categoryDefinitions } from "../../convex/lib/categoryDefaults";
 import { readFileSync } from "node:fs";
 import {
   categoryIcons,
@@ -119,4 +120,10 @@ describe("Marten category library", () => {
     expect(searchCategoryIcons("no-such-category")).toEqual([]);
     expect(searchCategoryIcons("✨")[0].name).toBe("Other income");
   });
+});
+
+it("renders every starter category with existing Marten artwork", () => {
+  for (const [, , categories] of categoryDefinitions)
+    for (const [name, emoji] of categories)
+      expect(getCategoryIcon(emoji), name).toBeDefined();
 });

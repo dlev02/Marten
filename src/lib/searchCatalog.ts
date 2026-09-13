@@ -123,7 +123,7 @@ export const searchDestinations: SearchDestination[] = [
     section: "Settings",
     path: "/settings/categories",
     keywords:
-      "settings category groups reorder rename income expense transfer disable icon library artwork gaming transit suggested categories pharmacy accommodation hotels eSIM ferries video games",
+      "settings category groups reorder rename income expense transfer disable icon library artwork gaming transit starter categories pharmacy accommodation hotels eSIM ferries video games",
   },
   {
     id: "changelog",
@@ -176,7 +176,7 @@ export const searchDestinations: SearchDestination[] = [
     section: "Settings",
     path: "/settings/institutions",
     keywords:
-      "settings institutions plaid simplefin bridge chase amex schwab sync refresh reconnect disconnect",
+      "settings institutions plaid simplefin lunchflow lunch flow bridge chase amex schwab sync refresh reconnect disconnect",
   },
   {
     id: "simplefin",
@@ -185,6 +185,22 @@ export const searchDestinations: SearchDestination[] = [
     path: "/settings/institutions#simplefin",
     keywords:
       "simplefin simple fin bridge setup token bank provider connect import accounts subscription",
+  },
+  {
+    id: "lunchflow",
+    title: "Lunch Flow · connect banks",
+    section: "Settings",
+    path: "/settings/institutions#lunchflow",
+    keywords:
+      "lunchflow lunch flow api key bank provider finicity mx snaptrade import accounts",
+  },
+  {
+    id: "chart-defaults",
+    title: "Default charts · reports and cash flow",
+    section: "Preferences",
+    path: "/settings/preferences#chart-defaults",
+    keywords:
+      "preferred chart visual spending income cashflow pie donut trend bars treemap sankey default",
   },
   {
     id: "agents",

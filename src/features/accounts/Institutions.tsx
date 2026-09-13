@@ -29,6 +29,8 @@ import { SimpleFinConnection } from "./SimpleFin";
 export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
   const data = useData(),
     status = useQuery(api.plaid.status, {}),
+    simplefin = useQuery(api.simplefin.status, {}),
+    lunchflow = useQuery(api.simplefin.status, { provider: "lunchflow" }),
     sync = useAction(api.plaid.sync),
     disconnect = useAction(api.plaid.disconnect),
     createToken = useAction(api.plaid.createLinkToken),
@@ -58,7 +60,12 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
     );
     if (ok) setConfirm(null);
   }
-  if (status === undefined) return <Loading text="Loading bank connections…" />;
+  if (
+    status === undefined ||
+    simplefin === undefined ||
+    lunchflow === undefined
+  )
+    return <Loading text="Loading bank connections…" />;
   return (
     <div className="institutions-settings">
       <div className="institutions-heading">
@@ -73,24 +80,20 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
           Add connection
         </Button>
       </div>
-      {!status.configured && (
-        <div className="account-notice">
-          Plaid connections aren’t available yet. Manual accounts work without a
-          connection.
-        </div>
-      )}
-      {status.environment === "sandbox" && (
+      {status.environment === "sandbox" && status.items.length > 0 && (
         <div className="account-notice">
           Test connections are enabled. Connected balances and transactions are
           fictional.
         </div>
       )}
-      {status.items.length === 0 ? (
+      {status.items.length === 0 &&
+      !simplefin.connection &&
+      !lunchflow.connection ? (
         <Panel>
           <Empty
             icon={<Landmark size={26} />}
-            title="No Plaid connections yet"
-            description="Connect a bank to keep your accounts up to date automatically."
+            title="Connect your first bank"
+            description="Choose SimpleFIN or Lunch Flow to bring in your accounts. Your connected services and their latest imports will appear here."
             action={
               <Button onClick={onAddAccount} icon={<Link2 size={16} />}>
                 Connect a bank
@@ -208,6 +211,7 @@ export function Institutions({ onAddAccount }: { onAddAccount: () => void }) {
         </div>
       )}
       <SimpleFinConnection />
+      <SimpleFinConnection provider="lunchflow" />
       {disconnecting && (
         <Modal
           open

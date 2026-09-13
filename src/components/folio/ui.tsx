@@ -81,8 +81,41 @@ export const IconButton = forwardRef<
   );
 });
 IconButton.displayName = "IconButton";
-/** A small "i" that explains a number or label on hover, focus, or tap. */
-export function InfoTip({ label, text }: { label: string; text: string }) {
+/** Use disclosure for help that needs to stay open on click or touch. */
+export function InfoTip({
+  label,
+  text,
+  disclosure = false,
+}: {
+  label: string;
+  text: ReactNode;
+  disclosure?: boolean;
+}) {
+  if (disclosure)
+    return (
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            className="info-tip info-disclosure"
+            aria-label={label}
+          >
+            <Info size={16} aria-hidden="true" />
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            className="tooltip tooltip-wide info-disclosure-content"
+            aria-label={label}
+            sideOffset={7}
+            collisionPadding={16}
+          >
+            {text}
+            <Popover.Arrow />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    );
   return (
     <Tooltip.Root>
       <Tooltip.Trigger asChild>

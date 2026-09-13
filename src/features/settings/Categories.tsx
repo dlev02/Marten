@@ -61,8 +61,7 @@ export function OrderControls({
 export function Categories() {
   const data = useData(),
     task = useTask(),
-    reorder = useMutation(api.settings.reorder),
-    addSuggestions = useMutation(api.imports.addSuggestedCategories);
+    reorder = useMutation(api.settings.reorder);
   const [category, setCategory] = useState<Doc<"categories"> | "new" | null>(
       null,
     ),
@@ -86,23 +85,6 @@ export function Categories() {
         </div>
         <Button icon={<Plus size={15} />} onClick={() => setGroup("new")}>
           Add group
-        </Button>
-      </div>
-      <div className="settings-section-header category-suggestions">
-        <p>
-          Add everyday and travel categories you don’t have yet, such as transit
-          or pharmacy. Existing categories stay as they are.
-        </p>
-        <Button
-          disabled={task.busy}
-          onClick={() =>
-            void task.run(
-              () => addSuggestions({}),
-              "Suggested categories are up to date",
-            )
-          }
-        >
-          Add suggested categories
         </Button>
       </div>
       {(["income", "expense", "transfer"] as const).map((kind) => {

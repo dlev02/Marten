@@ -270,17 +270,19 @@ function TransactionFields({
                   {tx.hidden ? "Unhide transaction" : "Hide transaction"}
                 </button>
               </DropdownMenu.Item>
-              {tx.source !== "plaid" && tx.source !== "simplefin" && (
-                <DropdownMenu.Item
-                  asChild
-                  onSelect={() => setConfirmDelete(true)}
-                >
-                  <button type="button" className="transaction-delete-action">
-                    <Trash2 size={16} />
-                    Delete transaction
-                  </button>
-                </DropdownMenu.Item>
-              )}
+              {tx.source !== "plaid" &&
+                tx.source !== "simplefin" &&
+                tx.source !== "lunchflow" && (
+                  <DropdownMenu.Item
+                    asChild
+                    onSelect={() => setConfirmDelete(true)}
+                  >
+                    <button type="button" className="transaction-delete-action">
+                      <Trash2 size={16} />
+                      Delete transaction
+                    </button>
+                  </DropdownMenu.Item>
+                )}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -390,7 +392,10 @@ function TransactionFields({
             label="Transaction date"
             value={tx.date}
             disabled={
-              tx.source === "plaid" || tx.source === "simplefin" || !canEdit
+              tx.source === "plaid" ||
+              tx.source === "simplefin" ||
+              tx.source === "lunchflow" ||
+              !canEdit
             }
             required
             onChange={(value) => void patch({ date: value })}
@@ -633,7 +638,9 @@ function TransactionFields({
                 <li>
                   <span />
                   <div>
-                    {tx.source === "plaid" || tx.source === "simplefin"
+                    {tx.source === "plaid" ||
+                    tx.source === "simplefin" ||
+                    tx.source === "lunchflow"
                       ? "Transaction imported"
                       : "Transaction added"}
                     <small>

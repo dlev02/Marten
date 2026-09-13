@@ -42,7 +42,10 @@ export function BulkTransactions({
   const [frequency, setFrequency] = useState(""),
     [confirmDelete, setConfirmDelete] = useState(false);
   const bankManaged = transactions.some(
-    (tx) => tx.source === "plaid" || tx.source === "simplefin",
+    (tx) =>
+      tx.source === "plaid" ||
+      tx.source === "simplefin" ||
+      tx.source === "lunchflow",
   );
   const pendingLocked =
     transactions.some((tx) => tx.pending) && !data.profile?.allowPending;

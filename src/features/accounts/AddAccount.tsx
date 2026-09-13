@@ -3,9 +3,6 @@ import { useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   ArrowRight,
-  Building2,
-  Check,
-  CreditCard,
   Landmark,
   Link2,
   Loader2,
@@ -19,6 +16,7 @@ import { useData } from "../../lib/data";
 import { parseMoney } from "../../lib/format";
 import { startPlaidFlow } from "../../lib/plaidLinkState";
 import { isDemoSession } from "../../lib/demo";
+import type { BankProvider } from "../../../convex/lib/bankProviders";
 import { SimpleFinFlow } from "./SimpleFin";
 import {
   Button,
@@ -39,7 +37,8 @@ export function AddAccount({
   onClose: () => void;
 }) {
   const publicDemo = isDemoSession();
-  const [simplefinOpen, setSimplefinOpen] = useState(false);
+  const [bridge, setBridge] = useState<BankProvider | null>(null);
+  const [plaidOpen, setPlaidOpen] = useState(false);
   const [tab, setTab] = useState("connect"),
     [mode, setMode] = useState<"transactions" | "investments">("transactions");
   const data = useData(),
@@ -62,7 +61,7 @@ export function AddAccount({
   }
   return (
     <>
-      <Modal open={open} onClose={onClose} title="Add an account">
+      <Modal open={open && !bridge} onClose={onClose} title="Add an account">
         <Tabs
           value={tab}
           onChange={setTab}
@@ -81,40 +80,12 @@ export function AddAccount({
         />
         {tab === "connect" ? (
           <div className="connect-account">
-            <div className="connect-hero">
-              <span className="connect-symbol">
-                <Landmark size={30} />
-              </span>
-              <h2>Your money, in one place</h2>
+            <div className="connect-intro">
+              <h2>Choose your connection</h2>
               <p>
-                {plaidRestricted
-                  ? "Securely connect your bank to keep balances and transactions up to date."
-                  : "Securely connect through Plaid or SimpleFIN to keep your balances and transactions up to date."}
+                Bring balances and transactions into Marten with a service you
+                control.
               </p>
-            </div>
-            <div className="connection-choices">
-              <button
-                className={mode === "transactions" ? "selected" : ""}
-                onClick={() => setMode("transactions")}
-              >
-                <CreditCard size={22} />
-                <span>
-                  <strong>Checking, savings & cards</strong>
-                  <small>Balances, transactions, and card details</small>
-                </span>
-                {mode === "transactions" && <Check size={18} />}
-              </button>
-              <button
-                className={mode === "investments" ? "selected" : ""}
-                onClick={() => setMode("investments")}
-              >
-                <Building2 size={22} />
-                <span>
-                  <strong>Retirement & brokerage</strong>
-                  <small>Balances, holdings, and investment activity</small>
-                </span>
-                {mode === "investments" && <Check size={18} />}
-              </button>
             </div>
             {publicDemo ? (
               <div className="account-notice">
@@ -128,7 +99,7 @@ export function AddAccount({
               </div>
             ) : plaidRestricted ? (
               <div className="account-notice">
-                Bank connections on this site use SimpleFIN Bridge. Plaid is
+                Use your own SimpleFIN or Lunch Flow subscription. Plaid is
                 available when you{" "}
                 <a
                   className="text-link"
@@ -140,11 +111,6 @@ export function AddAccount({
                 </a>
                 .
               </div>
-            ) : status && !status.configured ? (
-              <div className="account-notice">
-                Plaid connections aren’t available yet. You can add an account
-                manually and connect a bank later.
-              </div>
             ) : status?.environment === "sandbox" ? (
               <div className="account-notice">
                 Test connections are enabled. This connects fictional bank
@@ -152,37 +118,69 @@ export function AddAccount({
               </div>
             ) : null}
             <div className="connect-providers">
-              {!plaidRestricted && (
-                <>
-                  <ProviderChoice
-                    icon={
-                      busy ? (
-                        <Loader2 size={18} className="spin" />
-                      ) : (
-                        <LockKeyhole size={18} />
-                      )
-                    }
-                    title={busy ? "Connecting…" : "Continue with Plaid"}
-                    description="Chase, Amex, Schwab and thousands more"
-                    disabled={
-                      busy ||
-                      !status?.configured ||
-                      data.profile?.demo ||
-                      publicDemo
-                    }
-                    onClick={() => void begin()}
-                  />
-                  <span className="connect-divider">or</span>
-                </>
-              )}
               <ProviderChoice
                 icon={<Link2 size={18} />}
                 title="Continue with SimpleFIN"
-                description="Bring your own SimpleFIN Bridge token · about $1.50/mo"
+                description="Your SimpleFIN Bridge token · US and Canadian banks"
                 disabled={busy || data.profile?.demo || publicDemo}
-                onClick={() => setSimplefinOpen(true)}
+                onClick={() => setBridge("simplefin")}
               />
+              <ProviderChoice
+                icon={<Link2 size={18} />}
+                title="Continue with Lunch Flow"
+                description="Your Lunch Flow API key · more bank connections worldwide"
+                disabled={busy || data.profile?.demo || publicDemo}
+                onClick={() => setBridge("lunchflow")}
+              />
+              {!plaidRestricted && status?.configured && (
+                <ProviderChoice
+                  icon={<LockKeyhole size={18} />}
+                  title="Continue with Plaid"
+                  description="Use this Marten installation’s bank connection"
+                  disabled={busy || data.profile?.demo || publicDemo}
+                  onClick={() => setPlaidOpen(!plaidOpen)}
+                />
+              )}
             </div>
+            {plaidOpen && !plaidRestricted && status?.configured && (
+              <div className="plaid-product-choice">
+                <Field label="What would you like to connect?">
+                  <Picker
+                    label="Plaid account connection"
+                    value={mode}
+                    onChange={(value) => setMode(value as typeof mode)}
+                    options={[
+                      {
+                        value: "transactions",
+                        label: "Checking, savings and credit cards",
+                      },
+                      {
+                        value: "investments",
+                        label: "Retirement and brokerage",
+                      },
+                    ]}
+                  />
+                </Field>
+                <Button
+                  tone="primary"
+                  disabled={busy || !!data.profile?.demo || publicDemo}
+                  icon={
+                    busy ? (
+                      <Loader2 size={16} className="spin" />
+                    ) : (
+                      <ArrowRight size={16} />
+                    )
+                  }
+                  onClick={() => void begin()}
+                >
+                  {busy ? "Connecting…" : "Open Plaid"}
+                </Button>
+              </div>
+            )}
+            <p className="connect-scope">
+              Read-only access. Choose the accounts to import before saving.
+              Marten currently supports USD accounts.
+            </p>
             <button className="text-button" onClick={() => setTab("manual")}>
               Prefer to enter your balance? Add manually
             </button>
@@ -191,11 +189,12 @@ export function AddAccount({
           <AccountForm onSaved={onClose} />
         )}
       </Modal>
-      {open && simplefinOpen && (
+      {open && bridge && (
         <SimpleFinFlow
-          onClose={() => setSimplefinOpen(false)}
+          provider={bridge}
+          onClose={() => setBridge(null)}
           onImported={() => {
-            setSimplefinOpen(false);
+            setBridge(null);
             onClose();
           }}
         />
@@ -477,10 +476,10 @@ export function AccountForm({
         <p className="account-notice">
           {mirroredBalance
             ? isDebt(kind)
-              ? "SimpleFIN supplies the balance. Saving shows it as an amount owed and updates its balance history to match."
-              : "SimpleFIN supplies the balance. Saving shows it as money you hold and updates its balance history to match."
+              ? "Your connection supplies the balance. Saving shows it as an amount owed and updates its balance history to match."
+              : "Your connection supplies the balance. Saving shows it as money you hold and updates its balance history to match."
             : editableSimplefinType
-              ? "SimpleFIN supplies the balance. You can correct the account type here."
+              ? "Your connection supplies the balance. You can correct the account type here."
               : "Your bank keeps the balance and account type up to date."}
         </p>
       )}

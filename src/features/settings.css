@@ -53,12 +53,6 @@
   margin-bottom: 22px;
   min-height: 62px;
 }
-.category-suggestions {
-  flex-wrap: wrap;
-}
-.category-suggestions > p {
-  flex: 1 1 320px;
-}
 .settings-section-header h2 {
   margin: 0 0 6px;
   font-size: 25px;
@@ -665,6 +659,9 @@
 .settings-preference-panel {
   margin-bottom: 20px;
   padding-bottom: 22px;
+}
+.settings-preference-anchor:focus {
+  outline: none;
 }
 .settings-preference-panel > form,
 .settings-preference-panel > .field,
