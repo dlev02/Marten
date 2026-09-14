@@ -556,7 +556,8 @@ export function Recurring() {
                 recurring plan and cash-flow forecast.
               </p>
             </div>
-            {creditAccounts.length > 0 && (
+            {/* Until a statement exists, the empty state carries the only add action. */}
+            {creditAccounts.length > 0 && debts.length > 0 && (
               <Button
                 icon={<Plus size={15} />}
                 onClick={() => setStatementEditor("")}
