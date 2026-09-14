@@ -1,12 +1,22 @@
-# Netlify configuration for the Marten static site. The Convex backend is
-# deployed separately; the browser reaches it through VITE_CONVEX_URL, which
-# must be set as a build environment variable in the Netlify project.
+# Netlify configuration for the Marten site.
+#
+# Production builds deploy the Convex backend first, then build the frontend
+# against it, so a push to main ships both together. `convex deploy` reads the
+# production-scoped CONVEX_DEPLOY_KEY from Netlify and passes the deployment
+# URL to the build as VITE_CONVEX_URL. A failed backend deploy fails the build,
+# leaving the live site on the previous version.
+#
+# Deploy previews and branch builds only build the frontend; they never deploy
+# the production backend.
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
+
+[context.production]
+  command = "npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL"
 
 # Single-page app: every route is served by index.html and resolved in React.
 [[redirects]]

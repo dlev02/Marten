@@ -106,12 +106,24 @@ commits and pushes to feature branches do not update the live site. For an
 authorized release, merge the reviewed commits into `main`, push, and verify
 the published Netlify deploy's commit matches the remote branch.
 
-The backend still deploys separately with `npx convex deploy -y` to production
-`confident-kiwi-9`. A successful frontend build does not prove backend changes
-were deployed. Automatic backend deployment would require a production-only,
-build-scoped `CONVEX_DEPLOY_KEY` in Netlify and a production build command of
-`npx convex deploy --cmd "npm run build" --cmd-url-env-var-name VITE_CONVEX_URL`.
-That persistent deployment grant has not been configured.
+Production builds also deploy the backend. The `[context.production]` command
+in [netlify.toml](../netlify.toml) runs
+`npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL`,
+which pushes `convex/` to production `confident-kiwi-9` and then builds the
+frontend against that deployment's URL. It authenticates with a production
+deploy key stored in Netlify as `CONVEX_DEPLOY_KEY`, scoped to the Production
+deploy context. Generate the key in the Convex dashboard under the production
+deployment's Settings → Deploy keys; revoke it there to stop automatic backend
+deploys.
+
+- A failed schema or function push fails the Netlify build, so the live site
+  stays on its previous version rather than running against a mismatched
+  backend. Check the Netlify deploy log first when a release does not appear.
+- Deploy previews and branch deploys use the plain `npm run build` and never
+  touch production data.
+- Schema changes still need to be safe for existing production documents;
+  `convex deploy` rejects a schema that current data does not satisfy.
+- `npx convex deploy -y` from a signed-in machine remains the manual fallback.
 
 
 1. Finish the relevant checks and record observed results in [verification.md](verification.md).
