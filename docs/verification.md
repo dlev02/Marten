@@ -885,3 +885,14 @@ Implemented user-owned Lunch Flow API connections alongside SimpleFIN and the ex
 Evidence remains in `/tmp/marten-*` screenshots, including `marten-connect-phone-light.png`, `marten-institutions-phone-dark-full.png`, `marten-preferences-phone-dark.png`, `marten-preferences-tablet-light.png`, `marten-credit-desktop-light.png`, `marten-new-demo-widget.png`, `marten-trader-joes-logo.png`, `marten-support-tablet-light.png` and `marten-cashflow-pointer-dark.png`. All captured financial data is fictional.
 
 Not verified: an account-holder Lunch Flow key, live institution coverage/completeness, available brokerage holdings or signs for a particular bank, a new Plaid consent, or a production release. The integration is ready for account-holder testing; broader Lunch Flow coverage does not guarantee richer categories or credit-card statement data.
+
+## September 14, 2026 · Empty-state action consistency
+
+Aligned empty-state actions with the design rule that they are outline buttons and that a section's add action appears in only one place.
+
+- Statements due this month: the heading's Add statement reminder button now appears only once statements exist; an empty month shows only the centered action. Checked in a demo session: September (two statements) shows the heading button; October (none) shows one centered button, in light and dark themes.
+- Credit scores empty state: removed the shared empty-state button margin inside the action row, which placed the PDF info tip about 8px above the buttons. A measured replica using the app's styles puts Add your first score, Import PDF and the info tip on the same center line.
+- Dashboard widgets: Credit score, Upcoming recurring and Investments empty actions changed from borderless to outline buttons. Add a score and Add recurring carry the plus icon and link to `/credit-scores?add=score` and `/recurring?add=recurring`, which open the add dialog and then remove the parameter. Both deep links were exercised in the browser.
+- Typecheck and lint passed for the changed files.
+
+Not verified: the dashboard widgets' rendered empty states, because the demo workspace is populated and no data was deleted to empty it.
