@@ -23,6 +23,46 @@ export const changeKindLabels: Record<ChangeKind, string> = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-09-14",
+    title: "Lunch Flow, family spreadsheets, and assistants that can tidy up",
+    lead: "A second way to bring in bank accounts, a cleaner hand-off from an old spreadsheet to a bank connection, AI assistants that can help organize instead of only read, and a round of small corrections to buttons and empty screens.",
+    groups: [
+      {
+        kind: "new",
+        items: [
+          "Connect accounts through **Lunch Flow** with your own key, alongside SimpleFIN. Review the accounts it finds before anything is saved.",
+          "Import a household expense spreadsheet with just month, date, amount, category, and notes. No merchant is needed, and importing the same file again skips rows already saved.",
+          "When connecting a bank, choose where its transactions start: from today, a date you pick, or right after the spreadsheet history you already imported.",
+          "A **Source** filter in Transactions lets you compare imported history with bank history and hide any overlap from reports.",
+          "Connected AI assistants can rename merchants, manage categories and tags, save rules and apply them to past transactions, and recategorize up to 100 transactions at once. Making changes still needs its own permission.",
+          "Choose the default chart for spending and cash flow in Preferences. Saved reports keep the chart they were saved with.",
+          "New and reset workspaces start with 77 illustrated categories across 15 household groups.",
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          "Adding an account starts by choosing a service, and connected accounts are grouped by bank.",
+          "Assistant answers include account, merchant, and category names, and notes that read like instructions to an assistant are flagged instead of followed.",
+          "If your connection drops, a small notice appears and anything you were typing stays in the form. After an update, Marten asks you to refresh instead of showing a technical error.",
+          "PDF import limits, chart defaults, and connection tips sit behind info buttons that open on click or tap.",
+          "Empty dashboard sections use outlined buttons, and **Add a score** and **Add recurring** open their forms directly.",
+          "**Add statement reminder** appears in one place at a time: in the empty panel, or beside the heading once statements exist.",
+          "The loading screen stays centered on the way into Marten, and the About page reads as a single column.",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "Assistants no longer occasionally fail when they make several requests at once.",
+          "Clicking a chart no longer draws an outline around it; keyboard focus still shows.",
+          "The Trader Joe’s logo is no longer stretched.",
+          "The PDF info button on an empty Credit scores page lines up with the buttons beside it.",
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-09-13",
     title: "Two new dashboard sections, and cards that know they are cards",
     lead: "A day spent on the dashboard and on the accounts SimpleFIN brings in. If a cash-back card ever arrived labeled as a checking account, this release is for you.",
