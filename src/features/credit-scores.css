@@ -82,8 +82,13 @@
 .credit-empty-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
   gap: 10px;
+}
+/* The shared empty-state button margin would drop buttons below the info tip. */
+.credit-empty-panel .credit-empty-actions .f-button {
+  margin-top: 0;
 }
 .credit-empty-details {
   margin: 0 auto;
