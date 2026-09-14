@@ -896,3 +896,12 @@ Aligned empty-state actions with the design rule that they are outline buttons a
 - Typecheck and lint passed for the changed files.
 
 Not verified: the dashboard widgets' rendered empty states, because the demo workspace is populated and no data was deleted to empty it.
+
+## September 14, 2026 · Automatic backend deploys from Netlify
+
+Production Netlify builds now deploy the Convex backend before building the site, through `scripts/netlify-build.sh`.
+
+- First attempt (commit `83ac333`): the `CONVEX_DEPLOY_KEY` saved in Netlify was a development key. The build succeeded but deployed to the personal dev deployment `stoic-narwhal-224` and built marten.money against it. The live JavaScript bundle was confirmed to reference `stoic-narwhal-224`. Production `confident-kiwi-9` was not changed.
+- Fix (commit `75d28d5`): the build script deploys the backend only when the key starts with `prod:`, and otherwise builds just the site against Netlify's production `VITE_CONVEX_URL` with a warning. Its deploy logged that warning, and the live bundle again referenced `confident-kiwi-9`.
+- After the key was replaced with a production deploy key, a manually triggered Netlify deploy logged `Production levin667:folio:production (prod)`, `Schema validation complete` and `Deployed Convex functions`, with no errors and no deleted indexes. The live bundle references `confident-kiwi-9`, and marten.money loaded with no console errors and the September 14 changelog entry.
+- Not verified here: signing in to production after the deploy.
