@@ -108,13 +108,20 @@ the published Netlify deploy's commit matches the remote branch.
 
 Production builds also deploy the backend. The `[context.production]` command
 in [netlify.toml](../netlify.toml) runs
-`npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL`,
-which pushes `convex/` to production `confident-kiwi-9` and then builds the
-frontend against that deployment's URL. It authenticates with a production
-deploy key stored in Netlify as `CONVEX_DEPLOY_KEY`, scoped to the Production
-deploy context. Generate the key in the Convex dashboard under the production
-deployment's Settings → Deploy keys; revoke it there to stop automatic backend
-deploys.
+[scripts/netlify-build.sh](../scripts/netlify-build.sh), which calls
+`npx convex deploy --cmd "npm run build" --cmd-url-env-var-name VITE_CONVEX_URL`
+to push `convex/` to production `confident-kiwi-9` and build the frontend
+against that deployment's URL. It authenticates with a production deploy key
+stored in Netlify as `CONVEX_DEPLOY_KEY`, scoped to the Production deploy
+context. Generate the key in the Convex dashboard on the **production**
+deployment (Settings → Deploy keys; the key starts with `prod:`); revoke it
+there to stop automatic backend deploys.
+
+- A key that does not start with `prod:` is ignored with a warning, and only
+  the frontend is built against Netlify's `VITE_CONVEX_URL`. This guard exists
+  because a development key once deployed to a personal dev deployment and
+  built the public site against it. When a release's backend changes do not
+  appear, look for that warning in the Netlify deploy log.
 
 - A failed schema or function push fails the Netlify build, so the live site
   stays on its previous version rather than running against a mismatched

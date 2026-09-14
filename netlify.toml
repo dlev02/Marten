@@ -1,10 +1,12 @@
 # Netlify configuration for the Marten site.
 #
-# Production builds deploy the Convex backend first, then build the frontend
-# against it, so a push to main ships both together. `convex deploy` reads the
-# production-scoped CONVEX_DEPLOY_KEY from Netlify and passes the deployment
-# URL to the build as VITE_CONVEX_URL. A failed backend deploy fails the build,
-# leaving the live site on the previous version.
+# Production builds run scripts/netlify-build.sh. With a production
+# CONVEX_DEPLOY_KEY it deploys the Convex backend first and builds the frontend
+# against it, so a push to main ships both together; a failed backend deploy
+# fails the build and leaves the live site on the previous version. With a
+# missing or non-production key it builds only the frontend, against the
+# VITE_CONVEX_URL set in Netlify, so the public site never points at a
+# development backend.
 #
 # Deploy previews and branch builds only build the frontend; they never deploy
 # the production backend.
@@ -16,7 +18,7 @@
   NODE_VERSION = "22"
 
 [context.production]
-  command = "npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name VITE_CONVEX_URL"
+  command = "bash scripts/netlify-build.sh"
 
 # Single-page app: every route is served by index.html and resolved in React.
 [[redirects]]
