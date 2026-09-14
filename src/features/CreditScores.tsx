@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -63,6 +64,20 @@ export function CreditScores() {
   const fileInput = useRef<HTMLInputElement>(null);
   const readVersion = useRef(0);
   const toast = useToast();
+  const [params, setParams] = useSearchParams();
+  // The dashboard's empty credit widget links here to open the score form directly.
+  const requestedAdd = params.get("add") === "score";
+  useEffect(() => {
+    if (!requestedAdd) return;
+    setDraft({});
+    setParams(
+      (current) => {
+        current.delete("add");
+        return current;
+      },
+      { replace: true },
+    );
+  }, [requestedAdd, setParams]);
   useEffect(
     () => () => {
       readVersion.current++;

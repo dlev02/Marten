@@ -7,6 +7,7 @@ import {
   ArrowUp,
   ChartNoAxesCombined,
   Gauge,
+  Plus,
 } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { groupCreditHistory } from "../../../convex/lib/creditScores";
@@ -105,7 +106,6 @@ export function InvestmentsWidget() {
           description="Connect a brokerage or add a retirement account to follow its value and holdings."
           action={
             <Button
-              tone="quiet"
               onClick={() => {
                 void navigate("/investments");
               }}
@@ -255,9 +255,9 @@ export function CreditScoreWidget() {
           description="Save a score from your bank or a credit report, then follow how it changes."
           action={
             <Button
-              tone="quiet"
+              icon={<Plus size={16} />}
               onClick={() => {
-                void navigate("/credit-scores");
+                void navigate("/credit-scores?add=score");
               }}
             >
               Add a score

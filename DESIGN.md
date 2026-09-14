@@ -309,7 +309,10 @@ own geometry rather than rounding every value to an invented grid.
 Reuse [PageHeader.tsx](src/components/folio/PageHeader.tsx), `Panel`, the existing
 toolbar classes, and the nearest feature layout. Put one primary action at the
 top right when the page has a main creation/action task. Place secondary actions
-beside it or within their relevant section. Empty-state actions are outline.
+beside it or within their relevant section. Empty-state actions are outline,
+including dashboard widgets; an add action carries the plus icon and opens its
+form directly. A section's own add action lives only in its empty state until
+the section has items, then moves to the section heading.
 Within a dialog, put its primary confirmation at the end of the action row.
 
 ### Responsive behavior

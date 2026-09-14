@@ -85,9 +85,23 @@ const frequencyName = (frequency: Fields["frequency"]) =>
 
 export function Recurring() {
   useAmountsHidden();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const requestedSearch = params.get("search") ?? "";
+  // The dashboard's empty recurring widget links here to open a new schedule.
+  const requestedAdd = params.get("add") === "recurring";
   const data = useData();
+  const hasAccounts = data.accounts.length > 0;
+  useEffect(() => {
+    if (!requestedAdd || !hasAccounts) return;
+    setEditor("new");
+    setParams(
+      (current) => {
+        current.delete("add");
+        return current;
+      },
+      { replace: true },
+    );
+  }, [requestedAdd, hasAccounts, setParams]);
   const setStatementPaid = useMutation(api.recurring.setStatementPaid);
   const statementTask = useTask();
   const [month, setMonth] = useState(monthStart());

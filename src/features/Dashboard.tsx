@@ -344,12 +344,12 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
             description="Add recurring bills and subscriptions to see what’s next."
             action={
               <Button
-                tone="quiet"
+                icon={<Plus size={16} />}
                 onClick={() => {
-                  void navigate("/recurring");
+                  void navigate("/recurring?add=recurring");
                 }}
               >
-                Manage recurring
+                Add recurring
               </Button>
             }
           />
