@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 export const forecastInputs = v.object({
-  schemaVersion: v.literal(1),
+  schemaVersion: v.union(v.literal(1), v.literal(2)),
   asOfDate: v.string(),
   currentAge: v.number(),
   retirementAge: v.number(),
@@ -19,6 +19,8 @@ export const forecastInputs = v.object({
   inflationPct: v.number(),
   incomeGrowthPct: v.number(),
   legacyTargetCents: v.number(),
+  monthlyContributionCents: v.optional(v.number()),
+  retirementContributionCents: v.optional(v.number()),
   travelPlans: v.array(
     v.object({
       id: v.string(),

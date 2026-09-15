@@ -48,7 +48,7 @@ const ruleActions = z
   })
   .refine(nonEmpty, "Choose at least one rule action.");
 const forecastInputs = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
   asOfDate: day,
   currentAge: z.number(),
   retirementAge: z.number(),
@@ -66,6 +66,8 @@ const forecastInputs = z.strictObject({
   inflationPct: z.number(),
   incomeGrowthPct: z.number(),
   legacyTargetCents: money,
+  monthlyContributionCents: money.optional(),
+  retirementContributionCents: money.optional(),
   travelPlans: z
     .array(
       z.strictObject({

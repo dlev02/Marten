@@ -9,8 +9,14 @@ export type TravelPlan = {
   month: number;
 };
 
+/**
+ * Version 1 plans invest every unspent dollar automatically. Version 2 keeps
+ * unspent income in cash and moves an explicit monthly amount into
+ * investments, so a contribution slider has a visible effect, and adds
+ * payroll retirement contributions that never appeared in observed income.
+ */
 export type ForecastInputs = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   asOfDate: string;
   currentAge: number;
   retirementAge: number;
@@ -29,6 +35,10 @@ export type ForecastInputs = {
   incomeGrowthPct: number;
   legacyTargetCents: number;
   travelPlans: TravelPlan[];
+  /** Version 2: moved from cash into accessible investments each working month. */
+  monthlyContributionCents?: number;
+  /** Version 2: paid into retirement funds each working month, on top of income. */
+  retirementContributionCents?: number;
 };
 
 export type ForecastMonth = {
@@ -63,8 +73,14 @@ export type ForecastYear = ForecastMonth & {
 };
 
 export function validateForecastInputs(input: ForecastInputs) {
-  if (input.schemaVersion !== 1)
+  if (input.schemaVersion !== 1 && input.schemaVersion !== 2)
     throw new Error("Unsupported forecast version.");
+  if (
+    input.schemaVersion === 2 &&
+    (input.monthlyContributionCents === undefined ||
+      input.retirementContributionCents === undefined)
+  )
+    throw new Error("Enter the monthly investing amounts.");
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(input.asOfDate) ||
     !Number.isFinite(Date.parse(input.asOfDate)) ||
@@ -96,6 +112,7 @@ export function validateForecastInputs(input: ForecastInputs) {
   for (const [key, value] of Object.entries(input))
     if (
       key.endsWith("Cents") &&
+      value !== undefined &&
       (typeof value !== "number" ||
         !Number.isSafeInteger(value) ||
         value < 0 ||
@@ -154,6 +171,25 @@ export function validateForecastInputs(input: ForecastInputs) {
   }
 }
 
+/**
+ * Brings a saved version 1 plan up to version 2 without changing its
+ * meaning: the automatic surplus becomes the explicit monthly investing amount.
+ */
+export function upgradeForecastInputs(input: ForecastInputs): ForecastInputs {
+  if (input.schemaVersion === 2) return input;
+  return {
+    ...input,
+    schemaVersion: 2,
+    monthlyContributionCents: Math.max(
+      0,
+      input.monthlyIncomeCents -
+        input.monthlySpendingCents +
+        input.extraMonthlySavingsCents,
+    ),
+    retirementContributionCents: 0,
+  };
+}
+
 const money = (value: number) => {
   const result = Math.round(value);
   if (!Number.isSafeInteger(result) || Math.abs(result) > 1e15)
@@ -163,14 +199,18 @@ const money = (value: number) => {
   return result;
 };
 
-/** Inputs are today's dollars. Contributions are funded only by the income/spending surplus.
- * Extra savings reduce working-life spending; they are never added as free outside money.
+/** Inputs are today's dollars. Investment contributions come out of real cash flow:
+ * version 1 invests every unspent dollar; version 2 invests the chosen monthly
+ * amount from cash while working. Payroll retirement contributions (version 2)
+ * are the one addition to observed income, because they never reach a bank
+ * account. Extra savings reduce working-life spending; they are never free money.
  * Periods are full months anchored to asOfDate's day (clamped at month end).
  * Travel is charged in the period starting in the chosen month, for its full annual cost.
  * A shortfall is unmet spending, not a fictional loan or a negative investment balance.
  */
 export function runForecast(input: ForecastInputs) {
   validateForecastInputs(input);
+  const investAllSurplus = input.schemaVersion === 1;
   const monthlyReturn = Math.pow(1 + input.annualReturnPct / 100, 1 / 12) - 1;
   let cash = input.cashCents,
     investments = input.investmentCents,
@@ -237,8 +277,10 @@ export function runForecast(input: ForecastInputs) {
       );
       const surplus = income - spending - travel;
       if (surplus >= 0) {
-        contribution = surplus;
-        investments += surplus;
+        if (investAllSurplus) {
+          contribution = surplus;
+          investments += surplus;
+        } else cash += surplus;
       } else {
         let needed = -surplus;
         const fromCash = Math.min(cash, needed);
@@ -255,6 +297,22 @@ export function runForecast(input: ForecastInputs) {
         shortfall = needed;
         withdrawal = -surplus - shortfall;
         cumulativeShortfall += shortfall;
+      }
+      if (!investAllSurplus && !isRetired) {
+        // Regular investing moves what cash can cover; payroll contributions
+        // grow with income and land in retirement funds directly.
+        const invested = Math.min(
+          cash,
+          money((input.monthlyContributionCents ?? 0) * factor),
+        );
+        cash -= invested;
+        investments += invested;
+        const payroll = money(
+          (input.retirementContributionCents ?? 0) *
+            Math.pow(1 + input.incomeGrowthPct / 100, (month - 1) / 12),
+        );
+        retirement += payroll;
+        contribution = invested + payroll;
       }
     }
     const assets = money(cash + investments + retirement);

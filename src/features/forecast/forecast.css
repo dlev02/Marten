@@ -14,7 +14,6 @@
 .forecast-toolbar,
 .forecast-scenario-controls,
 .forecast-actions,
-.forecast-source-line,
 .forecast-footer-actions {
   display: flex;
   align-items: center;
@@ -23,7 +22,7 @@
 .forecast-toolbar {
   justify-content: space-between;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 .forecast-scenario-controls {
   flex-wrap: wrap;
@@ -31,26 +30,6 @@
 }
 .forecast-scenario-controls > .folio-select {
   max-width: 260px;
-}
-.forecast-source-line {
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 20px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.forecast-source-line > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-  color: var(--text);
-  background: none;
-  border: 0;
-  padding: 4px 0;
-  text-decoration: underline;
-  text-decoration-color: var(--strong-border);
-  text-underline-offset: 4px;
 }
 .forecast-workspace {
   display: grid;
@@ -81,7 +60,18 @@
   font-size: 13px;
 }
 .forecast-assumptions .forecast-section-heading {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+}
+.forecast-section-heading h2,
+.forecast-ledger-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.forecast-section-heading .info-tip,
+.forecast-ledger-heading .info-tip,
+.plan-section-title .info-tip {
+  margin-left: 1px;
 }
 .forecast-status {
   display: flex;
@@ -200,10 +190,6 @@
   font-size: 12px;
   color: var(--muted);
   line-height: 1.55;
-}
-.forecast-model-note {
-  padding-top: 2px;
-  max-width: 74ch;
 }
 .plan-fields {
   display: grid;
@@ -325,10 +311,66 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
-.plan-travel {
-  margin-top: 25px;
-  padding-top: 23px;
+.plan-travel,
+.plan-group {
+  margin-top: 22px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
+}
+.plan-group > .plan-fields + .plan-note {
+  margin-top: 12px;
+}
+.plan-summary-value {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.plan-disclosure > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+}
+.plan-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+/* A flex summary loses its native marker; draw the chevron beside the label. */
+.plan-disclosure > summary > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.plan-disclosure > summary > span:first-child::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 160ms;
+  margin: 0 2px 2px 1px;
+}
+.plan-disclosure[open] > summary > span:first-child::before {
+  transform: rotate(45deg);
+  margin-bottom: 4px;
+}
+.plan-disclosure-body {
+  display: grid;
+  gap: 14px;
+}
+.plan-disclosure-body > .f-button {
+  justify-self: start;
+  margin: 0 0 0 -12px;
+}
+.plan-note-tip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.plan-note-tip .info-tip {
+  margin-left: -3px;
 }
 .plan-section-title {
   display: flex;
@@ -410,12 +452,7 @@
 .plan-disclosure[open] > summary {
   margin-bottom: 15px;
 }
-.plan-disclosure > .plan-note {
-  margin: 0 0 15px;
-}
-.plan-disclosure > .plan-fields + .plan-note {
-  margin: 14px 0 0;
-}
+
 .forecast-ledger-heading {
   display: flex;
   align-items: center;
@@ -509,9 +546,8 @@
   font-size: 10px;
   margin-top: 2px;
 }
-.forecast-ledger-note {
-  padding: 18px 24px 22px;
-  max-width: 110ch;
+.forecast-ledger .forecast-table-scroll table {
+  margin-bottom: 0;
 }
 .forecast-footer-actions {
   margin-top: 22px;
@@ -646,9 +682,12 @@
     grid-column: 1;
     align-self: start;
   }
+  .forecast-assumptions > .plan-group {
+    grid-column: 1;
+  }
   .forecast-assumptions > .plan-travel {
     grid-column: 2;
-    grid-row: 2 / 4;
+    grid-row: 2 / 5;
     margin: 0;
     border-top: 0;
     padding-top: 0;
@@ -658,7 +697,7 @@
   }
   .forecast-assumptions > .plan-disclosure:last-child {
     grid-column: 2;
-    grid-row: 4;
+    grid-row: 5;
   }
   .forecast-ledger {
     grid-row: 3;
@@ -692,10 +731,6 @@
   }
   .forecast-actions > .f-button {
     flex: 1;
-  }
-  .forecast-source-line {
-    flex-wrap: wrap;
-    gap: 5px;
   }
   .forecast-chart {
     height: 260px;
@@ -758,7 +793,6 @@
   .travel-plan-heading > input {
     min-height: 44px;
   }
-  .forecast-source-line > button,
   .forecast-table-scroll th > button,
   .plan-disclosure > summary {
     min-height: 44px;

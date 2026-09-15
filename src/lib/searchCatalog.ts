@@ -99,7 +99,7 @@ export const searchDestinations: SearchDestination[] = [
     section: "Pages",
     path: "/forecast?view=long-term",
     keywords:
-      "forecasting projection planning scenarios compare retire age annual returns inflation trips vacation saving savings money lasts future",
+      "forecasting projection planning scenarios compare retire age annual returns inflation trips vacation saving savings invest each month contributions 401k ira compounding money lasts future",
   },
   {
     id: "runway",

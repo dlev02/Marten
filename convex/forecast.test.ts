@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import {
   runForecast,
   solveRequiredSavings,
+  upgradeForecastInputs,
   type ForecastInputs,
 } from "./lib/forecast";
 import schema from "./schema";
@@ -414,5 +415,86 @@ describe("forecast persistence and observed baseline", () => {
       (await bob.query(api.forecasting.baseline, { asOfDate: "2026-09-11" }))
         .inputs.cashCents,
     ).toBe(0);
+  });
+});
+
+describe("version 2 investing", () => {
+  const v2: ForecastInputs = {
+    ...base,
+    schemaVersion: 2,
+    cashCents: 0,
+    investmentCents: 0,
+    retirementCents: 0,
+    monthlyIncomeCents: 300000,
+    monthlySpendingCents: 200000,
+    retirementMonthlyIncomeCents: 200000,
+    retirementMonthlySpendingCents: 200000,
+    monthlyContributionCents: 50000,
+    retirementContributionCents: 20000,
+  };
+  test("unspent income waits in cash, the chosen amount is invested, payroll adds to retirement", () => {
+    const result = runForecast(v2);
+    const first = result.months[1];
+    expect(first).toMatchObject({
+      cashCents: 50000,
+      investmentCents: 50000,
+      retirementCents: 20000,
+      contributionCents: 70000,
+    });
+    // Five working years: $500 invested and $200 of payroll per month.
+    const atRetirement = result.months.find((m) => m.age >= 65)!;
+    expect(atRetirement.investmentCents).toBe(60 * 50000);
+    expect(atRetirement.retirementCents).toBe(60 * 20000);
+    expect(atRetirement.cashCents).toBe(60 * 50000);
+    // Contributions stop at retirement; money is conserved every month.
+    expect(result.months.at(-1)!.contributionCents).toBe(0);
+    for (let n = 1; n < result.months.length; n++) {
+      const before = result.months[n - 1],
+        after = result.months[n];
+      // A month's flows use its opening age, so the retirement month still contributes.
+      const payroll = before.retired ? 0 : 20000;
+      expect(after.assetsCents - before.assetsCents).toBe(
+        after.growthCents +
+          after.incomeCents +
+          payroll -
+          after.spendingCents -
+          after.travelCents +
+          after.shortfallCents,
+      );
+    }
+  });
+  test("investing is limited to the cash on hand and a bigger amount grows more", () => {
+    const short = runForecast({ ...v2, monthlyContributionCents: 500000 });
+    expect(short.months[1]).toMatchObject({
+      cashCents: 0,
+      investmentCents: 100000,
+    });
+    const small = runForecast({
+      ...v2,
+      annualReturnPct: 6,
+      monthlyContributionCents: 50000,
+    });
+    const large = runForecast({
+      ...v2,
+      annualReturnPct: 6,
+      monthlyContributionCents: 100000,
+    });
+    expect(large.endAssetsCents).toBeGreaterThan(small.endAssetsCents);
+    expect(large.totalGrowthCents).toBeGreaterThan(small.totalGrowthCents);
+  });
+  test("upgrading a version 1 plan keeps the automatic surplus as the investing amount", () => {
+    const upgraded = upgradeForecastInputs({
+      ...base,
+      extraMonthlySavingsCents: 10000,
+    });
+    expect(upgraded).toMatchObject({
+      schemaVersion: 2,
+      monthlyContributionCents: 110000,
+      retirementContributionCents: 0,
+    });
+    expect(upgradeForecastInputs(v2)).toBe(v2);
+    expect(() =>
+      runForecast({ ...v2, monthlyContributionCents: undefined }),
+    ).toThrow("investing");
   });
 });

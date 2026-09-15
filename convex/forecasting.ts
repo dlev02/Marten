@@ -219,7 +219,7 @@ export async function forecastBaselineForUser(
       Math.round(spendingCents / Math.max(1, averagingMonths)),
     );
   const inputs: ForecastInputs = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     asOfDate,
     currentAge: 40,
     retirementAge: 65,
@@ -237,6 +237,13 @@ export async function forecastBaselineForUser(
     inflationPct: 2.5,
     incomeGrowthPct: 2.5,
     legacyTargetCents: 0,
+    // Start by investing what the observed months left unspent; payroll
+    // retirement contributions are unknown until entered.
+    monthlyContributionCents: Math.max(
+      0,
+      monthlyIncomeCents - monthlySpendingCents,
+    ),
+    retirementContributionCents: 0,
     travelPlans: [],
   };
   const warnings = [

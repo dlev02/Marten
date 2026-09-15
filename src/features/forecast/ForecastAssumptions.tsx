@@ -4,9 +4,10 @@ import {
   displayMoney as money,
 } from "../../lib/amountVisibility";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
-import { Plane, Plus, Trash2 } from "lucide-react";
+import { Info, PiggyBank, Plane, Plus, Trash2 } from "lucide-react";
 import type { ForecastInputs, TravelPlan } from "../../../convex/lib/forecast";
-import { Button, IconButton } from "../../components/folio/ui";
+import { Button, IconButton, InfoTip } from "../../components/folio/ui";
+import { dateLabel } from "../../lib/format";
 import { Select } from "../../components/folio/Select";
 
 /** Keep a blank/in-progress input local; commit only valid numeric values. */
@@ -151,9 +152,11 @@ function PlanSlider({
 export function ForecastAssumptions({
   inputs,
   onChange,
+  onReview,
 }: {
   inputs: ForecastInputs;
   onChange: (inputs: ForecastInputs) => void;
+  onReview: () => void;
 }) {
   useAmountsHidden();
   const set = <K extends keyof ForecastInputs>(
@@ -173,7 +176,7 @@ export function ForecastAssumptions({
   ) => (
     <PlanNumber
       label={label}
-      value={inputs[key] as number}
+      value={(inputs[key] as number | undefined) ?? 0}
       onChange={(value) => set(key, value)}
       dollars={dollars}
       {...options}
@@ -184,11 +187,25 @@ export function ForecastAssumptions({
       "travelPlans",
       inputs.travelPlans.map((item) => (item.id === trip.id ? trip : item)),
     );
+  const newTrip = (): TravelPlan => ({
+    id: crypto.randomUUID(),
+    name: "Annual trips",
+    tripsPerYear: 2,
+    costPerTripCents: 400000,
+    startAge: inputs.retirementAge,
+    endAge: inputs.endAge,
+    month: 7,
+  });
+  const unspent =
+    inputs.monthlyIncomeCents -
+    inputs.monthlySpendingCents +
+    inputs.extraMonthlySavingsCents;
+  const startingFunds =
+    inputs.cashCents + inputs.investmentCents + inputs.retirementCents;
   return (
     <aside className="forecast-assumptions panel" aria-label="Plan details">
       <div className="forecast-section-heading">
         <h2>Plan details</h2>
-        <p>Adjust a value to see how your plan changes.</p>
       </div>
       <div className="plan-fields">
         {number("currentAge", "Current age", false, { min: 18, max: 119 })}
@@ -219,51 +236,61 @@ export function ForecastAssumptions({
           suffix="%"
         />
       </div>
+      {inputs.schemaVersion === 2 && (
+        <section className="plan-group" aria-labelledby="plan-investing-title">
+          <div className="plan-section-title">
+            <h3 id="plan-investing-title">
+              <PiggyBank size={19} />
+              Investing
+              <InfoTip
+                label="About investing amounts"
+                text="Both amounts continue until retirement and grow with your plan’s rates. Monthly investing moves money you did not spend into investments, where it earns the annual return. Retirement contributions come out of your pay before it reaches the bank, so they add to what your income already shows."
+              />
+            </h3>
+          </div>
+          <div className="plan-fields">
+            {number("monthlyContributionCents", "Invest each month", true)}
+            {number(
+              "retirementContributionCents",
+              "Retirement contributions each month",
+              true,
+            )}
+          </div>
+          <p className="plan-note">
+            {unspent > 0
+              ? `Income leaves about ${money(unspent, false)} unspent each month to invest from.`
+              : "Spending currently uses all of the income entered below."}
+          </p>
+        </section>
+      )}
       <section className="plan-travel" aria-labelledby="plan-travel-title">
         <div className="plan-section-title">
           <h3 id="plan-travel-title">
             <Plane size={19} />
             Travel
+            <InfoTip
+              label="About travel plans"
+              text="Trips are added on top of living spending, so remove any travel already included there. Each plan is charged in full in its budget month, for every year in its age range."
+            />
           </h3>
-          <IconButton
-            label="Add travel plan"
-            disabled={inputs.travelPlans.length >= 20}
-            onClick={() =>
-              set("travelPlans", [
-                ...inputs.travelPlans,
-                {
-                  id: crypto.randomUUID(),
-                  name: "Annual trips",
-                  tripsPerYear: 2,
-                  costPerTripCents: 400000,
-                  startAge: inputs.retirementAge,
-                  endAge: inputs.endAge,
-                  month: 7,
-                },
-              ])
-            }
-          >
-            <Plus size={17} />
-          </IconButton>
+          {!!inputs.travelPlans.length && (
+            <IconButton
+              label="Add travel plan"
+              disabled={inputs.travelPlans.length >= 20}
+              onClick={() =>
+                set("travelPlans", [...inputs.travelPlans, newTrip()])
+              }
+            >
+              <Plus size={17} />
+            </IconButton>
+          )}
         </div>
         {!inputs.travelPlans.length && (
           <div className="plan-travel-empty">
             <p>Plan for a few trips each year, or a special getaway.</p>
             <Button
               icon={<Plus size={15} />}
-              onClick={() =>
-                set("travelPlans", [
-                  {
-                    id: crypto.randomUUID(),
-                    name: "Annual trips",
-                    tripsPerYear: 2,
-                    costPerTripCents: 400000,
-                    startAge: inputs.retirementAge,
-                    endAge: inputs.endAge,
-                    month: 7,
-                  },
-                ])
-              }
+              onClick={() => set("travelPlans", [newTrip()])}
             >
               Add travel
             </Button>
@@ -321,7 +348,7 @@ export function ForecastAssumptions({
               />
             </div>
             <div className="plan-choice">
-              <span id={`travel-month-${trip.id}`}>Annual budget month</span>
+              <span id={`travel-month-${trip.id}`}>Budget month</span>
               <Select
                 aria-labelledby={`travel-month-${trip.id}`}
                 value={String(trip.month)}
@@ -337,64 +364,80 @@ export function ForecastAssumptions({
               />
             </div>
             <p className="plan-note">
-              {money(trip.tripsPerYear * trip.costPerTripCents, false)} per
-              year, before inflation. Charged together in the selected month,
-              until age {trip.endAge}.
+              {money(trip.tripsPerYear * trip.costPerTripCents, false)} a year
+              in today’s dollars, until age {trip.endAge}.
             </p>
           </div>
         ))}
-        {!!inputs.travelPlans.length && (
-          <p className="plan-note">
-            These trips are added to living spending. Remove any travel already
-            included there.
-          </p>
-        )}
       </section>
       <details className="plan-disclosure">
-        <summary>Income & spending</summary>
-        <p className="plan-note">
-          Monthly amounts after tax, in today’s dollars. Include loan payments
-          and costs your transactions may be missing.
-        </p>
-        <div className="plan-fields">
-          {number("monthlyIncomeCents", "Income before retirement", true)}
-          {number("monthlySpendingCents", "Living spending now", true)}
-          {number("retirementMonthlyIncomeCents", "Retirement income", true)}
-          {number(
-            "retirementMonthlySpendingCents",
-            "Retirement spending",
-            true,
-          )}
-          {number("extraMonthlySavingsCents", "Spend less each month", true)}
-          {number("incomeGrowthPct", "Annual income growth", false, {
-            min: -50,
-            max: 30,
-            step: 0.5,
-            suffix: "%",
-          })}
+        <summary>
+          <span>Income & spending</span>
+          <span className="plan-summary-value">
+            {money(inputs.monthlyIncomeCents, false)} in ·{" "}
+            {money(inputs.monthlySpendingCents, false)} out
+          </span>
+        </summary>
+        <div className="plan-disclosure-body">
+          <p className="plan-note plan-note-tip">
+            <InfoTip
+              label="About income and spending"
+              text="Monthly amounts after tax, in today’s dollars, estimated from the last twelve months of activity. Include loan payments and costs your transactions may be missing. “Spend less” trims living spending before retirement; it does not add income."
+            />
+            Monthly amounts after tax.
+          </p>
+          <div className="plan-fields">
+            {number("monthlyIncomeCents", "Income now", true)}
+            {number("monthlySpendingCents", "Spending now", true)}
+            {number(
+              "retirementMonthlyIncomeCents",
+              "Income in retirement",
+              true,
+            )}
+            {number(
+              "retirementMonthlySpendingCents",
+              "Spending in retirement",
+              true,
+            )}
+            {number("extraMonthlySavingsCents", "Spend less each month", true)}
+            {number("incomeGrowthPct", "Annual income growth", false, {
+              min: -50,
+              max: 30,
+              step: 0.5,
+              suffix: "%",
+            })}
+          </div>
         </div>
-        <p className="plan-note">
-          Unspent income is invested automatically. “Spend less” reduces living
-          spending before retirement; it does not add income.
-        </p>
       </details>
       <details className="plan-disclosure">
-        <summary>Starting funds & target</summary>
-        <div className="plan-fields">
-          {number("cashCents", "Cash", true)}
-          {number("investmentCents", "Accessible investments", true)}
-          {number("retirementCents", "Retirement investments", true)}
-          {number("retirementAccessAge", "Retirement access age", false, {
-            max: 120,
-            step: 0.5,
-          })}
-          {number("legacyTargetCents", "Leave at plan’s end", true)}
+        <summary>
+          <span>Starting funds & target</span>
+          <span className="plan-summary-value">
+            {money(startingFunds, false)}
+          </span>
+        </summary>
+        <div className="plan-disclosure-body">
+          <p className="plan-note plan-note-tip">
+            <InfoTip
+              label="About starting funds"
+              text="Balances as of the plan’s start date. Cash earns no interest; investments and retirement funds grow at the annual return. Retirement funds open at the access age; withdrawal taxes and penalties are not modeled."
+            />
+            Balances from {dateLabel(inputs.asOfDate)}.
+          </p>
+          <div className="plan-fields">
+            {number("cashCents", "Cash", true)}
+            {number("investmentCents", "Investments", true)}
+            {number("retirementCents", "Retirement funds", true)}
+            {number("retirementAccessAge", "Retirement access age", false, {
+              max: 120,
+              step: 0.5,
+            })}
+            {number("legacyTargetCents", "Leave at plan’s end", true)}
+          </div>
+          <Button tone="quiet" icon={<Info size={15} />} onClick={onReview}>
+            Review starting data
+          </Button>
         </div>
-        <p className="plan-note">
-          Cash earns no interest. Investment growth is a nominal annual
-          assumption. Retirement funds are available from the access age;
-          withdrawal taxes and penalties are not modeled.
-        </p>
       </details>
     </aside>
   );

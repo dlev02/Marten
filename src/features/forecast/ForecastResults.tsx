@@ -21,7 +21,7 @@ import type {
   ForecastResult,
   SavingsSolution,
 } from "../../../convex/lib/forecast";
-import { Button } from "../../components/folio/ui";
+import { Button, InfoTip } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
 import { csv, dateLabel, download } from "../../lib/format";
 
@@ -99,6 +99,7 @@ export function ForecastResults({
           "Income",
           "Living spending",
           "Travel",
+          "Invested",
           "Investment growth",
           "Unfunded spending",
           "Ending funds",
@@ -111,6 +112,9 @@ export function ForecastResults({
             2,
           ),
           ((real ? year.realTravelCents : year.travelCents) / 100).toFixed(2),
+          (
+            (real ? year.realContributionCents : year.contributionCents) / 100
+          ).toFixed(2),
           ((real ? year.realGrowthCents : year.growthCents) / 100).toFixed(2),
           (
             (real ? year.realShortfallCents : year.shortfallCents) / 100
@@ -144,8 +148,13 @@ export function ForecastResults({
           </div>
         </div>
         <div className="forecast-section-heading">
-          <h2>Funds over time</h2>
-          <p>Cash and investments, including retirement funds.</p>
+          <h2>
+            Funds over time
+            <InfoTip
+              label="About this projection"
+              text={`Cash, investments and retirement funds together, shown in ${unit}. One modeled path: taxes and market swings are not simulated, and unmet spending is listed separately in the year-by-year table.`}
+            />
+          </h2>
         </div>
         <div className="forecast-legend">
           <span>
@@ -289,10 +298,10 @@ export function ForecastResults({
             </h3>
             <p>
               {result.meetsTarget
-                ? `Projected funds meet your ${money(inputs.legacyTargetCents, false)} ending target in today’s dollars.`
+                ? `Funds stay above your ${money(inputs.legacyTargetCents, false)} ending target in today’s dollars.`
                 : solution.status === "solved"
-                  ? `Reduce living spending by ${money(solution.requiredMonthlySavingsCents, false)} per month in total before retirement to cover every period and your ending target.`
-                  : "Spending reductions before retirement alone cannot fund every period and the ending target under these assumptions."}
+                  ? `Spending ${money(solution.requiredMonthlySavingsCents, false)} less each month before retirement would cover every year and the ending target.`
+                  : "Spending less before retirement is not enough on its own under these assumptions."}
             </p>
           </div>
           {solution.status === "solved" && additionalSavings > 0 && (
@@ -305,10 +314,6 @@ export function ForecastResults({
             </Button>
           )}
         </div>
-        <p className="plan-note forecast-model-note">
-          One modeled path in {unit}. Taxes and market volatility are not
-          simulated. The annual ledger shows any unmet spending separately.
-        </p>
       </section>
       <section
         className="forecast-ledger panel"
@@ -316,11 +321,13 @@ export function ForecastResults({
       >
         <div className="forecast-ledger-heading">
           <div>
-            <h2 id="forecast-ledger-title">Year by year</h2>
-            <p>
-              Each row covers a planning year from{" "}
-              {dateLabel(inputs.asOfDate, { month: "short", day: "numeric" })}.
-            </p>
+            <h2 id="forecast-ledger-title">
+              Year by year
+              <InfoTip
+                label="How each year is calculated"
+                text={`Each row covers a planning year from ${dateLabel(inputs.asOfDate, { month: "short", day: "numeric" })}. Income less spending and travel is added to cash, then the monthly investing amount moves into investments. Shortfalls draw on cash, then investments, then retirement funds after the access age; unfunded spending is not covered by an assumed loan. Real-dollar flows are adjusted when they occur; real balances at each year’s end.`}
+              />
+            </h2>
           </div>
           <Button icon={<Download size={15} />} onClick={exportYears}>
             Export
@@ -401,6 +408,7 @@ export function ForecastResults({
                 <th scope="col">Income</th>
                 <th scope="col">Living spending</th>
                 <th scope="col">Travel</th>
+                <th scope="col">Invested</th>
                 <th scope="col">Growth</th>
                 <th scope="col">Unfunded</th>
                 <th scope="col">Ending funds</th>
@@ -448,6 +456,14 @@ export function ForecastResults({
                   </td>
                   <td>
                     {money(
+                      real
+                        ? year.realContributionCents
+                        : year.contributionCents,
+                      false,
+                    )}
+                  </td>
+                  <td>
+                    {money(
                       real ? year.realGrowthCents : year.growthCents,
                       false,
                     )}
@@ -473,13 +489,6 @@ export function ForecastResults({
             </tbody>
           </table>
         </div>
-        <p className="plan-note forecast-ledger-note">
-          Income less living spending and travel is invested or withdrawn. Cash
-          is used first, then accessible investments, then retirement funds
-          after the access age. Unfunded spending is not covered by an assumed
-          loan. Real-dollar flows are adjusted for inflation when they occur;
-          real balances are adjusted at each year’s end.
-        </p>
       </section>
     </>
   );

@@ -81,8 +81,10 @@ function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
     if (!baseline || !scenarios || inputs) return;
     const recent = scenarios[0];
     if (recent) {
-      setInputs(recent.inputs);
-      setLoaded(recent);
+      // Older plans gain the investing controls without changing their result.
+      const upgraded = upgradeForecastInputs(recent.inputs);
+      setInputs(upgraded);
+      setLoaded({ ...recent, inputs: upgraded });
       setName(recent.name);
     } else setInputs(baseline.inputs);
   }, [baseline, scenarios, inputs]);
@@ -127,8 +129,9 @@ function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
       change.type === "load"
         ? scenarios.find((item) => item._id === change.id)
         : undefined;
-    setLoaded(scenario ?? null);
-    setInputs(scenario?.inputs ?? baseline.inputs);
+    const upgraded = scenario && upgradeForecastInputs(scenario.inputs);
+    setLoaded(scenario && upgraded ? { ...scenario, inputs: upgraded } : null);
+    setInputs(upgraded ?? baseline.inputs);
     setName(scenario?.name ?? "My retirement plan");
     setCompareId("");
     setPending(null);
@@ -181,7 +184,10 @@ function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
               },
               ...scenarios.map((scenario) => ({
                 value: scenario._id,
-                label: scenario.name,
+                label:
+                  scenario._id === loaded?._id && dirty
+                    ? `${scenario.name} · edited`
+                    : scenario.name,
               })),
             ]}
           />
@@ -238,18 +244,6 @@ function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
           </Button>
         </div>
       </div>
-      <div className="forecast-source-line">
-        <span>
-          Starting funds from {dateLabel(inputs.asOfDate)}
-          {loaded
-            ? ` · ${dirty ? "Unsaved changes" : "Saved scenario"}`
-            : " · Review the example ages and assumptions"}
-        </span>
-        <button type="button" onClick={() => setReview(true)}>
-          <Info size={14} />
-          Review starting data
-        </button>
-      </div>
       {changedElsewhere && (
         <div className="forecast-warning" role="alert">
           This scenario changed in another session. Save a copy to keep your
@@ -268,7 +262,11 @@ function LongTermForecast({ onAddAccount }: { onAddAccount: () => void }) {
         </div>
       )}
       <div className="forecast-workspace" aria-busy={inputs !== deferredInputs}>
-        <ForecastAssumptions inputs={inputs} onChange={setInputs} />
+        <ForecastAssumptions
+          inputs={inputs}
+          onChange={setInputs}
+          onReview={() => setReview(true)}
+        />
         {projection.result && projection.solution && deferredInputs ? (
           <ForecastResults
             inputs={deferredInputs}
