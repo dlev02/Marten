@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Download,
   Filter,
+  Layers,
   PieChart as PieIcon,
   Save,
   Trash2,
@@ -87,9 +88,9 @@ type Summary = ReturnType<typeof summarize>;
 type BreakdownRow = Summary["spending"][number];
 type Period = ReportPeriod;
 const groupOptions = [
-  { value: "category", label: "Category" },
-  { value: "group", label: "Group" },
-  { value: "merchant", label: "Merchant" },
+  { value: "category", label: "By category" },
+  { value: "group", label: "By group" },
+  { value: "merchant", label: "By merchant" },
 ];
 const reportOptions = [
   { value: "cashflow", label: "Cash flow" },
@@ -214,16 +215,15 @@ function GroupPicker({
   onChange: (value: string) => void;
 }) {
   useAmountsHidden();
+  // The options read "By category", so the control needs no separate label.
   return (
-    <label className="report-select-label">
-      <span>Group by</span>
-      <Select
-        aria-label="Group report by"
-        value={value}
-        onValueChange={onChange}
-        options={groupOptions}
-      />
-    </label>
+    <Select
+      aria-label="Group report by"
+      icon={<Layers size={15} />}
+      value={value}
+      onValueChange={onChange}
+      options={groupOptions}
+    />
   );
 }
 function Breakdown({
@@ -1177,8 +1177,7 @@ export function Reports() {
             setReport(kind);
             setSelectedId(null);
             setChart(
-              data.profile?.chartDefaults?.[kind] ??
-                defaultCharts[kind],
+              data.profile?.chartDefaults?.[kind] ?? defaultCharts[kind],
             );
           }}
           items={reportOptions}
