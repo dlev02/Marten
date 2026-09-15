@@ -120,6 +120,8 @@ export function AddAccount({
               {plaidOpen && (
                 <Button
                   tone="quiet"
+                  className="connect-back"
+                  icon={<ArrowLeft size={15} />}
                   disabled={busy}
                   onClick={() => setPlaidOpen(false)}
                 >
