@@ -57,6 +57,18 @@
   background: none;
   cursor: pointer;
 }
+.profile-avatar-initials {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--avatar);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 .profile-avatar-option img {
   width: 100%;
   height: 100%;

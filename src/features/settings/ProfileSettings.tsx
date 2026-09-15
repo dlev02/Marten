@@ -148,6 +148,43 @@ export function ProfileSettings() {
                     role="group"
                     aria-label="Avatar options"
                   >
+                    {(() => {
+                      const selected =
+                        !profile.avatarUrl && !profile.avatarPreset;
+                      return (
+                        <button
+                          type="button"
+                          aria-label="Your initials"
+                          aria-pressed={selected}
+                          className={`profile-avatar-option ${selected ? "selected" : ""}`}
+                          disabled={task.busy}
+                          onClick={() =>
+                            void task
+                              .run(
+                                () => saveAvatar({ preset: null }),
+                                "Using your initials",
+                              )
+                              .then((ok) => {
+                                if (ok) setAvatarOpen(false);
+                              })
+                          }
+                        >
+                          <span className="profile-avatar-initials" aria-hidden>
+                            {profile.name
+                              .split(/[\s&]+/)
+                              .slice(0, 2)
+                              .map((part) => part[0])
+                              .join("")
+                              .toUpperCase()}
+                          </span>
+                          {selected && (
+                            <span className="profile-avatar-check">
+                              <Check size={11} />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })()}
                     {profileAvatars.map((avatar) => {
                       const selected =
                         !profile.avatarUrl &&
@@ -184,20 +221,6 @@ export function ProfileSettings() {
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
-            {(profile.avatarUrl || profile.avatarPreset) && (
-              <Button
-                tone="quiet"
-                disabled={task.busy}
-                onClick={() =>
-                  void task.run(
-                    () => saveAvatar({ preset: null }),
-                    "Profile picture removed",
-                  )
-                }
-              >
-                Use initials
-              </Button>
-            )}
           </div>
           <p className="settings-helper">
             JPEG, PNG, or WebP · up to 10 MB. Crop before saving.
