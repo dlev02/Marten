@@ -790,7 +790,7 @@ export function ImportTransactions({
               <h3>Review your import</h3>
               <p className="import-hint">
                 {balancePreview.error ||
-                  `${balancePreview.valid.length} balance ${balancePreview.valid.length === 1 ? "update" : "updates"} for ${balanceAccounts} ${balanceAccounts === 1 ? "account" : "accounts"} ${balancePreview.valid.length === 1 ? "is" : "are"} ready. ${plural(balancePreview.skipped, "row")} ${balancePreview.skipped === 1 ? "belongs" : "belong"} to skipped accounts and ${plural(balancePreview.rejected.length, "row")} ${balancePreview.rejected.length === 1 ? "was" : "were"} rejected. An imported date replaces its existing historical balance; current balances stay unchanged.`}
+                  `${balancePreview.valid.length} balance ${balancePreview.valid.length === 1 ? "update" : "updates"} for ${balanceAccounts} ${balanceAccounts === 1 ? "account" : "accounts"} ${balancePreview.valid.length === 1 ? "is" : "are"} ready. ${plural(balancePreview.skipped, "row")} ${balancePreview.skipped === 1 ? "belongs" : "belong"} to skipped accounts and ${plural(balancePreview.rejected.length, "row")} ${balancePreview.rejected.length === 1 ? "was" : "were"} rejected. An imported date replaces its existing historical balance. Manually tracked accounts take the newest day as their current balance; connected accounts keep the bank's.`}
               </p>
               {balancePreview.rejected.length > 0 && (
                 <div
@@ -1221,8 +1221,8 @@ export function ImportTransactions({
               Import will create{" "}
               {plural(plan.newAccounts.length, "manual account")} and{" "}
               {plural(plan.newCategories.length, "category")}. Nothing is
-              created until you import. New manual accounts start at $0; update
-              their current balances separately.
+              created until you import. New manual accounts start at $0 until a
+              balance export or a manual update sets them.
             </p>
           )}
         {result && (

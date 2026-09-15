@@ -738,7 +738,7 @@ export const importBalances = userMutation({
   },
   returns: v.number(),
   handler: async (ctx, { accountId, rows }) => {
-    await owned(ctx, accountId);
+    const account = await owned(ctx, accountId);
     if (rows.length > 100)
       throw new ConvexError("Import at most 100 balance rows per batch.");
     // Connected accounts keep today's provider snapshot and current balance;
@@ -762,6 +762,22 @@ export const importBalances = userMutation({
           userId: ctx.userId,
           accountId,
           ...row,
+        });
+    }
+    // A manually tracked account has no provider snapshot, so its newest
+    // imported balance becomes the current balance unless a later day is
+    // already saved. Otherwise a history-only account shows $0 forever.
+    if (account.manual && rows.length) {
+      const newest = rows.reduce((a, b) => (b.date > a.date ? b : a));
+      const latest = await ctx.db
+        .query("balances")
+        .withIndex("by_accountId_and_date", (q) => q.eq("accountId", accountId))
+        .order("desc")
+        .first();
+      if (latest && latest.date === newest.date)
+        await ctx.db.patch(accountId, {
+          balanceCents: newest.balanceCents,
+          updatedAt: Date.now(),
         });
     }
     return rows.length;

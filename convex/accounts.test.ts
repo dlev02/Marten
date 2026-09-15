@@ -1027,4 +1027,47 @@ describe("net worth history", () => {
     ).toEqual([]);
   });
 
+  test("a balance import sets a manual account's current balance from its newest day", async () => {
+    const { t, alice } = await fixture();
+    const { accounts } = await alice.mutation(api.imports.prepareDestinations, {
+      accounts: [
+        { name: "Old Savings (...4321)", kind: "cash", closed: false },
+      ],
+      categories: [],
+    });
+    const manual = accounts[0]._id;
+    expect(accounts[0].balanceCents).toBe(0);
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: manual,
+      rows: [
+        { date: "2026-02-01", balanceCents: 50000 },
+        { date: "2026-02-03", balanceCents: 70000 },
+        { date: "2026-02-02", balanceCents: 60000 },
+      ],
+    });
+    expect((await t.run((ctx) => ctx.db.get(manual)))?.balanceCents).toBe(
+      70000,
+    );
+    // Older days never move the balance backwards.
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: manual,
+      rows: [{ date: "2026-01-15", balanceCents: 10 }],
+    });
+    expect((await t.run((ctx) => ctx.db.get(manual)))?.balanceCents).toBe(
+      70000,
+    );
+    // Connected accounts keep the provider's current balance.
+    const connected = await alice.mutation(api.workspace.saveAccount, {
+      ...accountFields,
+      name: "Bank checking",
+    });
+    await t.run((ctx) => ctx.db.patch(connected, { manual: false }));
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: connected,
+      rows: [{ date: "2026-02-01", balanceCents: 1 }],
+    });
+    expect((await t.run((ctx) => ctx.db.get(connected)))?.balanceCents).toBe(
+      accountFields.balanceCents,
+    );
+  });
 });
