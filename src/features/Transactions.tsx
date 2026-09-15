@@ -140,6 +140,22 @@ export function Transactions() {
   useEffect(() => {
     if (requestedImport) setImportOpen(true);
   }, [requestedImport]);
+  // Filters the server cannot apply, totals and exports need every row; the
+  // default list loads a page at a time as you scroll, which keeps a large
+  // history from being re-read on every visit.
+  const [exportPending, setExportPending] = useState(false);
+  const needsEveryRow =
+    tab === "receipts" ||
+    !!category ||
+    !!tag ||
+    review !== "all" ||
+    visibility !== "all" ||
+    source !== "all" ||
+    sort !== "newest" ||
+    !!minimum ||
+    !!maximum ||
+    showSummary ||
+    exportPending;
   const result = useTransactions(
     {
       from: from || undefined,
@@ -148,8 +164,19 @@ export function Transactions() {
       accountId: (account || undefined) as Id<"accounts"> | undefined,
       merchantId: (merchant || undefined) as Id<"merchants"> | undefined,
     },
-    true,
+    needsEveryRow,
   );
+  const { status: listStatus, loadMore } = result;
+  const loadMoreSentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = loadMoreSentinel.current;
+    if (!node || listStatus !== "CanLoadMore") return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMore(200);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [listStatus, loadMore]);
   const transactions = useMemo(
     () =>
       result.results
@@ -223,6 +250,14 @@ export function Transactions() {
       return next;
     });
   }
+  useEffect(() => {
+    if (exportPending && result.status === "Exhausted") {
+      setExportPending(false);
+      exportRows();
+    }
+    // exportRows reads the current filtered rows; re-running on each row change is intended.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportPending, result.status]);
   function exportRows() {
     download(
       "marten-transactions.csv",
@@ -486,8 +521,11 @@ export function Transactions() {
                 "Select up to 100 transactions"
               ) : (
                 <>
-                  {transactions.length.toLocaleString()} transactions
-                  {result.status !== "Exhausted" ? " · loading more…" : ""}
+                  {result.status === "Exhausted"
+                    ? `${transactions.length.toLocaleString()} transactions`
+                    : needsEveryRow
+                      ? `${transactions.length.toLocaleString()} transactions · loading more…`
+                      : `Newest ${transactions.length.toLocaleString()} transactions · scroll for more`}
                 </>
               )}
             </small>
@@ -598,8 +636,13 @@ export function Transactions() {
                     sideOffset={6}
                   >
                     <button
-                      onClick={exportRows}
-                      disabled={result.status !== "Exhausted"}
+                      onClick={() => {
+                        if (result.status === "Exhausted") exportRows();
+                        else {
+                          setExportPending(true);
+                          toast("Gathering every transaction for the export…");
+                        }
+                      }}
                     >
                       <Download size={16} />
                       Export CSV
@@ -890,7 +933,7 @@ export function Transactions() {
         )}
         {result.status !== "Exhausted" &&
           result.status !== "LoadingFirstPage" && (
-            <div className="table-loading">
+            <div className="table-loading" ref={loadMoreSentinel}>
               <span className="loading-dot" />
               Loading more transactions…
             </div>
