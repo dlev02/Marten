@@ -3,7 +3,7 @@ import {
   displayMoney as money,
 } from "../../lib/amountVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "../../lib/convex";
 import { CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";

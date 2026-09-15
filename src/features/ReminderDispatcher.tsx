@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useMutation } from "../lib/convex";
 import { api } from "../../convex/_generated/api";
 import { useData } from "../lib/data";
 import { isDemoSession } from "../lib/demo";

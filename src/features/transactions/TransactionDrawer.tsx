@@ -13,7 +13,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,

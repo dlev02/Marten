@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { Bell, Mail } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { useData } from "../../lib/data";

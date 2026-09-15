@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "../settings.css";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation } from "../../lib/convex";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,

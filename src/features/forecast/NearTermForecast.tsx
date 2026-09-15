@@ -6,7 +6,7 @@ import {
 } from "../../lib/amountVisibility";
 import { mergePaymentStatus } from "../../../convex/lib/recurringPayments";
 import { useEffect, useId, useMemo, useState } from "react";
-import { usePaginatedQuery, useQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "../../lib/convex";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowDownLeft, ArrowUpRight, Info } from "lucide-react";
 import {

@@ -4,12 +4,11 @@ import {
   displayMoney as money,
 } from "../lib/amountVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "../lib/convex";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowUpRight,
   ChevronRight,
-  CircleHelp,
   Landmark,
   Plus,
   RefreshCw,

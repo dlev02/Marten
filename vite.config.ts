@@ -40,4 +40,12 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  // Pre-bundle the query cache with React from the start; discovering it later
+  // gave it a second React copy in development.
+  optimizeDeps: {
+    include: [
+      "convex-helpers/react/cache/hooks",
+      "convex-helpers/react/cache/provider",
+    ],
+  },
 });

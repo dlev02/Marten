@@ -5,7 +5,7 @@ import {
 } from "../../lib/amountVisibility";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useConvex, useMutation } from "convex/react";
+import { useConvex, useMutation } from "../../lib/convex";
 import type { FunctionReturnType } from "convex/server";
 import {
   Check,

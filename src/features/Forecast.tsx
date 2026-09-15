@@ -3,14 +3,15 @@ import {
   displayMoney as money,
 } from "../lib/amountVisibility";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../lib/convex";
 import { useSearchParams } from "react-router-dom";
-import { Copy, Info, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Copy, RefreshCw, Save, Trash2 } from "lucide-react";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import {
   runForecast,
   solveRequiredSavings,
+  upgradeForecastInputs,
   type ForecastInputs,
 } from "../../convex/lib/forecast";
 import { PageHeader } from "../components/folio/PageHeader";

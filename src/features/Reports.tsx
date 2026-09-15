@@ -6,7 +6,7 @@ import {
 import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useMutation } from "convex/react";
+import { useMutation } from "../lib/convex";
 import {
   BarChart3,
   LayoutGrid,

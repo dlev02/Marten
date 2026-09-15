@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../lib/convex";
 import { useSearchParams } from "react-router-dom";
 import {
   ArrowDownRight,

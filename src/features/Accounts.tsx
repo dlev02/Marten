@@ -3,7 +3,7 @@ import {
   displayMoney as money,
 } from "../lib/amountVisibility";
 import { useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "../lib/convex";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowDownRight,

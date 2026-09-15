@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useQuery } from "../../lib/convex";
 import {
   AlertCircle,
   ArrowUpRight,

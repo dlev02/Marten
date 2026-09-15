@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "next-themes";
 import { ConvexReactClient } from "convex/react";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ToastProvider } from "./components/folio/ui";
@@ -51,11 +52,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             }
           : {})}
       >
-        <Tooltip.Provider delayDuration={350}>
-          <ToastProvider>
-            <RouterProvider router={router} />
-          </ToastProvider>
-        </Tooltip.Provider>
+        {/* Keeps recently used subscriptions alive so returning to a page
+            reuses them instead of re-reading every row from the database. */}
+        <ConvexQueryCacheProvider expiration={10 * 60_000}>
+          <Tooltip.Provider delayDuration={350}>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </Tooltip.Provider>
+        </ConvexQueryCacheProvider>
       </ConvexAuthProvider>
     </ThemeProvider>
   </React.StrictMode>,

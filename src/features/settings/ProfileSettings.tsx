@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation } from "../../lib/convex";
 import * as Popover from "@radix-ui/react-popover";
 import { Camera, Check, RotateCcw, Smile } from "lucide-react";
 import { api } from "../../../convex/_generated/api";

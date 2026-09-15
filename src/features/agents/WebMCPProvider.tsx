@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useQuery } from "../../lib/convex";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../../convex/_generated/api";
 import {

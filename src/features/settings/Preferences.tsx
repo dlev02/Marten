@@ -4,7 +4,7 @@ import type { chartDefaults } from "../../../convex/lib/chartDefaults";
 import { useAmountsHidden, setAmountsHidden } from "../../lib/amountVisibility";
 import { useState } from "react";
 import { useSidebarLabels, setSidebarLabels } from "../../lib/sidebarLabels";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { useNavigate } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useTheme } from "next-themes";

@@ -7,7 +7,7 @@ import {
   useNavigate,
   useNavigationType,
 } from "react-router-dom";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth } from "../lib/convex";
 import { ArrowUpRight, Heart, Menu, X } from "lucide-react";
 import { GitHubIcon } from "./GitHubIcon";
 import { useState } from "react";

@@ -1,4 +1,4 @@
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth } from "./lib/convex";
 import { DataProvider, useData } from "./lib/data";
 import { Loading } from "./components/folio/ui";
 import { AuthScreen, Onboarding } from "./features/Auth";

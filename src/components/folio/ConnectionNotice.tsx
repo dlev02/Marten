@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useConvexConnectionState } from "convex/react";
+import { useConvexConnectionState } from "../../lib/convex";
 import { useLocation } from "react-router-dom";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { publicPaths } from "../../site/paths";

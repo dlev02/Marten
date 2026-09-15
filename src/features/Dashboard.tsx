@@ -8,7 +8,7 @@ import {
   SortableHandle,
 } from "../components/folio/SortableList";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../lib/convex";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowDown,

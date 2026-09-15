@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../../lib/convex";
 import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Unplug } from "lucide-react";
 import { api } from "../../../convex/_generated/api";

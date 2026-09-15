@@ -3,7 +3,7 @@ import {
   displayMoney as money,
 } from "../../lib/amountVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useAction } from "../../lib/convex";
 import { FileCheck2, Paperclip } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";

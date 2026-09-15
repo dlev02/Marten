@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
-import { useQuery, usePaginatedQuery } from "convex/react";
+import { useQuery, usePaginatedQuery } from "./convex";
 import type { Metadata } from "./types";
 export type { Metadata } from "./types";
 import { api } from "../../convex/_generated/api";

@@ -7,7 +7,7 @@ import { MerchantEditor } from "./settings/Organization";
 import { mergePaymentStatus } from "../../convex/lib/recurringPayments";
 import { AnimatedMoney } from "../components/folio/AnimatedMoney";
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "../lib/convex";
 import { Link, useSearchParams } from "react-router-dom";
 import * as Popover from "@radix-ui/react-popover";
 import {

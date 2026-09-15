@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../../convex/_generated/api";
 import { Button, Loading, Toggle, useTask } from "../../components/folio/ui";

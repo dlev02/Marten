@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "../lib/convex";
 import { ArrowRight, Building2, Check, Eye, EyeOff } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { Button, useTask } from "../components/folio/ui";

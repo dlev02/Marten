@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useQuery } from "../../lib/convex";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowDown,

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { ArrowDown, ArrowUp, Pencil, Plus } from "lucide-react";
+import { useMutation } from "../../lib/convex";
+import { ArrowDown, ArrowUp, Loader2, Merge, Pencil, Plus } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useData } from "../../lib/data";

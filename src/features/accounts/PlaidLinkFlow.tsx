@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useAction } from "../../lib/convex";
 import { useNavigate } from "react-router-dom";
 import {
   usePlaidLink,
