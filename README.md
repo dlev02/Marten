@@ -24,12 +24,12 @@ I built Marten for my family. We wanted something modern and simple that did not
 
 ## Two ways to use it
 
-|               | Hosted Marten site                                                                                                   | Self-hosted                                                                                       |
-| ------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Who runs it   | Drew hosts a public instance for anyone who wants an account <!-- TODO: confirm domain -->                           | You, for your own household                                                                       |
-| Cost          | Free. Bank connections use your own SimpleFIN Bridge or Lunch Flow subscription, paid to that provider | Free tiers of Convex and a static host; a domain if you want one; Plaid's free Trial, SimpleFIN or Lunch Flow |
-| Bank provider | SimpleFIN Bridge or Lunch Flow. Plaid on the hosted site is reserved for the operator's family                                     | Your choice: Plaid (your own free Trial credentials), SimpleFIN, Lunch Flow, or manual and spreadsheet only   |
-| Get started   | Create an account on the hosted site, or try `/demo` first                                                           | Follow the [self-hosting guide](docs/self-hosting.md)                                             |
+|               | Hosted Marten site                                                                                            | Self-hosted                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Who runs it   | Drew hosts a public instance at [marten.money](https://marten.money) for anyone who wants an account          | You, for your own household                                                                                   |
+| Cost          | Free. Bank connections use your own SimpleFIN Bridge or Lunch Flow subscription, paid to that provider        | Free tiers of Convex and a static host; a domain if you want one; Plaid's free Trial, SimpleFIN or Lunch Flow |
+| Bank provider | SimpleFIN Bridge or Lunch Flow. Plaid on the hosted site is reserved for the operator's family                | Your choice: Plaid (your own free Trial credentials), SimpleFIN, Lunch Flow, or manual and spreadsheet only   |
+| Get started   | Create an account at [marten.money](https://marten.money), or try [the demo](https://marten.money/demo) first | Follow the [self-hosting guide](docs/self-hosting.md)                                                         |
 
 Either way you can start with manual accounts and spreadsheet imports and connect a bank later.
 
