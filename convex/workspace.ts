@@ -239,7 +239,161 @@ export const balanceHistory = userQuery({
             q.eq("userId", ctx.userId).gte("date", from).lte("date", to),
           )
           .take(12001);
-    return { rows: rows.slice(0, 12000), complete: rows.length <= 12000 };
+    return { rows: rows.slice(0, 8000), complete: rows.length <= 8000 };
+  },
+});
+/** Day count of an inclusive calendar range. */
+const daysBetween = (from: string, to: string) =>
+  Math.round(
+    (Date.parse(to + "T12:00:00Z") - Date.parse(from + "T12:00:00Z")) /
+      86400000,
+  ) + 1;
+const shiftDay = (day: string, days: number) =>
+  new Date(Date.parse(day + "T12:00:00Z") + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+/**
+ * Net worth over time, computed here so the client never receives thousands
+ * of balance rows (Convex values hold at most 8,192 array items). Each point
+ * sums the latest saved balance on or before that day for every open USD
+ * account counted in net worth; card and loan balances subtract. Short ranges
+ * read the rows in one pass; long or wide ranges sample every `stepDays` with
+ * one index lookup per account, so the read cost stays bounded as history
+ * grows. A day before any included account has a balance produces no point.
+ */
+export const netWorthHistory = userQuery({
+  args: { from: v.string(), to: v.string() },
+  returns: v.object({
+    points: v.array(v.object({ date: v.string(), valueCents: v.number() })),
+    /** Per-account balances aligned with `points`; null before its first balance. */
+    series: v.array(
+      v.object({
+        accountId: v.id("accounts"),
+        values: v.array(v.union(v.number(), v.null())),
+      }),
+    ),
+    stepDays: v.number(),
+  }),
+  handler: async (ctx, { from, to }) => {
+    date(from);
+    date(to);
+    if (from > to || Date.parse(to) - Date.parse(from) > 10 * 366 * 86400000)
+      throw new ConvexError("Choose a date range up to ten years.");
+    const all = await ctx.db
+      .query("accounts")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(201);
+    if (all.length > 200)
+      throw new ConvexError("Net worth history supports up to 200 accounts.");
+    const accounts = all.filter(
+      (a) => !a.closed && !a.excludeNetWorth && a.currency === "USD",
+    );
+    const sign = new Map(
+      accounts.map((a) => [
+        a._id,
+        a.kind === "credit" || a.kind === "loan" ? -1 : 1,
+      ]),
+    );
+    const days = daysBetween(from, to);
+    // Keep charts readable and payloads small: at most ~400 points per range.
+    const displayStep = Math.max(1, Math.ceil(days / 400));
+    if (!accounts.length)
+      return { points: [], series: [], stepDays: displayStep };
+    const series = new Map<Id<"accounts">, (number | null)[]>(
+      accounts.map((a) => [a._id, []]),
+    );
+    const record = (balances: Map<Id<"accounts">, number>) => {
+      for (const [id, values] of series) values.push(balances.get(id) ?? null);
+    };
+    const finish = (
+      points: { date: string; valueCents: number }[],
+      stepDays: number,
+    ) => ({
+      points,
+      series: [...series].map(([accountId, values]) => ({ accountId, values })),
+      stepDays,
+    });
+    const latestBefore = async (accountId: Id<"accounts">, day: string) =>
+      await ctx.db
+        .query("balances")
+        .withIndex("by_accountId_and_date", (q) =>
+          q.eq("accountId", accountId).lte("date", day),
+        )
+        .order("desc")
+        .first();
+    const sum = (balances: Map<Id<"accounts">, number>) => {
+      let total = 0;
+      for (const [id, cents] of balances) total += (sign.get(id) ?? 0) * cents;
+      return total;
+    };
+    const fullReadBudget = 4000;
+    const rows =
+      days * accounts.length <= fullReadBudget
+        ? await ctx.db
+            .query("balances")
+            .withIndex("by_userId_and_date", (q) =>
+              q.eq("userId", ctx.userId).gte("date", from).lte("date", to),
+            )
+            .take(fullReadBudget + 1)
+        : null;
+    if (rows && rows.length <= fullReadBudget) {
+      // One pass over the range, seeded with each account's balance before it.
+      const balances = new Map<Id<"accounts">, number>();
+      await Promise.all(
+        accounts.map(async (a) => {
+          const seed = await latestBefore(a._id, shiftDay(from, -1));
+          if (seed) balances.set(a._id, seed.balanceCents);
+        }),
+      );
+      const byDay = new Map<string, typeof rows>();
+      for (const row of rows) {
+        if (!sign.has(row.accountId)) continue;
+        const list = byDay.get(row.date) ?? [];
+        list.push(row);
+        byDay.set(row.date, list);
+      }
+      const points: { date: string; valueCents: number }[] = [];
+      for (let index = 0; index < days; index++) {
+        const day = shiftDay(from, index);
+        for (const row of byDay.get(day) ?? [])
+          balances.set(row.accountId, row.balanceCents);
+        const last = index === days - 1;
+        if (balances.size && (index % displayStep === 0 || last)) {
+          points.push({ date: day, valueCents: sum(balances) });
+          record(balances);
+        }
+      }
+      return finish(points, displayStep);
+    }
+    // Sample from the end so the newest day is always present.
+    const lookupBudget = 1500;
+    const stepDays = Math.max(
+      displayStep,
+      Math.ceil((days * accounts.length) / lookupBudget),
+    );
+    const samples: string[] = [];
+    for (let day = to; day >= from; day = shiftDay(day, -stepDays))
+      samples.push(day);
+    samples.reverse();
+    const sampled = await Promise.all(
+      samples.map(async (day) => {
+        const balances = new Map<Id<"accounts">, number>();
+        await Promise.all(
+          accounts.map(async (a) => {
+            const row = await latestBefore(a._id, day);
+            if (row) balances.set(a._id, row.balanceCents);
+          }),
+        );
+        return { day, balances };
+      }),
+    );
+    const points: { date: string; valueCents: number }[] = [];
+    for (const { day, balances } of sampled) {
+      if (!balances.size) continue;
+      points.push({ date: day, valueCents: sum(balances) });
+      record(balances);
+    }
+    return finish(points, stepDays);
   },
 });
 const accountFields = {

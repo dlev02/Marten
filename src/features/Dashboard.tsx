@@ -76,7 +76,7 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
     sixMonths = monthOffset(from, -5);
   const monthly = useTransactions({ from, to }, true),
     historyTx = useTransactions({ from: sixMonths, to }, true);
-  const history = useQuery(api.workspace.balanceHistory, {
+  const history = useQuery(api.workspace.netWorthHistory, {
     from: sixMonths,
     to: today,
   });
@@ -95,45 +95,21 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
     .filter((a) => a.currency === "USD")
     .reduce((sum, a) => sum + accountNetWorth(a), 0);
   const chart = useMemo(() => {
-    const balances = new Map<string, number>();
-    const points: { date: string; label: string; value: number }[] = [];
-    const accounts = new Map(
-      data.accounts
-        .filter((a) => !a.excludeNetWorth && a.currency === "USD")
-        .map((a) => [a._id as string, a]),
-    );
-    const days = new Map<string, NonNullable<typeof history>["rows"]>();
-    for (const row of history?.rows ?? []) {
-      const list = days.get(row.date) ?? [];
-      list.push(row);
-      days.set(row.date, list);
-    }
-    for (const [date, rows] of [...days.entries()].sort(([a], [b]) =>
-      a.localeCompare(b),
-    )) {
-      for (const row of rows) {
-        const account = accounts.get(row.accountId);
-        if (account)
-          balances.set(
-            account._id,
-            (account.kind === "credit" || account.kind === "loan" ? -1 : 1) *
-              row.balanceCents,
-          );
-      }
-      points.push({
-        date,
-        label: dateLabel(date, { month: "short", day: "numeric" }),
-        value: [...balances.values()].reduce((sum, b) => sum + b, 0),
-      });
-    }
+    // Points arrive summed on the server; only the period cutoff is applied here.
     const cutoff =
       range === "1M"
         ? monthOffset(from, -1)
         : range === "3M"
           ? monthOffset(from, -2)
           : sixMonths;
-    return points.filter((p) => p.date >= cutoff);
-  }, [history, data.accounts, range, from, sixMonths]);
+    return (history?.points ?? [])
+      .filter((p) => p.date >= cutoff)
+      .map((p) => ({
+        date: p.date,
+        label: dateLabel(p.date, { month: "short", day: "numeric" }),
+        value: p.valueCents,
+      }));
+  }, [history, range, from, sixMonths]);
   const change = chart.length > 1 ? networth - chart[0].value : 0;
   const schedules = data.recurring
     .filter((r) => r.active)

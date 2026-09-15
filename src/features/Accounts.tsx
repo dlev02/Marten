@@ -24,7 +24,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import type { Doc, Id } from "../../convex/_generated/dataModel";
+import type { Doc } from "../../convex/_generated/dataModel";
 import { accountNetWorth, useData } from "../lib/data";
 import { matchAccount } from "../lib/transactionImport";
 import {
@@ -46,6 +46,7 @@ import {
   Picker,
   Tabs,
   useTask,
+  useToast,
 } from "../components/folio/ui";
 import { NetWorthChart } from "../components/folio/charts";
 import { AccountForm } from "./accounts/AddAccount";
@@ -114,7 +115,9 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
     [collapsed, setCollapsed] = useState<string[]>([]);
   const today = data.profile?.demo ? "2026-09-10" : localDate(),
     from = rangeStart(period, today),
-    history = useQuery(api.workspace.balanceHistory, { from, to: today });
+    history = useQuery(api.workspace.netWorthHistory, { from, to: today }),
+    client = useConvex(),
+    toast = useToast();
   const selected = data.accounts.find((a) => a._id === params.get("account"));
   const assets = data.accounts
       .filter((a) => a.kind !== "credit" && a.kind !== "loan")
@@ -123,38 +126,14 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
       .filter((a) => a.kind === "credit" || a.kind === "loan")
       .reduce((sum, a) => sum + accountNetWorth(a), 0),
     netWorth = assets - liabilities;
-  const chart = useMemo(() => {
-    const included = new Map(
-      data.accounts
-        .filter((a) => !a.closed && !a.excludeNetWorth)
-        .map((a) => [a._id, a]),
-    );
-    const days = new Map<string, Doc<"balances">[]>();
-    for (const row of history?.rows ?? []) {
-      if (!included.has(row.accountId)) continue;
-      const same = days.get(row.date) ?? [];
-      same.push(row);
-      days.set(row.date, same);
-    }
-    const latest = new Map<Id<"accounts">, number>();
-    return [...days.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, rows]) => {
-        for (const row of rows) latest.set(row.accountId, row.balanceCents);
-        return {
-          label: dateLabel(day, { month: "short", day: "numeric" }),
-          value: [...latest.entries()].reduce(
-            (sum, [id, value]) =>
-              sum +
-              (included.get(id)?.kind === "credit" ||
-              included.get(id)?.kind === "loan"
-                ? -value
-                : value),
-            0,
-          ),
-        };
-      });
-  }, [data.accounts, history]);
+  const chart = useMemo(
+    () =>
+      (history?.points ?? []).map((p) => ({
+        label: dateLabel(p.date, { month: "short", day: "numeric" }),
+        value: p.valueCents,
+      })),
+    [history],
+  );
   const change =
       chart.length > 1 ? chart[chart.length - 1].value - chart[0].value : null,
     changePercent =
@@ -164,31 +143,42 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
   const hiddenCount = data.accounts.filter((a) => a.hidden || a.closed).length;
   const open = (account: Doc<"accounts">) =>
     setParams({ account: account._id });
-  function exportHistory() {
-    if (history?.complete)
-      download(
-        `marten-balances-${from}-to-${today}.csv`,
-        csv([
-          ["Date", "Account", "Institution", "Balance"],
-          ...history.rows.map((row) => {
-            const a = data.accounts.find((a) => a._id === row.accountId);
-            return [
-              row.date,
-              a?.name ?? "Account",
-              a?.institution ?? "",
-              (row.balanceCents / 100).toFixed(2),
-            ];
-          }),
-        ]),
+  // Balance rows are fetched only when exporting; the chart no longer needs them.
+  async function exportHistory() {
+    const rows = await client.query(api.workspace.balanceHistory, {
+      from,
+      to: today,
+    });
+    if (!rows.complete) {
+      toast(
+        "This period holds too many balance updates to export at once. Choose a shorter period.",
+        true,
       );
+      return;
+    }
+    download(
+      `marten-balances-${from}-to-${today}.csv`,
+      csv([
+        ["Date", "Account", "Institution", "Balance"],
+        ...rows.rows.map((row) => {
+          const a = data.accounts.find((a) => a._id === row.accountId);
+          return [
+            row.date,
+            a?.name ?? "Account",
+            a?.institution ?? "",
+            (row.balanceCents / 100).toFixed(2),
+          ];
+        }),
+      ]),
+    );
   }
   return (
     <>
       <PageHeader title="Accounts">
         <Button
           icon={<Download size={16} />}
-          onClick={exportHistory}
-          disabled={!history?.rows.length || !history.complete}
+          onClick={() => void exportHistory()}
+          disabled={!history?.points.length}
         >
           Export balances
         </Button>
@@ -269,12 +259,6 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
                 }
               />
             )}
-            {history && !history.complete && (
-              <div className="account-notice">
-                This range contains too many balance updates. Choose a shorter
-                period to see complete history.
-              </div>
-            )}
             <div className="accounts-chart-footer">
               <span>
                 {data.profile?.demo
@@ -345,13 +329,19 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
                     {!isCollapsed && (
                       <div>
                         {accounts.map((account) => {
-                          const accountHistory = (history?.rows ?? [])
-                            .filter((r) => r.accountId === account._id)
-                            .sort((a, b) => a.date.localeCompare(b.date))
-                            .map((r) => ({
-                              label: r.date,
-                              value: r.balanceCents,
-                            }));
+                          const values =
+                            history?.series.find(
+                              (s) => s.accountId === account._id,
+                            )?.values ?? [];
+                          const accountHistory = (history?.points ?? [])
+                            .map((p, index) => ({
+                              label: p.date,
+                              value: values[index],
+                            }))
+                            .filter(
+                              (p): p is { label: string; value: number } =>
+                                p.value !== null && p.value !== undefined,
+                            );
                           return (
                             <button
                               className={`account-row ${account.closed || account.hidden ? "account-row-muted" : ""}`}

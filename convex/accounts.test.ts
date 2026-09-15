@@ -956,3 +956,75 @@ describe("receipt and archived transaction ownership", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("net worth history", () => {
+  test("sums the latest balance per account, carries balances forward, and stays small for long ranges", async () => {
+    const { alice, bob } = await fixture();
+    const checking = await alice.mutation(api.workspace.saveAccount, {
+      ...accountFields,
+      name: "Checking",
+    });
+    const card = await alice.mutation(api.workspace.saveAccount, {
+      ...accountFields,
+      name: "Card",
+      kind: "credit",
+      mask: "9999",
+      balanceCents: 5000,
+    });
+    // Saving an account records today's snapshot; add explicit history too.
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: checking,
+      rows: [
+        { date: "2026-01-01", balanceCents: 100000 },
+        { date: "2026-01-03", balanceCents: 120000 },
+      ],
+    });
+    await alice.mutation(api.workspace.importBalances, {
+      accountId: card,
+      rows: [{ date: "2026-01-02", balanceCents: 20000 }],
+    });
+    const history = await alice.query(api.workspace.netWorthHistory, {
+      from: "2026-01-01",
+      to: "2026-01-04",
+    });
+    expect(history.stepDays).toBe(1);
+    expect(history.points).toEqual([
+      { date: "2026-01-01", valueCents: 100000 },
+      { date: "2026-01-02", valueCents: 80000 },
+      { date: "2026-01-03", valueCents: 100000 },
+      { date: "2026-01-04", valueCents: 100000 },
+    ]);
+    expect(history.series.find((s) => s.accountId === card)?.values).toEqual([
+      null,
+      20000,
+      20000,
+      20000,
+    ]);
+    // A range starting after the rows still carries the balances in.
+    const later = await alice.query(api.workspace.netWorthHistory, {
+      from: "2026-01-05",
+      to: "2026-01-06",
+    });
+    expect(later.points.map((p) => p.valueCents)).toEqual([100000, 100000]);
+    // Ten years of daily points would exceed Convex's array limit; they are sampled.
+    const decade = await alice.query(api.workspace.netWorthHistory, {
+      from: "2016-09-14",
+      to: "2026-09-14",
+    });
+    expect(decade.stepDays).toBeGreaterThan(1);
+    expect(decade.points.length).toBeLessThanOrEqual(420);
+    expect(decade.points.at(-1)?.date).toBe("2026-09-14");
+    // Sampling anchors on the end date; the first point lands within one step of the first balance.
+    expect(decade.points[0]?.date >= "2026-01-01").toBe(true);
+    expect(decade.points[0]?.date <= "2026-01-31").toBe(true);
+    expect(
+      (
+        await bob.query(api.workspace.netWorthHistory, {
+          from: "2026-01-01",
+          to: "2026-01-04",
+        })
+      ).points,
+    ).toEqual([]);
+  });
+
+});
