@@ -23,6 +23,40 @@ export const changeKindLabels: Record<ChangeKind, string> = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-09-15",
+    title:
+      "Plan your investing, import in the background, and a lighter Forecast",
+    lead: "The Forecast gains the question most people actually ask, “what if I invest this much every month?”, spreadsheet imports keep going while you use the rest of Marten, and a set of fixes for households that just arrived with years of history.",
+    groups: [
+      {
+        kind: "new",
+        items: [
+          "**Investing** in the Forecast plan: set how much to invest each month and how much payroll puts into retirement, then compare $500 with $5,000 a month in the chart, the new **Invested** column, and the ending figures.",
+          "Spreadsheet and balance imports now run on the server. Close the window with **Continue in background**, keep using Marten, and a small card follows the progress until a note reports the result.",
+          "**Merge into another category** in [Settings → Categories](/settings/categories) folds a duplicate into the category you keep, moving its transactions, rules, schedules and saved reports. Connected assistants can do the same with `merge_categories`.",
+          "Imported categories land in a fitting starter group (Travel, Food & drink, Auto & transport, and so on) instead of one “Imported categories” pile, and you can change the group before importing.",
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          "The Forecast page reads with far less text: explanations sit behind small info buttons beside each heading, and the income, spending and starting-fund sections show their totals in the heading.",
+          "The transactions list loads a page at a time as you scroll instead of every row at once, and coming back to a page you just left no longer shows a loading screen.",
+          "Reports group the breakdown with one self-describing control (**By category**, **By group**, **By merchant**).",
+          "Your initials are the first choice inside **Choose avatar**, replacing the separate Use initials button.",
+          "Investment notes about history and prices moved into info buttons beside their headings.",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "The net worth chart's **ALL** range no longer fails for households with years of daily balance history; long ranges are summarized on the server.",
+          "Importing a balance history now sets each manually tracked account's current balance from its newest day, so accounts and net worth no longer show $0 after a Monarch import.",
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-09-14",
     title: "Lunch Flow, family spreadsheets, and assistants that can tidy up",
     lead: "A second way to bring in bank accounts, a cleaner hand-off from an old spreadsheet to a bank connection, AI assistants that can help organize instead of only read, and a round of small corrections to buttons and empty screens.",

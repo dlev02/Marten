@@ -644,3 +644,34 @@ Starter categories are included at workspace creation and reset, organized into 
 ### Import and connection refinements
 
 Recognized expense sheets expose the year and destination account first; advanced mappings and migration/duplicate explanations remain expandable. Plaid uses a separate step with a Back action, consistent provider icons, and existing dark/light tokens. Institution avatars must keep width, height and min-width at 26px in grouped rows. Connection notices preserve the form beneath them and give recovery steps without a blocking overlay or forced reload.
+
+### Forecast plan details, September 15, 2026
+
+The long-term Forecast keeps its explanations in `InfoTip`s beside the heading
+they explain (projection, year-by-year table, investing, travel, income,
+starting funds); the page no longer carries a source line or paragraph notes.
+Plan details are grouped: ages and rates first, then an always-open
+**Investing** section (invest each month, retirement contributions), Travel,
+and two collapsible sections whose summary row shows the totals they hold
+(`Income & spending · $9,432 in · $4,553 out`, `Starting funds & target ·
+$288,780`). A collapsible summary is a flex row with a drawn chevron, since a
+flex `summary` loses its native marker. **Review starting data** lives inside
+Starting funds as a quiet button. A scenario with unsaved edits shows
+`· edited` in the scenario select instead of a separate status line.
+
+### Small controls settled the same day
+
+- Reports group the breakdown with one self-describing select (`By category`,
+  `By group`, `By merchant`) carrying a layers icon, so no "Group by" label sits
+  beside it and all three toolbar controls share the 36px height.
+- Preferences offers initials as the first tile inside **Choose avatar**; there
+  is no third button on the profile row.
+- Investments folds its history and holdings footnotes into `InfoTip`s in the
+  panel heading and the holdings toolbar; `Panel` accepts a node title for this.
+- The Plaid step's back action is a quiet button with a left arrow, flush with
+  the heading like a breadcrumb.
+- A long-running import shows a determinate progress bar (`.import-progress-bar`)
+  in the dialog and a small fixed status card (`.import-job-status`) once the
+  dialog is closed; toasts move up while the card is visible.
+- A category dialog offers **Merge into another category** as its secondary
+  action (start of the action row); the merge dialog mirrors the account merge.
