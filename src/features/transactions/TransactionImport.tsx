@@ -33,6 +33,7 @@ import {
   newImportId,
   suggestImportAccount,
   suggestImportCategory,
+  suggestImportGroup,
   type ImportChoices,
   type planImport,
 } from "../../lib/importPlan";
@@ -486,7 +487,7 @@ export function ImportTransactions({
         <p className="import-hint">
           {kind === "account"
             ? "Matching accounts keep their history. Missing accounts will be created as manual accounts when you import. Review the type and mark old accounts closed. Current balances are not inferred from transactions."
-            : "Matching categories are kept. Missing names will become new categories when you import. Review each suggested icon and type; transfers stay out of spending."}
+            : "Matching categories are kept. Missing names become new categories in the suggested group when you import. Review each icon, type and group; transfers stay out of spending."}
         </p>
         <div className="import-map" role="table">
           {names.map((item) => (
@@ -599,10 +600,38 @@ export function ImportTransactions({
                           { value: "income", label: "Income" },
                           { value: "transfer", label: "Transfer" },
                         ]}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          const kind = value as typeof proposed.kind;
                           updateCategoryChoice(item.name, {
                             ...proposed,
-                            kind: value as typeof proposed.kind,
+                            kind,
+                            group: suggestImportGroup(item.name, kind),
+                          });
+                        }}
+                      />
+                      <Select
+                        aria-label={`Group for ${item.name}`}
+                        disabled={locked}
+                        value={proposed.group}
+                        options={[
+                          ...new Map(
+                            [
+                              ...data.groups
+                                .filter((g) => g.kind === proposed.kind)
+                                .map((g) => g.name),
+                              proposed.group,
+                            ].map((name) => [name, name]),
+                          ).keys(),
+                        ].map((name) => ({
+                          value: name,
+                          label: data.groups.some((g) => g.name === name)
+                            ? name
+                            : `${name} · new group`,
+                        }))}
+                        onValueChange={(group) =>
+                          updateCategoryChoice(item.name, {
+                            ...proposed,
+                            group,
                           })
                         }
                       />

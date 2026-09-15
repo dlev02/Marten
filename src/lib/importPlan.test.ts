@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { planImport, newImportId, suggestImportCategory } from "./importPlan";
+import {
+  planImport,
+  newImportId,
+  suggestImportCategory,
+  suggestImportGroup,
+} from "./importPlan";
 import { suggestMapping, type ImportOptions } from "./transactionImport";
 const headers = [
   "Date",
@@ -73,6 +78,7 @@ describe("import destination planning", () => {
       name: "Video games",
       kind: "expense",
       emoji: "🎮",
+      group: "Entertainment",
     });
     expect(result.preview?.valid[0]).toMatchObject({
       categoryMatched: true,
@@ -116,7 +122,7 @@ describe("import destination planning", () => {
     );
     expect(result.newAccounts).toEqual([]);
     expect(result.newCategories).toEqual([
-      { name: "Custom", emoji: "↔️", kind: "transfer" },
+      { name: "Custom", emoji: "↔️", kind: "transfer", group: "Transfers" },
     ]);
   });
   test("normalized repeated labels share one destination without rejecting valid rows", () => {
@@ -229,5 +235,40 @@ test("a Monarch manual entry without original statement retains the merchant as 
   expect(result.preview?.valid[0]).toMatchObject({
     originalName: "Cafe",
     merchantName: "Cafe",
+  });
+});
+
+describe("imported category groups", () => {
+  test("Monarch-style names land in the matching starter group", () => {
+    const cases: [string, string, string][] = [
+      ["Hostels, Hotels, & BnBs", "expense", "Travel"],
+      [
+        "Public Transit, Trains, Rideshare, & Scooters",
+        "expense",
+        "Auto & transport",
+      ],
+      ["Restaurants & Bars", "expense", "Food & drink"],
+      ["Medical & Doctor Visits", "expense", "Health & wellness"],
+      ["Streaming Services", "expense", "Entertainment"],
+      ["AI Assistants", "expense", "Bills & utilities"],
+      ["Website Domains", "expense", "Bills & utilities"],
+      ["Paychecks", "income", "Income"],
+      ["Credit Card Payment", "transfer", "Transfers"],
+      ["Stellina Expenses", "expense", "Other"],
+    ];
+    for (const [name, kind, group] of cases)
+      expect([name, suggestImportGroup(name, kind as never)]).toEqual([
+        name,
+        group,
+      ]);
+    // A preset name keeps its own starter group.
+    expect(suggestImportCategory("Groceries")).toMatchObject({
+      kind: "expense",
+      group: "Food & drink",
+    });
+    expect(suggestImportCategory("Paychecks")).toMatchObject({
+      kind: "income",
+      group: "Income",
+    });
   });
 });

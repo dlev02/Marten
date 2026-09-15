@@ -21,7 +21,12 @@ export const prepareDestinations = userMutation({
       v.object({ name: v.string(), kind: accountKind, closed: v.boolean() }),
     ),
     categories: v.array(
-      v.object({ name: v.string(), emoji: v.string(), kind }),
+      v.object({
+        name: v.string(),
+        emoji: v.string(),
+        kind,
+        group: v.optional(v.string()),
+      }),
     ),
   },
   returns: v.object({
@@ -111,8 +116,15 @@ export const prepareDestinations = userMutation({
         throw new ConvexError(
           "This import would exceed 500 categories. Map some file categories to existing categories first.",
         );
+      // The suggested starter group keeps imports organized; a group of the
+      // right kind is matched by name and created only when missing.
+      const groupName = proposed.group
+        ? text(proposed.group, 120)
+        : "Imported categories";
       let group = groups.find(
-        (g) => g.name === "Imported categories" && g.kind === proposed.kind,
+        (g) =>
+          normalize(g.name) === normalize(groupName) &&
+          g.kind === proposed.kind,
       );
       if (!group) {
         if (groups.length >= 200)
@@ -121,7 +133,7 @@ export const prepareDestinations = userMutation({
           );
         const id = await ctx.db.insert("groups", {
           userId: ctx.userId,
-          name: "Imported categories",
+          name: groupName,
           kind: proposed.kind,
           order: Math.max(-1, ...groups.map((g) => g.order)) + 1,
         });
