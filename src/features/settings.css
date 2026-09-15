@@ -198,6 +198,20 @@
   gap: 10px;
   margin-top: 23px;
 }
+/* A secondary action in a dialog sits at the start, away from confirm/cancel. */
+.settings-dialog-actions > .settings-dialog-secondary {
+  margin-right: auto;
+  margin-left: -12px;
+}
+@media (max-width: 560px) {
+  .settings-dialog-actions {
+    flex-wrap: wrap;
+  }
+  .settings-dialog-actions > .settings-dialog-secondary {
+    width: 100%;
+    margin-left: 0;
+  }
+}
 .settings-form-grid {
   display: grid;
   grid-template-columns: 75px 1fr;

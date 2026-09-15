@@ -138,6 +138,7 @@ export const agentToolSchemas = {
       })
       .refine(nonEmpty, "Choose at least one change."),
   }),
+  merge_categories: z.strictObject({ sourceId: id, targetId: id }),
   create_tag: z.strictObject({
     name: z.string().min(1).max(120),
     color: color.optional(),
@@ -310,6 +311,12 @@ const descriptions: Record<
     title: "Edit a category",
     description:
       "Rename a category, change its emoji, move it to another owned group, or disable it. Returns before and after values. Transactions keep their category id, so a rename applies everywhere.",
+    readOnly: false,
+  },
+  merge_categories: {
+    title: "Merge two categories",
+    description:
+      "Fold one owned category into another of the same kind: every transaction, split line, rule, recurring schedule and saved report that used sourceId switches to targetId, then sourceId is deleted. Use it to remove duplicates after an import (for example “Restaurants & Bars” into “Restaurants”). Irreversible; confirm both names with the user first. Large histories return done:false with a cursor; call again with the same ids until done is true.",
     readOnly: false,
   },
   create_tag: {

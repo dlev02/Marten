@@ -269,7 +269,16 @@ function CategoryEditor({
     [groupId, setGroupId] = useState<string>(
       category?.groupId ?? defaultGroup ?? data.groups[0]?._id ?? "",
     ),
-    [enabled, setEnabled] = useState(category?.enabled ?? true);
+    [enabled, setEnabled] = useState(category?.enabled ?? true),
+    [merging, setMerging] = useState(false);
+  if (category && merging)
+    return (
+      <CategoryMerge
+        category={category}
+        onClose={() => setMerging(false)}
+        onMerged={onClose}
+      />
+    );
   return (
     <Modal
       open
@@ -335,6 +344,18 @@ function CategoryEditor({
           onChange={setEnabled}
         />
         <div className="settings-dialog-actions">
+          {category && (
+            <Button
+              type="button"
+              tone="quiet"
+              className="settings-dialog-secondary"
+              icon={<Merge size={15} />}
+              disabled={task.busy}
+              onClick={() => setMerging(true)}
+            >
+              Merge into another category
+            </Button>
+          )}
           <Button type="button" onClick={onClose}>
             Cancel
           </Button>
@@ -343,6 +364,95 @@ function CategoryEditor({
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+/** Folds a duplicate into another category of the same kind, then removes it. */
+function CategoryMerge({
+  category,
+  onClose,
+  onMerged,
+}: {
+  category: Doc<"categories">;
+  onClose: () => void;
+  onMerged: () => void;
+}) {
+  const data = useData(),
+    merge = useMutation(api.settings.mergeCategories),
+    [targetId, setTargetId] = useState(""),
+    [progress, setProgress] = useState(""),
+    { busy, run } = useTask();
+  const kindOf = (id: Id<"groups">) =>
+    data.groups.find((g) => g._id === id)?.kind;
+  const kind = kindOf(category.groupId);
+  const targets = data.categories
+    .filter((c) => c._id !== category._id && kindOf(c.groupId) === kind)
+    .map((c) => ({
+      value: c._id,
+      label: c.name,
+      icon: <CategoryIcon emoji={c.emoji} />,
+      group: data.groups.find((g) => g._id === c.groupId)?.name,
+    }));
+  const target = data.categories.find((c) => c._id === targetId);
+  async function submit() {
+    if (!target) return;
+    const done = await run(async () => {
+      let updated = 0,
+        cursor: string | null = null;
+      for (;;) {
+        const step = await merge({
+          sourceId: category._id,
+          targetId: target._id,
+          cursor,
+        });
+        updated += step.updated;
+        cursor = step.cursor;
+        setProgress(`Moved ${updated} transactions…`);
+        if (step.done) break;
+      }
+    }, `Merged into ${target.name}`);
+    if (done) onMerged();
+  }
+  return (
+    <Modal
+      open
+      onClose={busy ? () => {} : onClose}
+      title="Merge into another category"
+      description={`Move everything filed under ${category.name} into one category, then remove ${category.name}.`}
+    >
+      <p className="settings-helper">
+        Transactions, split lines, rules, recurring schedules, and saved reports
+        that use {category.name} switch to the category you choose. Only
+        categories of the same type ({kind}) are offered. This cannot be undone.
+      </p>
+      <Field label="Merge into">
+        <Picker
+          label="Category to merge into"
+          value={targetId}
+          onChange={setTargetId}
+          options={targets}
+          placeholder="Choose a category…"
+          disabled={busy}
+        />
+      </Field>
+      {progress && (
+        <p role="status" className="settings-helper">
+          {progress}
+        </p>
+      )}
+      <div className="settings-dialog-actions">
+        <Button type="button" onClick={onClose} disabled={busy}>
+          Back
+        </Button>
+        <Button
+          tone="danger"
+          disabled={!target || busy}
+          onClick={() => void submit()}
+          icon={busy ? <Loader2 size={16} className="spin" /> : undefined}
+        >
+          {busy ? "Merging…" : `Merge and remove ${category.name}`}
+        </Button>
+      </div>
     </Modal>
   );
 }

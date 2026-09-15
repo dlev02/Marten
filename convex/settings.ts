@@ -219,6 +219,122 @@ export const mergeMerchants = userMutation({
     };
   },
 });
+/**
+ * Folds one category into another of the same kind, in pages the caller
+ * repeats until `done`: transactions and split lines move first, then rules,
+ * recurring schedules and saved reports, and finally the source is removed.
+ * Used to clean up duplicates after an import.
+ */
+export async function mergeCategoriesForUser(
+  ctx: UserWrite,
+  {
+    sourceId,
+    targetId,
+    cursor,
+  }: {
+    sourceId: Id<"categories">;
+    targetId: Id<"categories">;
+    cursor?: string | null;
+  },
+) {
+  if (sourceId === targetId)
+    throw new ConvexError("Choose two different categories.");
+  const source = await owned(ctx, sourceId);
+  const target = await owned(ctx, targetId);
+  const [sourceGroup, targetGroup] = await Promise.all([
+    owned(ctx, source.groupId),
+    owned(ctx, target.groupId),
+  ]);
+  if (sourceGroup.kind !== targetGroup.kind)
+    throw new ConvexError(
+      "Merge into a category of the same type (income, expense or transfer).",
+    );
+  // Transactions have no category index; one bounded pass over the account
+  // history keeps split lines consistent as well as the main category.
+  const rows = await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+    .paginate({ numItems: 200, cursor: cursor ?? null });
+  let updated = 0;
+  for (const tx of rows.page) {
+    const mainMatches = tx.categoryId === sourceId;
+    const splitMatches = tx.splits.some((s) => s.categoryId === sourceId);
+    if (!mainMatches && !splitMatches) continue;
+    await ctx.db.patch(tx._id, {
+      ...(mainMatches ? { categoryId: targetId } : {}),
+      ...(splitMatches
+        ? {
+            splits: tx.splits.map((s) =>
+              s.categoryId === sourceId ? { ...s, categoryId: targetId } : s,
+            ),
+          }
+        : {}),
+      updatedAt: Date.now(),
+    });
+    updated++;
+  }
+  if (rows.isDone) {
+    const rules = await ctx.db
+      .query("rules")
+      .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+      .take(201);
+    for (const rule of rules) {
+      const actions = { ...rule.actions };
+      let changed = false;
+      if (actions.categoryId === sourceId) {
+        actions.categoryId = targetId;
+        changed = true;
+      }
+      if (actions.splits?.some((s) => s.categoryId === sourceId)) {
+        actions.splits = actions.splits.map((s) =>
+          s.categoryId === sourceId ? { ...s, categoryId: targetId } : s,
+        );
+        changed = true;
+      }
+      const conditions = rule.conditions.map((c) =>
+        c.field === "category" && c.value === sourceId
+          ? { ...c, value: targetId }
+          : c,
+      );
+      if (conditions.some((c, index) => c !== rule.conditions[index]))
+        changed = true;
+      if (changed) await ctx.db.patch(rule._id, { actions, conditions });
+    }
+    const recurring = await ctx.db
+      .query("recurring")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(501);
+    if (recurring.length > 500)
+      throw new ConvexError("Too many recurring items to merge at once.");
+    for (const r of recurring)
+      if (r.categoryId === sourceId)
+        await ctx.db.patch(r._id, { categoryId: targetId });
+    const reports = await ctx.db
+      .query("savedReports")
+      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+      .take(101);
+    if (reports.length > 100)
+      throw new ConvexError("Too many saved reports to merge at once.");
+    for (const report of reports)
+      if (report.categoryId === sourceId)
+        await ctx.db.patch(report._id, { categoryId: targetId });
+    await ctx.db.delete(sourceId);
+  }
+  return { done: rows.isDone, cursor: rows.continueCursor, updated };
+}
+export const mergeCategories = userMutation({
+  args: {
+    sourceId: v.id("categories"),
+    targetId: v.id("categories"),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.object({
+    done: v.boolean(),
+    cursor: v.string(),
+    updated: v.number(),
+  }),
+  handler: mergeCategoriesForUser,
+});
 export async function saveTagForUser(
   ctx: UserWrite,
   {

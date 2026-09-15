@@ -26,6 +26,7 @@ import {
 } from "../investments";
 import { creditScoresForUser } from "../creditScores";
 import {
+  mergeCategoriesForUser,
   saveCategoryForUser,
   saveMerchantForUser,
   saveRuleForUser,
@@ -661,6 +662,33 @@ export async function executeAgentWrite(
         enabled: args.patch.enabled ?? before.enabled,
       });
       return { before, after: await owned(ctx, id) };
+    }
+    case "merge_categories": {
+      const args = agentToolSchemas[name].parse(input);
+      const sourceId = agentId(ctx, "categories", args.sourceId),
+        targetId = agentId(ctx, "categories", args.targetId);
+      const source = await owned(ctx, sourceId),
+        target = await owned(ctx, targetId);
+      // Bounded pages keep one call inside mutation limits; the caller repeats.
+      let cursor: string | null = null,
+        updated = 0,
+        done = false;
+      for (let page = 0; page < 25 && !done; page++) {
+        const step = await mergeCategoriesForUser(ctx, {
+          sourceId,
+          targetId,
+          cursor,
+        });
+        updated += step.updated;
+        cursor = step.cursor;
+        done = step.done;
+      }
+      return {
+        merged: { id: sourceId, name: source.name },
+        into: { id: targetId, name: target.name },
+        updatedTransactions: updated,
+        done,
+      };
     }
     case "create_tag": {
       const args = agentToolSchemas[name].parse(input);
