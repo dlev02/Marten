@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
@@ -122,4 +122,152 @@ test("new workspaces start with complete illustrated groups and keep user change
   expect((await bob.query(api.workspace.metadata, {})).categories).toHaveLength(
     0,
   );
+});
+
+test("a background job saves uploaded rows in batches, reports progress, and cleans up", async () => {
+  const { t, alice, bob } = await fixture();
+  await alice.mutation(api.workspace.initialize, { name: "QA", sample: false });
+  const { accounts, categories } = await alice.mutation(
+    api.imports.prepareDestinations,
+    {
+      accounts: [{ name: "Job checking", kind: "cash", closed: false }],
+      categories: [{ name: "Job groceries", kind: "expense", emoji: "🥑" }],
+    },
+  );
+  const rows = Array.from({ length: 205 }, (_, index) => ({
+    key: index.toString(16).padStart(64, "0"),
+    accountId: accounts[0]._id,
+    categoryId: categories[0]._id,
+    merchantName: "Job Market",
+    date: "2026-03-01",
+    amountCents: 100 + index,
+    originalName: `JOB MARKET ${index}`,
+    notes: "",
+    tags: index % 2 ? ["weekly"] : [],
+    reviewed: false,
+  }));
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob([JSON.stringify(rows)])),
+  );
+  await expect(
+    bob.mutation(api.imports.start, {
+      kind: "transactions",
+      storageId,
+      total: 0,
+    }),
+  ).rejects.toThrow("between 1 and 50,000");
+  const jobId = await alice.mutation(api.imports.start, {
+    kind: "transactions",
+    storageId,
+    total: rows.length,
+  });
+  expect(await alice.query(api.imports.latest, {})).toMatchObject({
+    _id: jobId,
+    status: "queued",
+    processed: 0,
+  });
+  await expect(
+    alice.mutation(api.imports.start, {
+      kind: "transactions",
+      storageId,
+      total: rows.length,
+    }),
+  ).rejects.toThrow("already running");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+  const job = await alice.query(api.imports.latest, {});
+  expect(job).toMatchObject({
+    status: "done",
+    processed: 205,
+    inserted: 205,
+    matched: 0,
+    skipped: 0,
+    acknowledged: false,
+  });
+  expect(job?.storageId).toBeUndefined();
+  expect(await t.run((ctx) => ctx.storage.getUrl(storageId))).toBeNull();
+  expect(
+    (await t.run((ctx) => ctx.db.query("transactions").collect())).length,
+  ).toBe(205);
+  // Bob never sees Alice's job, and acknowledging is idempotent.
+  expect(await bob.query(api.imports.latest, {})).toBeNull();
+  await alice.mutation(api.imports.acknowledge, { jobId });
+  expect((await alice.query(api.imports.latest, {}))?.acknowledged).toBe(true);
+  // Re-running the same rows skips them all.
+  const again = await t.run((ctx) =>
+    ctx.storage.store(new Blob([JSON.stringify(rows)])),
+  );
+  await alice.mutation(api.imports.start, {
+    kind: "transactions",
+    storageId: again,
+    total: rows.length,
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+  expect(await alice.query(api.imports.latest, {})).toMatchObject({
+    status: "done",
+    inserted: 0,
+    skipped: 205,
+  });
+});
+
+test("a balance job groups rows by account and sets manual balances", async () => {
+  const { t, alice } = await fixture();
+  await alice.mutation(api.workspace.initialize, { name: "QA", sample: false });
+  const { accounts } = await alice.mutation(api.imports.prepareDestinations, {
+    accounts: [
+      { name: "Job savings", kind: "cash", closed: false },
+      { name: "Job card", kind: "credit", closed: false },
+    ],
+    categories: [],
+  });
+  const rows = [
+    { accountId: accounts[0]._id, date: "2026-01-01", balanceCents: 1000 },
+    { accountId: accounts[1]._id, date: "2026-01-01", balanceCents: 500 },
+    { accountId: accounts[0]._id, date: "2026-01-02", balanceCents: 1200 },
+  ];
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob([JSON.stringify(rows)])),
+  );
+  await alice.mutation(api.imports.start, {
+    kind: "balances",
+    storageId,
+    total: rows.length,
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+  expect(await alice.query(api.imports.latest, {})).toMatchObject({
+    status: "done",
+    processed: 3,
+    updates: 3,
+    accounts: 2,
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.get(accounts[0]._id)))?.balanceCents,
+  ).toBe(1200);
+  expect(
+    (await t.run((ctx) => ctx.db.get(accounts[1]._id)))?.balanceCents,
+  ).toBe(500);
+});
+
+test("a job whose upload is malformed fails with a readable reason", async () => {
+  const { t, alice } = await fixture();
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob(["not json"])),
+  );
+  await alice.mutation(api.imports.start, {
+    kind: "transactions",
+    storageId,
+    total: 3,
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  vi.useRealTimers();
+  expect(await alice.query(api.imports.latest, {})).toMatchObject({
+    status: "failed",
+    error: "The uploaded rows could not be read.",
+  });
 });

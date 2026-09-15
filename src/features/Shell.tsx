@@ -42,6 +42,7 @@ import { Brand } from "./Auth";
 import { GlobalSearch } from "./search/GlobalSearch";
 import { DemoBanner } from "./Demo";
 import { ReminderDispatcher } from "./ReminderDispatcher";
+import { ImportJobStatus } from "./transactions/ImportJobStatus";
 import { exitDemo, isDemoSession } from "../lib/demo";
 import { RouteErrorBoundary } from "../components/folio/RouteErrorBoundary";
 import { FeedbackDialog } from "./Feedback";
@@ -253,6 +254,7 @@ export function Shell() {
       </div>
       <PlaidLinkFlow />
       <ReminderDispatcher />
+      <ImportJobStatus />
       <GlobalSearch open={search} onClose={() => setSearch(false)} />
       <AddAccount open={account} onClose={() => setAccount(false)} />
       <FeedbackDialog open={feedback} onClose={() => setFeedback(false)} />

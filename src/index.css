@@ -2893,6 +2893,56 @@ label select {
 .spin {
   animation: spin 1s linear infinite;
 }
+/* Shared determinate progress bar for imports. */
+.import-progress-bar {
+  height: 4px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.import-progress-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+/* A server import keeps going after the dialog closes; this card follows it. */
+.import-job-status {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1400;
+  width: min(340px, calc(100vw - 32px));
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 4px 25px #0002;
+  font-size: 12px;
+  color: var(--muted);
+  animation: toast-in 0.2s;
+}
+.import-job-status > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.import-job-status strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+}
+.import-job-status span {
+  font-variant-numeric: tabular-nums;
+}
+.toasts:has(+ .import-job-status),
+.import-job-status ~ .toasts {
+  bottom: 96px;
+}
 .loading-dot {
   height: 5px;
   width: 5px;

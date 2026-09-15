@@ -558,31 +558,35 @@ async function ensureTags(ctx: UserWrite, names: string[]) {
   return (rowNames: string[]) =>
     rowNames.map((name) => byName.get(name.trim().toLowerCase())!);
 }
+export const importedRow = v.object({
+  key: v.string(),
+  accountId: v.id("accounts"),
+  categoryId: v.id("categories"),
+  categoryMatched: v.optional(v.boolean()),
+  descriptionInferred: v.optional(v.boolean()),
+  merchantName: v.string(),
+  date: v.string(),
+  amountCents: v.number(),
+  originalName: v.string(),
+  notes: v.string(),
+  tags: v.optional(v.array(v.string())),
+  reviewed: v.optional(v.boolean()),
+});
 export const importMapped = userMutation({
-  args: {
-    rows: v.array(
-      v.object({
-        key: v.string(),
-        accountId: v.id("accounts"),
-        categoryId: v.id("categories"),
-        categoryMatched: v.optional(v.boolean()),
-        descriptionInferred: v.optional(v.boolean()),
-        merchantName: v.string(),
-        date: v.string(),
-        amountCents: v.number(),
-        originalName: v.string(),
-        notes: v.string(),
-        tags: v.optional(v.array(v.string())),
-        reviewed: v.optional(v.boolean()),
-      }),
-    ),
-  },
+  args: { rows: v.array(importedRow) },
   returns: v.object({
     inserted: v.number(),
     skipped: v.number(),
     matched: v.number(),
   }),
-  handler: async (ctx, { rows }) => {
+  handler: async (ctx, { rows }) => await importMappedRows(ctx, rows),
+});
+/** Saves one batch of prepared spreadsheet rows; shared by the dialog and the background job. */
+export async function importMappedRows(
+  ctx: UserWrite,
+  rows: Infer<typeof importedRow>[],
+) {
+  {
     if (rows.length > 100)
       throw new ConvexError("Import at most 100 rows per batch.");
     const ruleContext = await loadRuleContext(ctx);
@@ -708,8 +712,8 @@ export const importMapped = userMutation({
       inserted++;
     }
     return { inserted, skipped, matched };
-  },
-});
+  }
+}
 export const attachStored = internalMutation({
   args: {
     userId: v.id("users"),

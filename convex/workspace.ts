@@ -737,7 +737,20 @@ export const importBalances = userMutation({
     rows: v.array(v.object({ date: v.string(), balanceCents: v.number() })),
   },
   returns: v.number(),
-  handler: async (ctx, { accountId, rows }) => {
+  handler: importBalancesForUser,
+});
+/** Saves one account's balance rows; shared by the dialog and the background job. */
+export async function importBalancesForUser(
+  ctx: UserMutationCtx,
+  {
+    accountId,
+    rows,
+  }: {
+    accountId: Id<"accounts">;
+    rows: { date: string; balanceCents: number }[];
+  },
+) {
+  {
     const account = await owned(ctx, accountId);
     if (rows.length > 100)
       throw new ConvexError("Import at most 100 balance rows per batch.");
@@ -781,8 +794,8 @@ export const importBalances = userMutation({
         });
     }
     return rows.length;
-  },
-});
+  }
+}
 
 /**
  * Folds a manually tracked account into another account, in bounded steps the

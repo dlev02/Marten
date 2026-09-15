@@ -53,9 +53,15 @@ export function ImportTransactions({
 }) {
   useAmountsHidden();
   const data = useData();
-  const importMapped = useMutation(api.transactions.importMapped);
   const prepareDestinations = useMutation(api.imports.prepareDestinations);
-  const importBalances = useMutation(api.workspace.importBalances);
+  const createUploadUrl = useMutation(api.imports.createUploadUrl);
+  const startJob = useMutation(api.imports.start);
+  // The rows are saved by a server job so the import survives leaving the page.
+  const latestJob = useQuery(api.imports.latest, {});
+  const [jobId, setJobId] = useState<Id<"importJobs"> | null>(null);
+  const job = jobId && latestJob?._id === jobId ? latestJob : null;
+  const running =
+    !!job && (job.status === "queued" || job.status === "running");
   const fileInput = useRef<HTMLInputElement>(null);
   const loadSequence = useRef(0);
   const [source, setSource] = useState<ImportSource | null>(null);
@@ -173,11 +179,13 @@ export function ImportTransactions({
     choices,
     busy,
   ]);
-  const locked = busy || loading || validating;
+  const locked = busy || loading || validating || running;
+  const closable = !busy && !loading && !validating;
   function changeOptions(patch: Partial<ImportOptions>) {
     setOptions((current) => ({ ...current, ...patch }));
     setPage(0);
     setResult(null);
+    setJobId(null);
     setProgress("");
     setError("");
   }
@@ -187,6 +195,7 @@ export function ImportTransactions({
     const mapping = suggestMapping(nextHeaders);
     const format = detectExportFormat(nextHeaders);
     setSheet(next);
+    setJobId(null);
     setChoices({ accounts: {}, categories: {} });
     setOptions((current) => ({
       ...current,
@@ -304,103 +313,106 @@ export function ImportTransactions({
       choices,
     ]);
   }
+  async function uploadRows(rows: unknown[]) {
+    setProgress("Uploading rows…");
+    const url = await createUploadUrl({});
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rows),
+    });
+    if (!response.ok)
+      throw new Error(
+        "The rows could not be uploaded. Check your connection and retry.",
+      );
+    const { storageId } = (await response.json()) as {
+      storageId: Id<"_storage">;
+    };
+    return storageId;
+  }
   async function saveTransactions() {
-    if (!preview?.valid.length || busy || result) return;
+    if (!preview?.valid.length || busy || result || running) return;
     setBusy(true);
     setError("");
-    let inserted = 0,
-      skipped = 0,
-      matched = 0;
     try {
       setProgress("Preparing accounts and categories…");
       const ready = (await resolveDestinations()).preview;
       if (!ready || ready.error)
         throw new Error(ready?.error || "Could not prepare this import.");
-      for (let offset = 0; offset < ready.valid.length; ) {
-        const candidates = await Promise.all(
-          ready.valid.slice(offset, offset + 100).map(async (row) => ({
-            key: await importRowKey(row),
-            accountId: row.accountId as Id<"accounts">,
-            categoryId: row.categoryId as Id<"categories">,
-            categoryMatched: row.categoryMatched,
-            ...(row.descriptionInferred ? { descriptionInferred: true } : {}),
-            merchantName: row.merchantName,
-            date: row.date,
-            amountCents: row.amountCents,
-            originalName: row.originalName,
-            notes: row.notes,
-            tags: row.tags,
-            reviewed: row.reviewed,
-          })),
-        );
-        let byteCount = 0;
-        const rows = candidates.filter((row) => {
-          byteCount += new TextEncoder().encode(JSON.stringify(row)).byteLength;
-          return byteCount <= 400_000;
-        });
-        if (!rows.length)
-          throw new Error(
-            "A row is too large to import. Shorten its notes and retry.",
-          );
-        const batch = await importMapped({ rows });
-        inserted += batch.inserted;
-        skipped += batch.skipped;
-        matched += batch.matched;
-        offset += rows.length;
-        setProgress(`Processed ${offset} of ${ready.valid.length} rows…`);
-      }
-      setResult({ kind: "transactions", inserted, skipped, matched });
+      setProgress("Preparing rows…");
+      const rows = await Promise.all(
+        ready.valid.map(async (row) => ({
+          key: await importRowKey(row),
+          accountId: row.accountId as Id<"accounts">,
+          categoryId: row.categoryId as Id<"categories">,
+          categoryMatched: row.categoryMatched,
+          ...(row.descriptionInferred ? { descriptionInferred: true } : {}),
+          merchantName: row.merchantName,
+          date: row.date,
+          amountCents: row.amountCents,
+          originalName: row.originalName,
+          notes: row.notes,
+          tags: row.tags,
+          reviewed: row.reviewed,
+        })),
+      );
+      const storageId = await uploadRows(rows);
+      setJobId(
+        await startJob({ kind: "transactions", storageId, total: rows.length }),
+      );
       setProgress("");
     } catch (cause) {
-      setError(
-        `${message(cause)} ${inserted + matched} rows were saved before this stopped. Retry safely; previously saved rows will be skipped and any accounts or categories already created will be reused.`,
-      );
+      setError(message(cause));
       setProgress("");
     } finally {
       setBusy(false);
     }
   }
   async function saveBalances() {
-    if (!balancePreview?.valid.length || busy || result) return;
+    if (!balancePreview?.valid.length || busy || result || running) return;
     setBusy(true);
     setError("");
-    let updates = 0;
     try {
       setProgress("Preparing accounts…");
       const ready = (await resolveDestinations()).balancePreview;
       if (!ready || ready.error)
         throw new Error(ready?.error || "Could not prepare this import.");
-      const byAccount = new Map<
-        string,
-        { date: string; balanceCents: number }[]
-      >();
-      for (const row of ready.valid) {
-        const rows = byAccount.get(row.accountId) ?? [];
-        rows.push({ date: row.date, balanceCents: row.balanceCents });
-        byAccount.set(row.accountId, rows);
-      }
-      for (const [accountId, rows] of byAccount) {
-        for (let offset = 0; offset < rows.length; offset += 100) {
-          updates += await importBalances({
-            accountId: accountId as Id<"accounts">,
-            rows: rows.slice(offset, offset + 100),
-          });
-          setProgress(
-            `Saved ${updates} of ${ready.valid.length} balance updates…`,
-          );
-        }
-      }
-      setResult({ kind: "balances", updates, accounts: byAccount.size });
+      const rows = ready.valid.map((row) => ({
+        accountId: row.accountId as Id<"accounts">,
+        date: row.date,
+        balanceCents: row.balanceCents,
+      }));
+      const storageId = await uploadRows(rows);
+      setJobId(
+        await startJob({ kind: "balances", storageId, total: rows.length }),
+      );
       setProgress("");
     } catch (cause) {
-      setError(
-        `${message(cause)} ${updates} balance updates were saved before this stopped. Retrying replaces the same dates and reuses accounts already created, so it is safe.`,
-      );
+      setError(message(cause));
       setProgress("");
     } finally {
       setBusy(false);
     }
   }
+  // The job row reports the outcome; mirror it into the dialog's own state.
+  useEffect(() => {
+    if (!job) return;
+    if (job.status === "done")
+      setResult(
+        job.kind === "balances"
+          ? { kind: "balances", updates: job.updates, accounts: job.accounts }
+          : {
+              kind: "transactions",
+              inserted: job.inserted,
+              matched: job.matched,
+              skipped: job.skipped,
+            },
+      );
+    else if (job.status === "failed")
+      setError(
+        `${job.error ?? "The import stopped."} ${job.processed.toLocaleString()} of ${job.total.toLocaleString()} rows were processed before this stopped. Retry safely; previously saved rows will be skipped and any accounts or categories already created will be reused.`,
+      );
+  }, [job]);
   const columnOptions = [
     { value: "-1", label: "Not mapped" },
     ...headers.map((cell, index) => ({
@@ -613,7 +625,7 @@ export function ImportTransactions({
   return (
     <Modal
       open={open}
-      onClose={locked ? () => {} : onClose}
+      onClose={closable ? onClose : () => {}}
       title={balanceMode ? "Import account balances" : "Import transactions"}
       wide
       description={
@@ -1214,6 +1226,31 @@ export function ImportTransactions({
             {progress}
           </p>
         )}
+        {running && job && (
+          <div className="import-running" role="status">
+            <div className="import-running-head">
+              <strong>
+                Importing{" "}
+                {job.kind === "balances" ? "balance updates" : "transactions"}…
+              </strong>
+              <span>
+                {job.processed.toLocaleString()} of {job.total.toLocaleString()}{" "}
+                rows
+              </span>
+            </div>
+            <div className="import-progress-bar" aria-hidden="true">
+              <i
+                style={{
+                  width: `${Math.min(100, (job.processed / Math.max(1, job.total)) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="import-hint">
+              You can close this window and keep using Marten. The import
+              continues, and a note appears when it finishes.
+            </p>
+          </div>
+        )}
         {!result &&
           plan &&
           (plan.newAccounts.length > 0 || plan.newCategories.length > 0) && (
@@ -1262,8 +1299,8 @@ export function ImportTransactions({
           </div>
         )}
         <div className="modal-actions">
-          <Button onClick={onClose} disabled={locked}>
-            {result ? "Done" : "Cancel"}
+          <Button onClick={onClose} disabled={!closable}>
+            {result ? "Done" : running ? "Continue in background" : "Cancel"}
           </Button>
           {!result && balanceMode && (
             <Button
@@ -1275,7 +1312,7 @@ export function ImportTransactions({
               }
               onClick={() => void saveBalances()}
             >
-              {busy
+              {busy || running
                 ? "Importing…"
                 : `Import ${balancePreview?.valid.length ?? 0} balance ${balancePreview?.valid.length === 1 ? "update" : "updates"}`}
             </Button>
@@ -1286,7 +1323,7 @@ export function ImportTransactions({
               disabled={locked || !preview?.valid.length || !!preview.error}
               onClick={() => void saveTransactions()}
             >
-              {busy
+              {busy || running
                 ? "Importing…"
                 : `Import ${preview?.valid.length ?? 0} ready ${preview?.valid.length === 1 ? "row" : "rows"}`}
             </Button>

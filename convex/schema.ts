@@ -362,6 +362,30 @@ export default defineSchema({
   })
     .index("by_storageId", ["storageId"])
     .index("by_userId", ["userId"]),
+  // A spreadsheet import that runs on the server after the rows are uploaded,
+  // so the person can leave the page (or close the tab) while it saves.
+  importJobs: defineTable({
+    ...owner,
+    kind: v.union(v.literal("transactions"), v.literal("balances")),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("done"),
+      v.literal("failed"),
+    ),
+    storageId: v.optional(v.id("_storage")),
+    total: v.number(),
+    processed: v.number(),
+    inserted: v.number(),
+    matched: v.number(),
+    skipped: v.number(),
+    updates: v.number(),
+    accounts: v.number(),
+    error: v.optional(v.string()),
+    acknowledged: v.boolean(),
+    startedAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
   activity: defineTable({
     ...owner,
     transactionId: v.id("transactions"),
