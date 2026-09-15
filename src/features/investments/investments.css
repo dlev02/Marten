@@ -246,16 +246,9 @@
   font-size: 12px;
   line-height: 1.6;
 }
-.investment-value-footnote {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 14px 22px 18px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.investment-value-footnote svg {
-  flex: 0 0 auto;
+.investment-value-panel .investment-chart-empty,
+.investment-value-panel .investment-chart {
+  margin-bottom: 8px;
 }
 .investment-allocation-panel .panel-header {
   flex-wrap: wrap;
@@ -426,13 +419,6 @@
 }
 .investment-table .investment-mobile-account {
   display: none;
-}
-.investment-table-footnote {
-  padding: 14px 20px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.6;
 }
 .investment-activity-note {
   padding-top: 16px;

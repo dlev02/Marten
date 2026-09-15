@@ -28,6 +28,7 @@ import {
   Panel,
   Tabs,
   useTask,
+  InfoTip,
 } from "../components/folio/ui";
 import { Select } from "../components/folio/Select";
 import { PageHeader } from "../components/folio/PageHeader";
@@ -415,13 +416,17 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
             </div>
             <div className="investment-overview-grid">
               <Panel
-                title="Account value over time"
+                title={
+                  <>
+                    Account value over time
+                    <InfoTip
+                      label="About account value"
+                      text="Account value includes deposits and withdrawals, so it is not an investment return. History starts when every selected USD account has a saved balance."
+                    />
+                  </>
+                }
                 className="investment-value-panel"
               >
-                <p className="investment-panel-note">
-                  Includes deposits and withdrawals. This chart shows account
-                  value, not investment return.
-                </p>
                 {!validRange ? (
                   <div className="investment-chart-empty">
                     Choose a valid date range.
@@ -453,13 +458,6 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                     </small>
                   </div>
                 )}
-                <div className="investment-value-footnote">
-                  <CircleHelp size={14} />
-                  <span>
-                    History starts when all selected USD accounts have a saved
-                    balance.
-                  </span>
-                </div>
               </Panel>
               <Panel
                 title="Holdings allocation"
@@ -560,6 +558,10 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                 />
                 {tab === "holdings" && (
                   <div className="investment-table-controls">
+                    <InfoTip
+                      label="About holdings"
+                      text="Current positions. Prices come from the institution and may update after market close. The date range applies to history and activity."
+                    />
                     <label className="investment-search">
                       <Search size={15} />
                       <input
@@ -701,11 +703,6 @@ export function Investments({ onAddAccount }: { onAddAccount?: () => void }) {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                    <div className="investment-table-footnote">
-                      Current positions · prices are supplied by the institution
-                      and may update after market close. The date range applies
-                      to history and activity.
                     </div>
                   </>
                 ) : (

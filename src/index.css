@@ -609,6 +609,10 @@ label select {
 .panel-header > span {
   font-size: 12px;
 }
+.panel-header h2 > .info-tip {
+  vertical-align: middle;
+  margin: -2px 0 0 2px;
+}
 .panel-subtitle {
   color: var(--muted);
   font-size: 12px;

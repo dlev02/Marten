@@ -138,7 +138,7 @@ export function Panel({
   children,
   className = "",
 }: {
-  title?: string;
+  title?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
