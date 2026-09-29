@@ -52,6 +52,7 @@ import type * as lib_reminderEmail from "../lib/reminderEmail.js";
 import type * as lib_reminders from "../lib/reminders.js";
 import type * as lib_resetLimits from "../lib/resetLimits.js";
 import type * as lib_simplefinApi from "../lib/simplefinApi.js";
+import type * as lib_transactionFilters from "../lib/transactionFilters.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as merchantLogos from "../merchantLogos.js";
 import type * as plaid from "../plaid.js";
@@ -119,6 +120,7 @@ declare const fullApi: ApiFromModules<{
   "lib/reminders": typeof lib_reminders;
   "lib/resetLimits": typeof lib_resetLimits;
   "lib/simplefinApi": typeof lib_simplefinApi;
+  "lib/transactionFilters": typeof lib_transactionFilters;
   "lib/transactions": typeof lib_transactions;
   merchantLogos: typeof merchantLogos;
   plaid: typeof plaid;

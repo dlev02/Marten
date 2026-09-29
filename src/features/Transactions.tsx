@@ -6,7 +6,7 @@ import {
 import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { transactionDatePresets } from "../lib/dateRanges";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "../lib/convex";
+import { useMutation, useQuery } from "../lib/convex";
 import { useSearchParams } from "react-router-dom";
 import * as Popover from "@radix-ui/react-popover";
 import {
@@ -37,7 +37,12 @@ import {
   useData,
   useTransactions,
 } from "../lib/data";
+import {
+  matchesTransactionFilters,
+  type TransactionFilters,
+} from "../../convex/lib/transactionFilters";
 import { csv, dateLabel, download } from "../lib/format";
+import { lookups } from "../lib/lookups";
 import {
   Avatar,
   Button,
@@ -61,6 +66,14 @@ import {
 } from "./transactions/TransactionForms";
 import { BulkTransactions } from "./transactions/BulkTransactions";
 import { AttachReceipt } from "./transactions/AttachReceipt";
+const ROW_BATCH = 150;
+/** Dollar filter text as integer cents; blank or invalid entries apply no bound. */
+function amountCents(text: string) {
+  const value = Number(text);
+  return text.trim() && Number.isFinite(value)
+    ? Math.round(value * 100)
+    : undefined;
+}
 export function Transactions() {
   useAmountsHidden();
   const data = useData(),
@@ -140,65 +153,46 @@ export function Transactions() {
   useEffect(() => {
     if (requestedImport) setImportOpen(true);
   }, [requestedImport]);
-  // Filters the server cannot apply, totals and exports need every row; the
-  // default list loads a page at a time as you scroll, which keeps a large
-  // history from being re-read on every visit.
+  // Filters the server index cannot apply, other sorts and exports need every
+  // row; the default list loads a page at a time as you scroll, which keeps a
+  // large history from being re-read on every visit. The summary is computed
+  // on the server instead, so turning it on never loads the whole history.
   const [exportPending, setExportPending] = useState(false);
+  const filterArgs = useMemo<TransactionFilters>(
+    () => ({
+      receipts: tab === "receipts" || undefined,
+      categoryId: (category || undefined) as Id<"categories"> | undefined,
+      tagId: (tag || undefined) as Id<"tags"> | undefined,
+      review: review === "all" ? undefined : (review as "reviewed"),
+      visibility: visibility === "all" ? undefined : (visibility as "hidden"),
+      source: source === "all" ? undefined : source,
+      minCents: amountCents(minimum),
+      maxCents: amountCents(maximum),
+    }),
+    [tab, category, tag, review, visibility, source, minimum, maximum],
+  );
   const needsEveryRow =
-    tab === "receipts" ||
-    !!category ||
-    !!tag ||
-    review !== "all" ||
-    visibility !== "all" ||
-    source !== "all" ||
+    Object.values(filterArgs).some((value) => value !== undefined) ||
     sort !== "newest" ||
-    !!minimum ||
-    !!maximum ||
-    showSummary ||
     exportPending;
-  const result = useTransactions(
-    {
-      from: from || undefined,
-      to: to || undefined,
-      search: debounced || undefined,
-      accountId: (account || undefined) as Id<"accounts"> | undefined,
-      merchantId: (merchant || undefined) as Id<"merchants"> | undefined,
-    },
-    needsEveryRow,
+  const rangeArgs = {
+    from: from || undefined,
+    to: to || undefined,
+    search: debounced || undefined,
+    accountId: (account || undefined) as Id<"accounts"> | undefined,
+    merchantId: (merchant || undefined) as Id<"merchants"> | undefined,
+  };
+  const result = useTransactions(rangeArgs, needsEveryRow);
+  const summary = useQuery(
+    api.transactions.summary,
+    showSummary ? { ...rangeArgs, ...filterArgs } : "skip",
   );
   const { status: listStatus, loadMore } = result;
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const node = loadMoreSentinel.current;
-    if (!node || listStatus !== "CanLoadMore") return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) loadMore(200);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [listStatus, loadMore]);
   const transactions = useMemo(
     () =>
       result.results
-        .filter(
-          (tx) =>
-            (tab !== "receipts" || (tx.attachmentCount ?? 0) > 0) &&
-            (!category ||
-              tx.categoryId === category ||
-              tx.splits.some((s) => s.categoryId === category)) &&
-            (!tag || tx.tagIds.includes(tag as Id<"tags">)) &&
-            (review === "all" ||
-              (review === "reviewed" ? tx.reviewed : !tx.reviewed)) &&
-            (visibility === "all" ||
-              (visibility === "hidden" ? tx.hidden : !tx.hidden)) &&
-            (source === "all" || tx.source === source) &&
-            (!minimum ||
-              !Number.isFinite(Number(minimum)) ||
-              tx.amountCents >= Number(minimum) * 100) &&
-            (!maximum ||
-              !Number.isFinite(Number(maximum)) ||
-              tx.amountCents <= Number(maximum) * 100),
-        )
+        .filter((tx) => matchesTransactionFilters(tx, filterArgs))
         .sort((a, b) =>
           sort === "oldest"
             ? a.date.localeCompare(b.date)
@@ -208,21 +202,41 @@ export function Transactions() {
                 ? a.amountCents - b.amountCents
                 : b.date.localeCompare(a.date),
         ),
+    [result.results, filterArgs, sort],
+  );
+  // Render rows in batches as you scroll; a filter or sort that loads the
+  // whole history would otherwise mount thousands of rows at once.
+  const [renderLimit, setRenderLimit] = useState(ROW_BATCH);
+  useEffect(
+    () => setRenderLimit(ROW_BATCH),
     [
-      result.results,
-      tab,
-      category,
-      tag,
-      review,
-      visibility,
-      source,
+      filterArgs,
       sort,
-      minimum,
-      maximum,
+      rangeArgs.from,
+      rangeArgs.to,
+      debounced,
+      account,
+      merchant,
     ],
   );
+  const rendered = transactions.slice(0, renderLimit);
+  const moreToRender = renderLimit < transactions.length;
+  const byId = lookups(data);
+  useEffect(() => {
+    const node = loadMoreSentinel.current;
+    if (!node || (!moreToRender && listStatus !== "CanLoadMore")) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        if (moreToRender) setRenderLimit((limit) => limit + ROW_BATCH);
+        else loadMore(200);
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [moreToRender, listStatus, loadMore]);
   const selectedIndex = transactions.findIndex((t) => t._id === selected),
-    total = transactions.reduce((s, t) => s + t.amountCents, 0),
     filters = [
       category,
       tag,
@@ -662,13 +676,17 @@ export function Transactions() {
           </div>
         </div>
         {showSummary && (
-          <div className="transaction-summary">
-            <span>Filtered total</span>
-            <strong>
-              {result.status === "Exhausted" ? money(total) : "Calculating…"}
-            </strong>
+          <div className="transaction-summary" aria-live="polite">
             <span>
-              {transactions.filter((t) => !t.reviewed).length} need review
+              {summary && !summary.complete
+                ? `Total of the newest ${summary.count.toLocaleString()}`
+                : "Filtered total"}
+            </span>
+            <strong>{summary ? money(summary.totalCents) : "…"}</strong>
+            <span>
+              {summary
+                ? `${summary.count.toLocaleString()} transactions · ${summary.unreviewed.toLocaleString()} need review`
+                : ""}
             </span>
           </div>
         )}
@@ -723,14 +741,14 @@ export function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx, index) => {
-                  const merchant = data.merchants.find(
-                      (m) => m._id === tx.merchantId,
-                    ),
-                    category = data.categories.find(
-                      (c) => c._id === tx.categoryId,
-                    ),
-                    account = data.accounts.find((a) => a._id === tx.accountId);
+                {rendered.map((tx, index) => {
+                  const merchant = tx.merchantId
+                      ? byId.merchants.get(tx.merchantId)
+                      : undefined,
+                    category = tx.categoryId
+                      ? byId.categories.get(tx.categoryId)
+                      : undefined,
+                    account = byId.accounts.get(tx.accountId);
                   const dayStart =
                     index === 0 || transactions[index - 1].date !== tx.date;
                   return (
@@ -856,7 +874,7 @@ export function Transactions() {
                           <td>
                             <div className="tag-cell">
                               {tx.tagIds.map((id) => {
-                                const tag = data.tags.find((t) => t._id === id);
+                                const tag = byId.tags.get(id);
                                 return (
                                   tag && (
                                     <span
@@ -931,13 +949,14 @@ export function Transactions() {
             }
           />
         )}
-        {result.status !== "Exhausted" &&
-          result.status !== "LoadingFirstPage" && (
-            <div className="table-loading" ref={loadMoreSentinel}>
-              <span className="loading-dot" />
-              Loading more transactions…
-            </div>
-          )}
+        {(moreToRender ||
+          (result.status !== "Exhausted" &&
+            result.status !== "LoadingFirstPage")) && (
+          <div className="table-loading" ref={loadMoreSentinel}>
+            <span className="loading-dot" />
+            Loading more transactions…
+          </div>
+        )}
       </Panel>
       {bulkOpen && (
         <BulkTransactions
@@ -1002,14 +1021,17 @@ function InlineCategory({
   const data = useData(),
     update = useMutation(api.transactions.update),
     { run } = useTask();
-  const c = data.categories.find((c) => c._id === transaction.categoryId);
+  const byId = lookups(data);
+  const c = transaction.categoryId
+    ? byId.categories.get(transaction.categoryId)
+    : undefined;
   return transaction.splits.length ? (
     <span className="split-category">
       <CategoryIcon emoji={c?.emoji} /> {label}
     </span>
   ) : (
     <Picker
-      label={`Category for ${data.merchants.find((m) => m._id === transaction.merchantId)?.name ?? "transaction"}`}
+      label={`Category for ${(transaction.merchantId && byId.merchants.get(transaction.merchantId)?.name) || "transaction"}`}
       className="inline-picker"
       value={transaction.categoryId}
       options={categoryOptions(data)}

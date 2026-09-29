@@ -21,6 +21,10 @@ import {
 } from "./lib/access";
 import { transactionFields } from "./validators";
 import {
+  matchesTransactionFilters,
+  transactionFilterFields,
+} from "./lib/transactionFilters";
+import {
   changeMerchantCount,
   findMatchingTransaction,
   insertTransaction,
@@ -47,69 +51,131 @@ const listArgs = {
   merchantId: v.optional(v.id("merchants")),
 };
 const transactionListInput = v.object(listArgs);
+type TransactionRange = Omit<
+  Infer<typeof transactionListInput>,
+  "paginationOpts"
+>;
+async function checkRange(ctx: UserRead, args: TransactionRange) {
+  if (args.from) date(args.from);
+  if (args.to) date(args.to);
+  if (args.accountId) await owned(ctx, args.accountId);
+  if (args.merchantId) await owned(ctx, args.merchantId);
+}
+/** Newest-first index range for the list; search is handled separately. */
+function rangeQuery(ctx: UserRead, args: TransactionRange) {
+  const transactions = ctx.db.query("transactions");
+  return (
+    args.accountId
+      ? transactions.withIndex("by_userId_and_accountId_and_date", (q) =>
+          q
+            .eq("userId", ctx.userId)
+            .eq("accountId", args.accountId!)
+            .gte("date", args.from ?? "0000")
+            .lte("date", args.to ?? "9999"),
+        )
+      : args.merchantId
+        ? transactions.withIndex("by_userId_and_merchantId_and_date", (q) =>
+            q
+              .eq("userId", ctx.userId)
+              .eq("merchantId", args.merchantId!)
+              .gte("date", args.from ?? "0000")
+              .lte("date", args.to ?? "9999"),
+          )
+        : transactions.withIndex("by_userId_and_date", (q) =>
+            q
+              .eq("userId", ctx.userId)
+              .gte("date", args.from ?? "0000")
+              .lte("date", args.to ?? "9999"),
+          )
+  ).order("desc");
+}
+function searchQuery(ctx: UserRead, search: string) {
+  return ctx.db
+    .query("transactions")
+    .withSearchIndex("search_text", (q) =>
+      q.search("searchText", search).eq("userId", ctx.userId),
+    );
+}
+/** Search results are not range-limited by the index, so check every bound. */
+function inRange(tx: Doc<"transactions">, args: TransactionRange) {
+  return (
+    !("removedFromBank" in tx && tx.removedFromBank) &&
+    (!args.accountId || tx.accountId === args.accountId) &&
+    (!args.merchantId || tx.merchantId === args.merchantId) &&
+    (!args.from || tx.date >= args.from) &&
+    (!args.to || tx.date <= args.to)
+  );
+}
 export async function listTransactionsForUser(
   ctx: UserRead,
   args: Infer<typeof transactionListInput>,
 ) {
   if (args.paginationOpts.numItems > 200)
     throw new ConvexError("Load at most 200 transactions at a time.");
-  if (args.from) date(args.from);
-  if (args.to) date(args.to);
-  if (args.accountId) await owned(ctx, args.accountId);
-  if (args.merchantId) await owned(ctx, args.merchantId);
-  const result = args.search?.trim()
-    ? await ctx.db
-        .query("transactions")
-        .withSearchIndex("search_text", (q) =>
-          q.search("searchText", args.search!.trim()).eq("userId", ctx.userId),
-        )
-        .paginate(args.paginationOpts)
-    : args.accountId
-      ? await ctx.db
-          .query("transactions")
-          .withIndex("by_userId_and_accountId_and_date", (q) =>
-            q
-              .eq("userId", ctx.userId)
-              .eq("accountId", args.accountId!)
-              .gte("date", args.from ?? "0000")
-              .lte("date", args.to ?? "9999"),
-          )
-          .order("desc")
-          .paginate(args.paginationOpts)
-      : args.merchantId
-        ? await ctx.db
-            .query("transactions")
-            .withIndex("by_userId_and_merchantId_and_date", (q) =>
-              q
-                .eq("userId", ctx.userId)
-                .eq("merchantId", args.merchantId!)
-                .gte("date", args.from ?? "0000")
-                .lte("date", args.to ?? "9999"),
-            )
-            .order("desc")
-            .paginate(args.paginationOpts)
-        : await ctx.db
-            .query("transactions")
-            .withIndex("by_userId_and_date", (q) =>
-              q
-                .eq("userId", ctx.userId)
-                .gte("date", args.from ?? "0000")
-                .lte("date", args.to ?? "9999"),
-            )
-            .order("desc")
-            .paginate(args.paginationOpts);
+  await checkRange(ctx, args);
+  const search = args.search?.trim();
+  const result = search
+    ? await searchQuery(ctx, search).paginate(args.paginationOpts)
+    : await rangeQuery(ctx, args).paginate(args.paginationOpts);
   return {
     ...result,
-    page: result.page.filter(
-      (tx) =>
-        !("removedFromBank" in tx && tx.removedFromBank) &&
-        (!args.accountId || tx.accountId === args.accountId) &&
-        (!args.merchantId || tx.merchantId === args.merchantId) &&
-        (!args.from || tx.date >= args.from) &&
-        (!args.to || tx.date <= args.to),
-    ),
+    page: result.page.filter((tx) => inRange(tx, args)),
   };
 }
+const SEARCH_SUMMARY_LIMIT = 1024;
+/** Stop well short of the query limits and report a partial total instead. */
+const SUMMARY_READ_RESERVE = { documents: 1000, bytes: 1_000_000 };
+/**
+ * Total and review count for the Transactions page filters, computed in one
+ * server read so the page can show them without loading every row.
+ */
+export const summary = userQuery({
+  args: {
+    from: listArgs.from,
+    to: listArgs.to,
+    search: listArgs.search,
+    accountId: listArgs.accountId,
+    merchantId: listArgs.merchantId,
+    ...transactionFilterFields,
+  },
+  returns: v.object({
+    count: v.number(),
+    totalCents: v.number(),
+    unreviewed: v.number(),
+    complete: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    await checkRange(ctx, args);
+    const result = { count: 0, totalCents: 0, unreviewed: 0, complete: true };
+    const add = (tx: Doc<"transactions">) => {
+      if (!inRange(tx, args) || !matchesTransactionFilters(tx, args)) return;
+      result.count++;
+      result.totalCents += tx.amountCents;
+      if (!tx.reviewed) result.unreviewed++;
+    };
+    const search = args.search?.trim();
+    if (search) {
+      const found = await searchQuery(ctx, search).take(SEARCH_SUMMARY_LIMIT);
+      found.forEach(add);
+      result.complete = found.length < SEARCH_SUMMARY_LIMIT;
+      return result;
+    }
+    let scanned = 0;
+    for await (const tx of rangeQuery(ctx, args)) {
+      add(tx);
+      if (++scanned % 250 !== 0) continue;
+      const metrics = await ctx.meta.getTransactionMetrics();
+      if (
+        metrics.documentsRead.remaining < SUMMARY_READ_RESERVE.documents ||
+        metrics.bytesRead.remaining < SUMMARY_READ_RESERVE.bytes
+      ) {
+        result.complete = false;
+        break;
+      }
+    }
+    return result;
+  },
+});
 export const list = userQuery({
   args: listArgs,
   returns: paginationResultValidator(schema.doc("transactions")),
