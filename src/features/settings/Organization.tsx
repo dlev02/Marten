@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useProgressiveList } from "../../lib/useProgressiveList";
 import "../settings.css";
 import { useAction, useMutation } from "../../lib/convex";
 import { Link } from "react-router-dom";
@@ -40,14 +41,25 @@ import { ColorPicker } from "../../components/folio/ColorPicker";
 import { searchBrandLogos } from "../../lib/brandLogos";
 import { ConvexError } from "convex/values";
 type Merchant = Metadata["merchants"][number];
+const nameOrder = new Intl.Collator(undefined, { sensitivity: "base" });
 export function Merchants() {
   const data = useData(),
     [search, setSearch] = useState(""),
     [editing, setEditing] = useState<Merchant | "new" | null>(null),
     [merging, setMerging] = useState<Merchant | null>(null);
-  const merchants = data.merchants
-    .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const query = useDeferredValue(search.trim().toLowerCase());
+  const sorted = useMemo(
+    () => [...data.merchants].sort((a, b) => nameOrder.compare(a.name, b.name)),
+    [data.merchants],
+  );
+  const merchants = useMemo(
+    () =>
+      query
+        ? sorted.filter((m) => m.name.toLowerCase().includes(query))
+        : sorted,
+    [sorted, query],
+  );
+  const { visible, hasMore, sentinel } = useProgressiveList(merchants);
   return (
     <>
       <div className="settings-section-header">
@@ -65,11 +77,13 @@ export function Merchants() {
           onChange={setSearch}
           placeholder="Search merchants…"
         />
-        <span className="muted">{merchants.length} merchants</span>
+        <span className="muted">
+          {merchants.length.toLocaleString()} merchants
+        </span>
       </div>
       <Panel className="settings-list">
         {merchants.length ? (
-          merchants.map((m) => (
+          visible.map((m) => (
             <div className="settings-merchant-row" key={m._id}>
               <Avatar name={m.name} color={m.color} logo={m.resolvedLogoUrl} />
               <button
@@ -112,6 +126,9 @@ export function Merchants() {
                 : "Merchants are created when your transactions arrive."
             }
           />
+        )}
+        {hasMore && (
+          <div className="settings-list-more" ref={sentinel} aria-hidden />
         )}
       </Panel>
       {editing && (

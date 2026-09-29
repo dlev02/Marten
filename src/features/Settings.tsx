@@ -1,4 +1,4 @@
-import { lazy, useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import {
   Building2,
@@ -11,6 +11,7 @@ import {
   Plug,
 } from "lucide-react";
 import { PageHeader } from "../components/folio/PageHeader";
+import { Loading } from "../components/folio/ui";
 import { Categories } from "./settings/Categories";
 import { Merchants, TagSettings } from "./settings/Organization";
 import { Rules } from "./settings/Rules";
@@ -66,21 +67,24 @@ export function Settings({ onAddAccount }: { onAddAccount: () => void }) {
           </nav>
         </div>
         <div className="settings-content">
-          <Routes>
-            <Route index element={<Categories />} />
-            <Route path="categories" element={<Categories />} />
-            <Route path="merchants" element={<Merchants />} />
-            <Route path="rules" element={<Rules />} />
-            <Route path="tags" element={<TagSettings />} />
-            <Route
-              path="institutions"
-              element={<Institutions onAddAccount={onAddAccount} />}
-            />
-            <Route path="preferences" element={<Preferences />} />
-            <Route path="agents" element={<AgentSettings />} />
-            <Route path="faq" element={<FAQ />} />
-            <Route path="*" element={<Categories />} />
-          </Routes>
+          {/* A lazy section loads inside the pane instead of blanking the page. */}
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route index element={<Categories />} />
+              <Route path="categories" element={<Categories />} />
+              <Route path="merchants" element={<Merchants />} />
+              <Route path="rules" element={<Rules />} />
+              <Route path="tags" element={<TagSettings />} />
+              <Route
+                path="institutions"
+                element={<Institutions onAddAccount={onAddAccount} />}
+              />
+              <Route path="preferences" element={<Preferences />} />
+              <Route path="agents" element={<AgentSettings />} />
+              <Route path="faq" element={<FAQ />} />
+              <Route path="*" element={<Categories />} />
+            </Routes>
+          </Suspense>
         </div>
       </div>
     </div>

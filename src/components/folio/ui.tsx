@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useId,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -259,6 +260,7 @@ export function Field({
     </div>
   );
 }
+const PICKER_BATCH = 120;
 export function Picker({
   value,
   onChange,
@@ -286,16 +288,25 @@ export function Picker({
   const optionsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuId = useId();
+  const [limit, setLimit] = useState(PICKER_BATCH);
   const selected = options.find((o) => o.value === value);
-  const filtered = options.filter((o) =>
-    `${o.label} ${o.group ?? ""}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  // Closed pickers skip filtering entirely; open ones add long lists (1,000+
+  // merchants) in batches as you scroll, so opening stays instant.
+  const filtered = useMemo(() => {
+    if (!open) return [];
+    const query = search.toLowerCase();
+    return options.filter((o) =>
+      `${o.label} ${o.group ?? ""}`.toLowerCase().includes(query),
+    );
+  }, [open, options, search]);
+  const visible = filtered.slice(0, limit);
   return (
     <Popover.Root
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
         setSearch("");
+        setLimit(PICKER_BATCH);
       }}
     >
       <Popover.Trigger asChild>
@@ -356,14 +367,29 @@ export function Picker({
               aria-controls={menuId}
               aria-label={`Search ${label.toLowerCase()}`}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setLimit(PICKER_BATCH);
+              }}
               placeholder="Search…"
             />
           </div>
-          <div className="picker-options" id={menuId} ref={optionsRef}>
-            {filtered.map((o, i) => (
+          <div
+            className="picker-options"
+            id={menuId}
+            ref={optionsRef}
+            onScroll={(event) => {
+              const list = event.currentTarget;
+              if (
+                limit < filtered.length &&
+                list.scrollTop + list.clientHeight > list.scrollHeight - 240
+              )
+                setLimit((current) => current + PICKER_BATCH);
+            }}
+          >
+            {visible.map((o, i) => (
               <div key={o.value}>
-                {o.group && o.group !== filtered[i - 1]?.group && (
+                {o.group && o.group !== visible[i - 1]?.group && (
                   <div className="picker-group">{o.group}</div>
                 )}
                 <button

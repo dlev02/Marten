@@ -7,6 +7,7 @@ import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { Loading } from "../components/folio/ui";
 import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { demoLoadingText, isDemoSession } from "./demo";
+import { lookups } from "./lookups";
 const DataContext = createContext<Metadata | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const data = useQuery(api.workspace.metadata, {});
@@ -41,24 +42,38 @@ export function useTransactions(
   }, [autoLoad, status, loadMore]);
   return result;
 }
-export function categoryOptions(data: Metadata) {
+/** Caches an options list per metadata snapshot; callers must not mutate it. */
+function perSnapshot<T>(build: (data: Metadata) => T) {
+  const cache = new WeakMap<Metadata, T>();
+  return (data: Metadata) => {
+    if (!cache.has(data)) cache.set(data, build(data));
+    return cache.get(data)!;
+  };
+}
+const cachedCategoryOptions = perSnapshot((data) => {
+  const { groups } = lookups(data);
   return [...data.categories]
     .sort(
       (a, b) =>
-        (data.groups.find((g) => g._id === a.groupId)?.order ?? 0) -
-          (data.groups.find((g) => g._id === b.groupId)?.order ?? 0) ||
-        a.order - b.order,
+        (groups.get(a.groupId)?.order ?? 0) -
+          (groups.get(b.groupId)?.order ?? 0) || a.order - b.order,
     )
     .filter((c) => c.enabled)
     .map((c) => ({
-      value: c._id,
+      value: c._id as string,
       label: c.name,
       icon: <CategoryIcon emoji={c.emoji} />,
-      group: data.groups.find((g) => g._id === c.groupId)?.name,
+      group: groups.get(c.groupId)?.name,
     }));
+});
+const cachedMerchantOptions = perSnapshot((data) =>
+  data.merchants.map((m) => ({ value: m._id as string, label: m.name })),
+);
+export function categoryOptions(data: Metadata) {
+  return cachedCategoryOptions(data);
 }
 export function merchantOptions(data: Metadata) {
-  return data.merchants.map((m) => ({ value: m._id, label: m.name }));
+  return cachedMerchantOptions(data);
 }
 export function accountOptions(data: Metadata) {
   return data.accounts
@@ -73,8 +88,10 @@ export function accountNetWorth(account: Doc<"accounts">) {
       : account.balanceCents;
 }
 export function txCategory(tx: Doc<"transactions">, data: Metadata) {
-  return data.categories.find((c) => c._id === tx.categoryId);
+  return tx.categoryId
+    ? lookups(data).categories.get(tx.categoryId)
+    : undefined;
 }
 export function txMerchant(tx: Doc<"transactions">, data: Metadata) {
-  return data.merchants.find((m) => m._id === tx.merchantId);
+  return tx.merchantId ? lookups(data).merchants.get(tx.merchantId) : undefined;
 }

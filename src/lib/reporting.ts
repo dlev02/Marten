@@ -1,5 +1,6 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import type { Metadata } from "./types";
+import { lookups } from "./lookups";
 import { entries } from "../../convex/lib/finance";
 import { chartColors } from "./constants";
 export function summarize(
@@ -31,12 +32,13 @@ export function summarize(
       savings: number;
     }
   >();
+  const byId = lookups(data);
   for (const tx of transactions) {
     if (tx.removedFromBank) continue;
     for (const entry of entries(tx)) {
       if (categoryId && entry.categoryId !== categoryId) continue;
-      const category = data.categories.find((c) => c._id === entry.categoryId),
-        categoryGroup = data.groups.find((g) => g._id === category?.groupId);
+      const category = byId.categories.get(entry.categoryId),
+        categoryGroup = category && byId.groups.get(category.groupId);
       if (!categoryGroup || categoryGroup.kind === "transfer") continue;
       const month = entry.date.slice(0, 7),
         monthData = months.get(month) ?? {
@@ -57,7 +59,10 @@ export function summarize(
       }
       monthData.savings = monthData.income - monthData.expense;
       months.set(month, monthData);
-      const merchant = data.merchants.find((m) => m._id === entry.merchantId);
+      const merchant =
+        groupBy === "merchant" && entry.merchantId
+          ? byId.merchants.get(entry.merchantId)
+          : undefined;
       const id =
         groupBy === "merchant"
           ? entry.merchantId
