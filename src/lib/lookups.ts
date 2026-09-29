@@ -10,21 +10,28 @@ export type Lookups = {
   accounts: Map<string, Row<"accounts">>;
   tags: Map<string, Row<"tags">>;
 };
-// Keyed on the metadata snapshot, so each server push builds these once and
-// every list can look rows up by id instead of scanning 1,000+ merchants.
-const lookupCache = new WeakMap<Metadata, Lookups>();
-/** Id maps for the current metadata snapshot. */
-export function lookups(data: Metadata): Lookups {
-  let cached = lookupCache.get(data);
-  if (!cached) {
-    cached = {
-      merchants: new Map(data.merchants.map((row) => [row._id, row])),
-      categories: new Map(data.categories.map((row) => [row._id, row])),
-      groups: new Map(data.groups.map((row) => [row._id, row])),
-      accounts: new Map(data.accounts.map((row) => [row._id, row])),
-      tags: new Map(data.tags.map((row) => [row._id, row])),
-    };
-    lookupCache.set(data, cached);
+// Each map is keyed on its source array. The workspace arrives in slices, and
+// a slice that did not change keeps its array, so a balance update does not
+// rebuild the 1,000+ entry merchant map.
+const mapCache = new WeakMap<
+  readonly { _id: string }[],
+  Map<string, unknown>
+>();
+function byId<T extends { _id: string }>(rows: readonly T[]) {
+  let map = mapCache.get(rows) as Map<string, T> | undefined;
+  if (!map) {
+    map = new Map(rows.map((row) => [row._id, row]));
+    mapCache.set(rows, map);
   }
-  return cached;
+  return map;
+}
+/** Id maps for the current workspace, so lists never scan arrays per row. */
+export function lookups(data: Metadata): Lookups {
+  return {
+    merchants: byId(data.merchants),
+    categories: byId(data.categories),
+    groups: byId(data.groups),
+    accounts: byId(data.accounts),
+    tags: byId(data.tags),
+  };
 }

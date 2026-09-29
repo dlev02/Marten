@@ -30,27 +30,74 @@ import {
 const institutions = schema
   .doc("plaidItems")
   .omit("accessToken", "plaidItemId", "cursor", "syncLease");
-export async function readWorkspace(ctx: UserRead) {
-  const [
-    profile,
-    accounts,
-    groups,
-    categories,
-    merchants,
-    tags,
-    rules,
-    recurring,
-    savedReports,
-    items,
-  ] = await Promise.all([
-    ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .unique(),
-    ctx.db
-      .query("accounts")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .take(201),
+/**
+ * The workspace metadata is read in slices so each client subscription only
+ * re-runs when its own tables change: a bank sync that bumps balances or a
+ * merchant's transaction count no longer re-sends categories, rules and the
+ * profile. `readWorkspace` still assembles the whole shape for agents.
+ */
+const limitMessage =
+  "This workspace exceeds the supported item limit. Contact support before adding more items.";
+function checkLimit(rows: unknown[], limit: number) {
+  if (rows.length > limit) throw new ConvexError(limitMessage);
+}
+const profileValidator = v.union(
+  schema.doc("profiles").extend({ avatarUrl: v.union(v.string(), v.null()) }),
+  v.null(),
+);
+const merchantValidator = schema
+  .doc("merchants")
+  .extend({ resolvedLogoUrl: v.union(v.string(), v.null()) });
+const taxonomyValidator = v.object({
+  groups: v.array(schema.doc("groups")),
+  categories: v.array(schema.doc("categories")),
+  tags: v.array(schema.doc("tags")),
+});
+const planningValidator = v.object({
+  rules: v.array(schema.doc("rules")),
+  recurring: v.array(schema.doc("recurring")),
+  savedReports: v.array(schema.doc("savedReports")),
+});
+async function readProfile(ctx: UserRead) {
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .unique();
+  return profile
+    ? {
+        ...profile,
+        avatarUrl: profile.photoStorageId
+          ? await ctx.storage.getUrl(profile.photoStorageId)
+          : null,
+      }
+    : null;
+}
+async function readAccounts(ctx: UserRead) {
+  const accounts = await ctx.db
+    .query("accounts")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(201);
+  checkLimit(accounts, 200);
+  return accounts;
+}
+async function readInstitutions(ctx: UserRead) {
+  const items = await ctx.db
+    .query("plaidItems")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(101);
+  checkLimit(items, 100);
+  return items.map(
+    ({
+      accessToken: _token,
+      plaidItemId: _item,
+      cursor: _cursor,
+      syncLease: _lease,
+      ...safe
+    }) => safe,
+  );
+}
+async function readTaxonomy(ctx: UserRead) {
+  const [groups, categories, tags] = await Promise.all([
     ctx.db
       .query("groups")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
@@ -60,13 +107,36 @@ export async function readWorkspace(ctx: UserRead) {
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .take(501),
     ctx.db
-      .query("merchants")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .take(2001),
-    ctx.db
       .query("tags")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .take(201),
+  ]);
+  checkLimit(groups, 200);
+  checkLimit(categories, 500);
+  checkLimit(tags, 200);
+  return {
+    groups: groups.sort((a, b) => a.order - b.order),
+    categories: categories.sort((a, b) => a.order - b.order),
+    tags: tags.sort((a, b) => a.order - b.order),
+  };
+}
+async function readMerchants(ctx: UserRead) {
+  const merchants = await ctx.db
+    .query("merchants")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(2001);
+  checkLimit(merchants, 2000);
+  return await Promise.all(
+    merchants.map(async (m) => ({
+      ...m,
+      resolvedLogoUrl: m.logoStorageId
+        ? await ctx.storage.getUrl(m.logoStorageId)
+        : (m.logoUrl ?? null),
+    })),
+  );
+}
+async function readPlanning(ctx: UserRead) {
+  const [rules, recurring, savedReports] = await Promise.all([
     ctx.db
       .query("rules")
       .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
@@ -79,76 +149,40 @@ export async function readWorkspace(ctx: UserRead) {
       .query("savedReports")
       .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
       .take(101),
-    ctx.db
-      .query("plaidItems")
-      .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-      .take(101),
   ]);
-  if (
-    accounts.length > 200 ||
-    groups.length > 200 ||
-    categories.length > 500 ||
-    merchants.length > 2000 ||
-    tags.length > 200 ||
-    recurring.length > 500 ||
-    savedReports.length > 100 ||
-    items.length > 100
-  )
-    throw new ConvexError(
-      "This workspace exceeds the supported item limit. Contact support before adding more items.",
-    );
+  checkLimit(rules, 200);
+  checkLimit(recurring, 500);
+  checkLimit(savedReports, 100);
+  return { rules, recurring, savedReports };
+}
+export async function readWorkspace(ctx: UserRead) {
+  const [profile, accounts, institutions, taxonomy, merchants, planning] =
+    await Promise.all([
+      readProfile(ctx),
+      readAccounts(ctx),
+      readInstitutions(ctx),
+      readTaxonomy(ctx),
+      readMerchants(ctx),
+      readPlanning(ctx),
+    ]);
   return {
-    profile: profile
-      ? {
-          ...profile,
-          avatarUrl: profile.photoStorageId
-            ? await ctx.storage.getUrl(profile.photoStorageId)
-            : null,
-        }
-      : null,
+    profile,
     accounts,
-    groups: groups.sort((a, b) => a.order - b.order),
-    categories: categories.sort((a, b) => a.order - b.order),
-    merchants: await Promise.all(
-      merchants.map(async (m) => ({
-        ...m,
-        resolvedLogoUrl: m.logoStorageId
-          ? await ctx.storage.getUrl(m.logoStorageId)
-          : (m.logoUrl ?? null),
-      })),
-    ),
-    tags: tags.sort((a, b) => a.order - b.order),
-    rules,
-    recurring,
-    savedReports,
-    institutions: items.map(
-      ({
-        accessToken: _token,
-        plaidItemId: _item,
-        cursor: _cursor,
-        syncLease: _lease,
-        ...safe
-      }) => safe,
-    ),
+    ...taxonomy,
+    merchants,
+    ...planning,
+    institutions,
   };
 }
+/** The whole workspace in one read, for tests and one-off callers. */
 export const metadata = userQuery({
   args: {},
   returns: v.object({
-    profile: v.union(
-      schema
-        .doc("profiles")
-        .extend({ avatarUrl: v.union(v.string(), v.null()) }),
-      v.null(),
-    ),
+    profile: profileValidator,
     accounts: v.array(schema.doc("accounts")),
     groups: v.array(schema.doc("groups")),
     categories: v.array(schema.doc("categories")),
-    merchants: v.array(
-      schema
-        .doc("merchants")
-        .extend({ resolvedLogoUrl: v.union(v.string(), v.null()) }),
-    ),
+    merchants: v.array(merchantValidator),
     tags: v.array(schema.doc("tags")),
     rules: v.array(schema.doc("rules")),
     recurring: v.array(schema.doc("recurring")),
@@ -156,6 +190,36 @@ export const metadata = userQuery({
     institutions: v.array(institutions),
   }),
   handler: readWorkspace,
+});
+export const profileSlice = userQuery({
+  args: {},
+  returns: profileValidator,
+  handler: readProfile,
+});
+export const accountsSlice = userQuery({
+  args: {},
+  returns: v.array(schema.doc("accounts")),
+  handler: readAccounts,
+});
+export const institutionsSlice = userQuery({
+  args: {},
+  returns: v.array(institutions),
+  handler: readInstitutions,
+});
+export const taxonomySlice = userQuery({
+  args: {},
+  returns: taxonomyValidator,
+  handler: readTaxonomy,
+});
+export const merchantsSlice = userQuery({
+  args: {},
+  returns: v.array(merchantValidator),
+  handler: readMerchants,
+});
+export const planningSlice = userQuery({
+  args: {},
+  returns: planningValidator,
+  handler: readPlanning,
 });
 export const initialize = userMutation({
   args: { name: v.optional(v.string()), sample: v.boolean() },

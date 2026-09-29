@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useQuery, usePaginatedQuery } from "./convex";
 import type { Metadata } from "./types";
 export type { Metadata } from "./types";
@@ -9,8 +15,38 @@ import { CategoryIcon } from "../components/folio/CategoryIcon";
 import { demoLoadingText, isDemoSession } from "./demo";
 import { lookups } from "./lookups";
 const DataContext = createContext<Metadata | null>(null);
+/**
+ * Assembles the workspace from separate server slices. Each slice re-runs
+ * only when its own tables change, and the slices that did not change keep
+ * their array identity, so id lookups and option lists cached per array
+ * survive a balance update or a new transaction.
+ */
 export function DataProvider({ children }: { children: ReactNode }) {
-  const data = useQuery(api.workspace.metadata, {});
+  const profile = useQuery(api.workspace.profileSlice, {}),
+    accounts = useQuery(api.workspace.accountsSlice, {}),
+    institutions = useQuery(api.workspace.institutionsSlice, {}),
+    taxonomy = useQuery(api.workspace.taxonomySlice, {}),
+    merchants = useQuery(api.workspace.merchantsSlice, {}),
+    planning = useQuery(api.workspace.planningSlice, {});
+  const data = useMemo<Metadata | undefined>(
+    () =>
+      profile === undefined ||
+      accounts === undefined ||
+      institutions === undefined ||
+      taxonomy === undefined ||
+      merchants === undefined ||
+      planning === undefined
+        ? undefined
+        : {
+            profile,
+            accounts,
+            ...taxonomy,
+            merchants,
+            ...planning,
+            institutions,
+          },
+    [profile, accounts, institutions, taxonomy, merchants, planning],
+  );
   // A whole-screen wait, so it sits centered like the auth check before it.
   if (data === undefined)
     return (
@@ -42,15 +78,20 @@ export function useTransactions(
   }, [autoLoad, status, loadMore]);
   return result;
 }
-/** Caches an options list per metadata snapshot; callers must not mutate it. */
-function perSnapshot<T>(build: (data: Metadata) => T) {
-  const cache = new WeakMap<Metadata, T>();
-  return (data: Metadata) => {
-    if (!cache.has(data)) cache.set(data, build(data));
-    return cache.get(data)!;
-  };
-}
-const cachedCategoryOptions = perSnapshot((data) => {
+// Option lists are cached per source array, which stays the same object until
+// that slice of the workspace changes on the server.
+const categoryOptionCache = new WeakMap<
+  Metadata["categories"],
+  {
+    groups: Metadata["groups"];
+    options: ReturnType<typeof buildCategoryOptions>;
+  }
+>();
+const merchantOptionCache = new WeakMap<
+  Metadata["merchants"],
+  { value: string; label: string }[]
+>();
+function buildCategoryOptions(data: Metadata) {
   const { groups } = lookups(data);
   return [...data.categories]
     .sort(
@@ -65,15 +106,26 @@ const cachedCategoryOptions = perSnapshot((data) => {
       icon: <CategoryIcon emoji={c.emoji} />,
       group: groups.get(c.groupId)?.name,
     }));
-});
-const cachedMerchantOptions = perSnapshot((data) =>
-  data.merchants.map((m) => ({ value: m._id as string, label: m.name })),
-);
-export function categoryOptions(data: Metadata) {
-  return cachedCategoryOptions(data);
 }
+/** Enabled categories in group order; callers must not mutate the list. */
+export function categoryOptions(data: Metadata) {
+  const cached = categoryOptionCache.get(data.categories);
+  if (cached?.groups === data.groups) return cached.options;
+  const options = buildCategoryOptions(data);
+  categoryOptionCache.set(data.categories, { groups: data.groups, options });
+  return options;
+}
+/** Every merchant as a picker option; callers must not mutate the list. */
 export function merchantOptions(data: Metadata) {
-  return cachedMerchantOptions(data);
+  let options = merchantOptionCache.get(data.merchants);
+  if (!options) {
+    options = data.merchants.map((m) => ({
+      value: m._id as string,
+      label: m.name,
+    }));
+    merchantOptionCache.set(data.merchants, options);
+  }
+  return options;
 }
 export function accountOptions(data: Metadata) {
   return data.accounts

@@ -35,6 +35,7 @@ export const changelog: ChangelogEntry[] = [
           "The **Summary** in Transactions totals your filters on the server, so turning it on no longer loads your whole history into the page.",
           "Long lists (transactions with a filter or sort, merchants in Settings, and merchant pickers) show the first rows at once and add the rest as you scroll.",
           "The Upcoming recurring card on the Dashboard drops its “Coming up this month” line when nothing is due and says so in the empty message instead.",
+          "Bank syncs and edits refresh only the part of your workspace that changed, so balances or merchant counts updating no longer re-send your categories, rules and settings, and screens stay steadier while a sync runs.",
         ],
       },
     ],

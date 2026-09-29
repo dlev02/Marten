@@ -932,3 +932,12 @@ Drew reported that the Cash Flow and Reports pie chart scrolled away with its le
 - Development deployment: `npx convex dev --once` pushed the new query to the development backend.
 - Browser, fictional demo workspace: Cash Flow and Reports pie chart at 1280×900 in dark and light (legend scrolls, ring fixed), category drawer opened from the legend and the Expenses table, transaction drawer stacked and dismissed with Escape, phone width (375) for the pie and drawer. Transactions Summary showed “250 transactions · 8 need review” while the table stayed at 100 loaded rows; Oldest first rendered 150 rows, then 250 after scrolling. No console errors.
 - Not verified: the Merchants batching at 1,200 merchants (the demo has 25) and the Dashboard recurring empty state (the demo has upcoming items); both are covered by code review only.
+
+### Follow-up, September 29, 2026 · Workspace metadata in slices
+
+- `workspace.metadata` was one query over ten tables, so any write to a merchant's transaction count, an account balance, or a bank connection's sync lease re-ran it and re-sent the whole workspace (up to 2,000 merchants with logo URLs). It is now six slice queries (`profileSlice`, `accountsSlice`, `institutionsSlice`, `taxonomySlice`, `merchantsSlice`, `planningSlice`) that `DataProvider` assembles; `readWorkspace` composes the same readers for agents and `metadata` remains for tests.
+- Client caches moved from the whole snapshot to each source array: `lookups()` maps and `categoryOptions`/`merchantOptions` are rebuilt only when their slice changes.
+- Automated: `convex/workspaceSlices.test.ts` checks that the slices equal `metadata` for a sample workspace and return nothing to another user; the metadata-based suites (demo, profile, accounts, imports, category merge, agent access) passed. Typecheck and ESLint passed.
+- Development deployment: `npx convex dev --once` pushed the slice queries.
+- Browser, fictional demo workspace at 1280×900: every main page and settings section rendered without console errors; renaming a merchant in Settings → Merchants updated the list and the Transactions rows live, then the name was restored.
+- Not changed: a merchant's `transactionCount` still lives on the merchant row, so new transactions still refresh the merchants slice. Moving counts to their own table needs a production backfill and was left for a separate change.
