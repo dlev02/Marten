@@ -282,7 +282,9 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
           </Link>
         }
       >
-        <div className="panel-subtitle">Coming up this month</div>
+        {upcoming.length > 0 && (
+          <div className="panel-subtitle">Coming up this month</div>
+        )}
         {upcoming.length ? (
           upcoming.map((r) => (
             <button
@@ -314,9 +316,15 @@ export function Dashboard({ onAddAccount }: { onAddAccount: () => void }) {
               </strong>
             </button>
           ))
+        ) : // The empty state names the window itself, so the subtitle stays hidden.
+        data.recurring.some((r) => r.active) ? (
+          <Empty
+            title="Nothing else due this month"
+            description="Your next bills and subscriptions will show here as they come due."
+          />
         ) : (
           <Empty
-            title="Nothing coming up"
+            title="Nothing coming up this month"
             description="Add recurring bills and subscriptions to see what’s next."
             action={
               <Button
