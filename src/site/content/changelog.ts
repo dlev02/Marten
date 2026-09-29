@@ -23,6 +23,23 @@ export const changeKindLabels: Record<ChangeKind, string> = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-09-28",
+    title: "Snappier lists and category details where you click",
+    lead: "A pass on the small waits and hunts: choosing a category in Cash Flow or Reports now opens its transactions right beside the chart, and long lists no longer make the page stutter.",
+    groups: [
+      {
+        kind: "improved",
+        items: [
+          "Choosing a category, group or merchant in [Cash Flow](/cash-flow) or [Reports](/reports) opens its transactions in a panel on the right instead of at the bottom of the page. Open any transaction from there and close it to return.",
+          "The pie chart stays in place while its list of categories scrolls, the same way the treemap already did.",
+          "The **Summary** in Transactions totals your filters on the server, so turning it on no longer loads your whole history into the page.",
+          "Long lists (transactions with a filter or sort, merchants in Settings, and merchant pickers) show the first rows at once and add the rest as you scroll.",
+          "The Upcoming recurring card on the Dashboard drops its “Coming up this month” line when nothing is due and says so in the empty message instead.",
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-09-15",
     title:
       "Plan your investing, import in the background, and a lighter Forecast",
