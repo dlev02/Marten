@@ -496,7 +496,12 @@ than documenting an unused icon export as already implemented.
   accessible descriptions. Hover is supplemental.
 - Link chart-shape and legend hover in both directions. Distinguish selection
   without hiding the rest of the financial context.
-- Keep the treemap fixed while its value list scrolls. Keep axes outside the
+- Keep the treemap and pie chart fixed while their value lists scroll; on a
+  phone the pie's list flows with the page below the ring.
+- A selected breakdown row (Cash Flow, Reports) opens its transactions in a
+  `Modal drawer` beside the chart; a transaction opens as a second drawer on
+  top and closing it returns to the list. Do not append drilldowns below the
+  fold. Keep axes outside the
   net-worth reveal clip, and leave space between the curve and right-axis labels.
 - Keep net worth based on balances, reports based on their complete selected
   data, and model assumptions visible. Separate actual history, scheduled

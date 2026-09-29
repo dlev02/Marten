@@ -20,7 +20,6 @@ import {
   Save,
   Trash2,
   TrendingUp,
-  X,
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { api } from "../../convex/_generated/api";
@@ -621,6 +620,8 @@ function drilldownEntries(
   rowId: string,
   categoryId?: string,
 ): DrillEntry[] {
+  const categories = new Map(data.categories.map((c) => [c._id, c])),
+    groups = new Map(data.groups.map((g) => [g._id, g]));
   const result: DrillEntry[] = [];
   for (const tx of transactions) {
     if (tx.removedFromBank) continue;
@@ -628,8 +629,8 @@ function drilldownEntries(
       matched = false;
     for (const entry of entries(tx)) {
       if (categoryId && entry.categoryId !== categoryId) continue;
-      const category = data.categories.find((c) => c._id === entry.categoryId),
-        categoryGroup = data.groups.find((g) => g._id === category?.groupId);
+      const category = categories.get(entry.categoryId),
+        categoryGroup = category && groups.get(category.groupId);
       if (!categoryGroup || categoryGroup.kind === "transfer") continue;
       const id =
         groupBy === "merchant"
@@ -648,154 +649,176 @@ function drilldownEntries(
   }
   return result;
 }
+function sortDrill(list: DrillEntry[], sort: DrillSort) {
+  return [...list].sort((a, b) =>
+    sort === "date-desc"
+      ? b.tx.date.localeCompare(a.tx.date) ||
+        b.tx._creationTime - a.tx._creationTime
+      : sort === "date-asc"
+        ? a.tx.date.localeCompare(b.tx.date) ||
+          a.tx._creationTime - b.tx._creationTime
+        : sort === "amount-desc"
+          ? b.amountCents - a.amountCents
+          : a.amountCents - b.amountCents,
+  );
+}
+/**
+ * The selected row's transactions open in a drawer beside the chart, so the
+ * answer to "what's in this?" appears where you clicked instead of below the
+ * fold. A transaction opens in its own drawer on top; closing it returns here.
+ */
 function Drilldown({
   row,
-  entries: list,
+  entries: sorted,
+  sort,
+  onSortChange,
   from,
   to,
-  onClear,
+  onClose,
   onOpen,
 }: {
-  row: BreakdownRow;
+  row: BreakdownRow | null;
   entries: DrillEntry[];
+  sort: DrillSort;
+  onSortChange: (sort: DrillSort) => void;
   from: string;
   to: string;
-  onClear: () => void;
+  onClose: () => void;
   onOpen: (id: Id<"transactions">) => void;
 }) {
   useAmountsHidden();
   const data = useData();
-  const [sort, setSort] = useState<DrillSort>("date-desc");
-  const income = row.id.startsWith("income:");
-  const sorted = useMemo(() => {
-    const copy = [...list];
-    copy.sort((a, b) =>
-      sort === "date-desc"
-        ? b.tx.date.localeCompare(a.tx.date) ||
-          b.tx._creationTime - a.tx._creationTime
-        : sort === "date-asc"
-          ? a.tx.date.localeCompare(b.tx.date) ||
-            a.tx._creationTime - b.tx._creationTime
-          : sort === "amount-desc"
-            ? b.amountCents - a.amountCents
-            : a.amountCents - b.amountCents,
+  const merchants = useMemo(
+      () => new Map(data.merchants.map((m) => [m._id, m])),
+      [data.merchants],
+    ),
+    accounts = useMemo(
+      () => new Map(data.accounts.map((a) => [a._id, a])),
+      [data.accounts],
     );
-    return copy;
-  }, [list, sort]);
-  const total = list.reduce((sum, entry) => sum + entry.amountCents, 0);
-  const largest = list.reduce(
+  // Keep the last row while the drawer animates closed.
+  const shown = useRef(row);
+  if (row) shown.current = row;
+  const current = row ?? shown.current;
+  const income = current?.id.startsWith("income:") ?? false;
+  const total = sorted.reduce((sum, entry) => sum + entry.amountCents, 0);
+  const largest = sorted.reduce(
     (max, entry) => Math.max(max, entry.amountCents),
     0,
   );
-  const dates = list.map((entry) => entry.tx.date).sort();
   const stats = [
-    { name: "Total", value: money(total) },
-    { name: "Transactions", value: list.length.toLocaleString() },
-    { name: "Average", value: list.length ? money(total / list.length) : "—" },
-    { name: "Largest", value: list.length ? money(largest) : "—" },
-    { name: "First", value: dates.length ? dateLabel(dates[0]) : "—" },
+    { name: "Transactions", value: sorted.length.toLocaleString() },
     {
-      name: "Last",
-      value: dates.length ? dateLabel(dates[dates.length - 1]) : "—",
+      name: "Average",
+      value: sorted.length ? money(total / sorted.length) : "—",
     },
+    { name: "Largest", value: sorted.length ? money(largest) : "—" },
   ];
   return (
-    <Panel className="report-drilldown">
-      <div className="report-drilldown-header">
-        <div className="report-drilldown-title">
-          <span className="report-dot" style={{ background: row.color }} />
-          {row.emoji && (
-            <CategoryIcon
-              className="report-drilldown-emoji"
-              emoji={row.emoji}
+    <Modal
+      open={!!row}
+      onClose={onClose}
+      title={current?.name ?? "Transactions"}
+      drawer
+      className="report-drilldown"
+    >
+      {current && (
+        <>
+          <div className="report-drilldown-hero">
+            <div className="report-drilldown-title">
+              {current.emoji ? (
+                <CategoryIcon
+                  className="report-drilldown-emoji"
+                  emoji={current.emoji}
+                />
+              ) : (
+                <span
+                  className="report-dot"
+                  style={{ background: current.color }}
+                />
+              )}
+              <small>
+                {income ? "Income" : "Spending"} · {dateLabel(from)} –{" "}
+                {dateLabel(to)}
+              </small>
+            </div>
+            <strong
+              className={`report-drilldown-total ${income ? "positive" : ""}`}
+            >
+              {money(total)}
+            </strong>
+          </div>
+          <dl className="report-drilldown-stats">
+            {stats.map((stat) => (
+              <div key={stat.name}>
+                <dt>{stat.name}</dt>
+                <dd>{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="report-drilldown-tools">
+            <h3>Transactions</h3>
+            <Select
+              aria-label="Sort transactions"
+              value={sort}
+              onValueChange={(value) => onSortChange(value as DrillSort)}
+              options={drillSortOptions}
+            />
+          </div>
+          {sorted.length ? (
+            <div className="report-drilldown-list" role="list">
+              {sorted.map(({ tx, amountCents }) => {
+                const merchant = tx.merchantId
+                    ? merchants.get(tx.merchantId)
+                    : undefined,
+                  account = accounts.get(tx.accountId);
+                return (
+                  <button
+                    type="button"
+                    role="listitem"
+                    key={tx._id}
+                    className="report-drilldown-row"
+                    onClick={() => onOpen(tx._id)}
+                  >
+                    <Avatar
+                      name={merchant?.name ?? tx.originalName}
+                      logo={merchant?.resolvedLogoUrl}
+                      color={merchant?.color}
+                      size="small"
+                    />
+                    <span className="report-drilldown-merchant">
+                      <strong>{merchant?.name ?? tx.originalName}</strong>
+                      <small>
+                        {dateLabel(tx.date, { month: "short", day: "numeric" })}
+                        {" · "}
+                        {account?.name ?? "Account"}
+                      </small>
+                    </span>
+                    <span
+                      className={`report-drilldown-amount ${income ? "positive" : ""}`}
+                    >
+                      {income ? "+" : ""}
+                      {money(Math.abs(amountCents))}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <Empty
+              title="No transactions match"
+              description="This selection has no entries in the current period."
             />
           )}
-          <div>
-            <h3>{row.name}</h3>
-            <small>
-              {income ? "Income" : "Spending"} · {dateLabel(from)} –{" "}
-              {dateLabel(to)}
-            </small>
-          </div>
-        </div>
-        <Button icon={<X size={15} />} onClick={onClear}>
-          Clear
-        </Button>
-      </div>
-      <dl className="report-drilldown-stats">
-        {stats.map((stat) => (
-          <div key={stat.name}>
-            <dt>{stat.name}</dt>
-            <dd>{stat.value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="report-drilldown-tools">
-        <span className="muted">
-          {list.length === 1 ? "1 transaction" : `${list.length} transactions`}
-        </span>
-        <label className="report-select-label">
-          <span>Sort</span>
-          <Select
-            aria-label="Sort drilldown transactions"
-            value={sort}
-            onValueChange={(value) => setSort(value as DrillSort)}
-            options={drillSortOptions}
-          />
-        </label>
-      </div>
-      {sorted.length ? (
-        <div className="report-drilldown-list" role="list">
-          {sorted.map(({ tx, amountCents }) => {
-            const merchant = data.merchants.find(
-                (m) => m._id === tx.merchantId,
-              ),
-              account = data.accounts.find((a) => a._id === tx.accountId);
-            return (
-              <button
-                type="button"
-                role="listitem"
-                key={tx._id}
-                className="report-drilldown-row"
-                onClick={() => onOpen(tx._id)}
-              >
-                <span className="report-drilldown-date">
-                  {dateLabel(tx.date, { month: "short", day: "numeric" })}
-                </span>
-                <span className="report-drilldown-merchant">
-                  <Avatar
-                    name={merchant?.name ?? tx.originalName}
-                    logo={merchant?.resolvedLogoUrl}
-                    color={merchant?.color}
-                    size="small"
-                  />
-                  <strong>{merchant?.name ?? tx.originalName}</strong>
-                </span>
-                <span className="report-drilldown-account">
-                  {account?.name ?? "Account"}
-                </span>
-                <span
-                  className={`report-drilldown-amount ${income ? "positive" : ""}`}
-                >
-                  {income ? "+" : ""}
-                  {money(Math.abs(amountCents))}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <Empty
-          title="No transactions match"
-          description="This selection has no entries in the current period."
-        />
+        </>
       )}
-    </Panel>
+    </Modal>
   );
 }
 /**
- * Selection for the report drilldown: one breakdown row id, cleared by Escape,
- * by choosing the same row again, or whenever the report inputs change.
+ * Selection for the report drilldown: one breakdown row id, cleared by
+ * closing the drawer, by choosing the same row again, or whenever the report
+ * inputs change.
  */
 function useDrilldown(resetKey: string) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -804,18 +827,6 @@ function useDrilldown(resetKey: string) {
     setSelected(null);
     setOpenId(null);
   }, [resetKey]);
-  useEffect(() => {
-    if (!selected || openId) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      const target = event.target as Element | null;
-      if (target?.closest('[role="dialog"], [role="listbox"], [role="menu"]'))
-        return;
-      setSelected(null);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [selected, openId]);
   const toggle = useCallback(
     (id: string) => setSelected((current) => (current === id ? null : id)),
     [],
@@ -847,27 +858,31 @@ function DrilldownSection({
 }) {
   useAmountsHidden();
   const data = useData();
+  const [sort, setSort] = useState<DrillSort>("date-desc");
   const row = rows.find((item) => item.id === drill.selected) ?? null;
   const list = useMemo(
     () =>
       row
-        ? drilldownEntries(transactions, data, groupBy, row.id, categoryId)
+        ? sortDrill(
+            drilldownEntries(transactions, data, groupBy, row.id, categoryId),
+            sort,
+          )
         : [],
-    [row, transactions, data, groupBy, categoryId],
+    [row, transactions, data, groupBy, categoryId, sort],
   );
   const index = list.findIndex((entry) => entry.tx._id === drill.openId);
   return (
     <>
-      {row && (
-        <Drilldown
-          row={row}
-          entries={list}
-          from={from}
-          to={to}
-          onClear={drill.clear}
-          onOpen={drill.setOpenId}
-        />
-      )}
+      <Drilldown
+        row={row}
+        entries={list}
+        sort={sort}
+        onSortChange={setSort}
+        from={from}
+        to={to}
+        onClose={drill.clear}
+        onOpen={drill.setOpenId}
+      />
       <TransactionDrawer
         id={drill.openId}
         onClose={() => drill.setOpenId(null)}
