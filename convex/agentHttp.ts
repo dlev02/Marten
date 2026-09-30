@@ -5,19 +5,27 @@ import { internal } from "./_generated/api";
 import { agentConfiguration } from "./lib/agentConfig";
 import {
   agentInstructions,
+  agentToolAnnotations,
   agentTools,
   agentToolSchemas,
 } from "./lib/agentTools";
 import {
+  type AgentClient,
+  RegistrationError,
+  accessKeyPattern,
+  accessTokenPattern,
   authorizationRedirect,
   hashSecret,
   pkceChallenge,
   randomSecret,
   readBoundedBody,
   redirectAllowed,
+  registeredClientPattern,
   requestedScopes,
   resolveAgentClient,
+  supportedScopes,
   validVerifier,
+  validateRegistration,
 } from "./lib/agentAuth";
 import { agentErrorMessage, performAgentCall } from "./lib/agentCall";
 
@@ -80,8 +88,16 @@ function json(
     }),
   });
 }
+/**
+ * The initial challenge names every supported scope so spec-following
+ * clients ask for editing and refresh up front; the consent screen still
+ * starts at read-only and the person decides. A later 403 names what the
+ * call needs.
+ */
 function challenge(request: Request, insufficient = false) {
-  const scopes = insufficient ? "finance:read finance:write" : "finance:read";
+  const scopes = insufficient
+    ? "finance:read finance:write"
+    : supportedScopes.join(" ");
   const error = insufficient ? "insufficient_scope" : "invalid_token";
   return json(request, { error }, insufficient ? 403 : 401, {
     "WWW-Authenticate": `Bearer error="${error}", resource_metadata="${agentConfiguration().metadataUrl}", scope="${scopes}"`,
@@ -94,7 +110,7 @@ const metadata = httpAction(async (_ctx, request) => {
     return json(request, {
       resource: config.mcpUrl,
       authorization_servers: [config.issuer],
-      scopes_supported: ["finance:read", "finance:write"],
+      scopes_supported: [...supportedScopes],
       bearer_methods_supported: ["header"],
       resource_name: "Marten",
     });
@@ -103,12 +119,13 @@ const metadata = httpAction(async (_ctx, request) => {
     authorization_endpoint: `${config.base}/agent/oauth/authorize`,
     token_endpoint: `${config.base}/agent/oauth/token`,
     revocation_endpoint: `${config.base}/agent/oauth/revoke`,
+    registration_endpoint: `${config.base}/agent/oauth/register`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none"],
     revocation_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"],
-    scopes_supported: ["finance:read", "finance:write", "offline_access"],
+    scopes_supported: [...supportedScopes],
     client_id_metadata_document_supported: true,
     authorization_response_iss_parameter_supported: true,
   });
@@ -139,16 +156,19 @@ const authorize = httpAction(async (ctx, request) => {
     redirectUri.length > 2048
   )
     return json(request, { error: "invalid_request" }, 400);
-  let client;
+  let client: AgentClient | null;
   try {
-    client = await resolveAgentClient(clientId);
+    client = registeredClientPattern.test(clientId)
+      ? await ctx.runQuery(internal.agentClients.get, { clientId })
+      : await resolveAgentClient(clientId);
+    if (!client) throw new Error("invalid_client");
   } catch {
     return json(
       request,
       {
         error: "invalid_client",
         error_description:
-          "Choose a supported public OAuth client or an approved client metadata URL.",
+          "Use a supported public OAuth client ID, an approved client metadata URL, or a client registered at this server's registration endpoint.",
       },
       400,
     );
@@ -292,6 +312,81 @@ const token = httpAction(async (ctx, request) => {
   });
 });
 
+/** The caller's address, hashed, keys the registration rate limit. */
+function addressKey(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0];
+  const address =
+    forwarded?.trim() || request.headers.get("x-real-ip")?.trim() || "unknown";
+  return hashSecret(`register:${address.slice(0, 100)}`);
+}
+
+/**
+ * RFC 7591 dynamic client registration for public clients. The response has
+ * no client secret; the client authenticates each authorization with PKCE,
+ * and the person sees it as an unverified app with its callback host.
+ */
+const register = httpAction(async (ctx, request) => {
+  if (!allowedOrigin(request))
+    return json(request, { error: "invalid_origin" }, 403);
+  if (!request.headers.get("content-type")?.startsWith("application/json"))
+    return json(
+      request,
+      {
+        error: "invalid_client_metadata",
+        error_description: "Send client metadata as application/json.",
+      },
+      415,
+    );
+  let body: unknown;
+  try {
+    body = JSON.parse(await readBoundedBody(request.body, 8000));
+  } catch {
+    return json(request, { error: "invalid_client_metadata" }, 400);
+  }
+  let metadata: ReturnType<typeof validateRegistration>;
+  try {
+    metadata = validateRegistration(body);
+  } catch (error) {
+    return json(
+      request,
+      error instanceof RegistrationError
+        ? { error: error.code, error_description: error.description }
+        : { error: "invalid_client_metadata" },
+      400,
+    );
+  }
+  const clientId = randomSecret("marten_client");
+  const result = await ctx.runMutation(internal.agentClients.register, {
+    clientId,
+    clientName: metadata.clientName,
+    redirectUris: metadata.redirectUris,
+    addressKey: addressKey(request),
+  });
+  if ("error" in result)
+    return json(
+      request,
+      {
+        error: "temporarily_unavailable",
+        error_description: "Too many registrations. Try again later.",
+      },
+      429,
+      { "Retry-After": "3600" },
+    );
+  return json(
+    request,
+    {
+      client_id: clientId,
+      client_id_issued_at: Math.floor(result.createdAt / 1000),
+      client_name: metadata.clientName,
+      redirect_uris: metadata.redirectUris,
+      grant_types: metadata.grantTypes,
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    },
+    201,
+  );
+});
+
 const revoke = httpAction(async (ctx, request) => {
   if (!allowedOrigin(request))
     return json(request, { error: "invalid_origin" }, 403);
@@ -320,10 +415,13 @@ const mcp = httpAction(async (ctx, request) => {
   if (!allowedOrigin(request))
     return json(request, { error: "invalid_origin" }, 403);
   const authorization = request.headers.get("authorization") ?? "";
-  const match = /^Bearer (marten_access_[A-Za-z0-9_-]{43})$/i.exec(
-    authorization,
-  );
-  if (!match) return challenge(request);
+  // OAuth access tokens and personal access keys share the same checks.
+  const match = /^Bearer ([A-Za-z0-9_-]{1,80})$/i.exec(authorization);
+  if (
+    !match ||
+    !(accessTokenPattern.test(match[1]) || accessKeyPattern.test(match[1]))
+  )
+    return challenge(request);
   const tokenHash = hashSecret(match[1]);
   const grant = await ctx.runQuery(internal.agentAccess.authenticateMcp, {
     tokenHash,
@@ -365,18 +463,7 @@ const mcp = httpAction(async (ctx, request) => {
             title: tool.title,
             description: tool.description,
             inputSchema: agentToolSchemas[tool.name],
-            annotations: {
-              readOnlyHint: tool.readOnly,
-              destructiveHint: false,
-              idempotentHint: ![
-                "create_recurring",
-                "save_forecast",
-                "create_category",
-                "create_tag",
-                "save_rule",
-              ].includes(tool.name),
-              openWorldHint: false,
-            },
+            annotations: agentToolAnnotations(tool.name, tool.readOnly),
             _meta: {
               securitySchemes: [
                 {
@@ -477,7 +564,17 @@ export function addAgentRoutes(http: HttpRouter) {
   });
   http.route({ path: "/agent/oauth/token", method: "POST", handler: token });
   http.route({ path: "/agent/oauth/revoke", method: "POST", handler: revoke });
-  for (const path of ["/agent/oauth/token", "/agent/oauth/revoke", "/mcp"])
+  http.route({
+    path: "/agent/oauth/register",
+    method: "POST",
+    handler: register,
+  });
+  for (const path of [
+    "/agent/oauth/token",
+    "/agent/oauth/revoke",
+    "/agent/oauth/register",
+    "/mcp",
+  ])
     http.route({ path, method: "OPTIONS", handler: options });
   for (const method of ["POST", "GET", "DELETE"] as const)
     http.route({ path: "/mcp", method, handler: mcp });

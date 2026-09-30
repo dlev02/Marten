@@ -12,6 +12,13 @@ describe("search destinations", () => {
       ["excel notes", "import"],
       ["receipt", "receipts"],
       ["reconnect", "institutions"],
+      ["access key", "agent-access-keys"],
+      ["API key", "agent-access-keys"],
+      ["token", "agent-access-keys"],
+      ["Muse", "agent-access-keys"],
+      ["Grok", "agent-remote"],
+      ["MCP", "agent-remote"],
+      ["audit log", "agent-activity"],
     ]) {
       expect(
         searchMatches(searchDestinations, query).some((item) => item.id === id),

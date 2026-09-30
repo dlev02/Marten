@@ -27,4 +27,24 @@ crons.daily(
   internal.reminders.cleanup,
   {},
 );
+// AI connections: expired token rows, then app registrations nobody uses.
+crons.interval(
+  "Remove expired AI connection tokens",
+  { hours: 1 },
+  internal.agentAccess.sweepTokens,
+  {},
+);
+crons.cron(
+  "Remove unused AI app registrations",
+  "29 8 * * *",
+  internal.agentClients.sweep,
+  { cursor: null },
+);
+// AI connection activity (with its before/after values) is kept 90 days.
+crons.cron(
+  "Remove old AI connection activity",
+  "41 8 * * *",
+  internal.agentAccess.pruneActivity,
+  {},
+);
 export default crons;

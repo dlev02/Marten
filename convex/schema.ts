@@ -12,6 +12,7 @@ import {
   accountKind,
   recurringFields,
   statementReminderFields,
+  agentWriter,
   kind,
   ruleFields,
   transactionFields,
@@ -21,6 +22,12 @@ import {
 import { chartDefaults } from "./lib/chartDefaults";
 import { bankProvider } from "./lib/bankProviders";
 const owner = { userId: v.id("users") };
+const agentChange = v.object({
+  target: v.string(),
+  field: v.string(),
+  before: v.union(v.string(), v.null()),
+  after: v.union(v.string(), v.null()),
+});
 export default defineSchema({
   ...authTables,
   agentPreferences: defineTable({
@@ -57,22 +64,44 @@ export default defineSchema({
     resource: v.string(),
     issuer: v.string(),
     createdAt: v.number(),
+    // The current deadline. "idle" grants move it forward when used;
+    // "untilRevoked" stores AGENT_NEVER. Absent lifetime = legacy fixed grant.
     expiresAt: v.number(),
+    lifetime: v.optional(
+      v.union(v.literal("idle"), v.literal("fixed"), v.literal("untilRevoked")),
+    ),
+    // "key" grants are personal access keys created in Settings, not OAuth.
+    credential: v.optional(v.union(v.literal("oauth"), v.literal("key"))),
     revokedAt: v.optional(v.number()),
     lastUsedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
+    .index("by_clientId", ["clientId"])
     .index("by_expiresAt", ["expiresAt"]),
   agentTokens: defineTable({
     grantId: v.id("agentGrants"),
     tokenHash: v.string(),
-    kind: v.union(v.literal("access"), v.literal("refresh")),
+    kind: v.union(v.literal("access"), v.literal("refresh"), v.literal("key")),
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
+    // Access tokens narrowed by a refresh `scope`; the grant keeps its scopes.
+    scopes: v.optional(v.array(v.string())),
+    // Fresh pairs issued for this used refresh token inside its retry grace.
+    graceReuses: v.optional(v.number()),
   })
     .index("by_tokenHash", ["tokenHash"])
     .index("by_grantId", ["grantId"])
     .index("by_expiresAt", ["expiresAt"]),
+  // RFC 7591 dynamically registered public clients. Only what authorization
+  // needs is kept; unused registrations are removed by a daily sweep.
+  agentClients: defineTable({
+    clientId: v.string(),
+    clientName: v.string(),
+    redirectUris: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_clientId", ["clientId"])
+    .index("by_createdAt", ["createdAt"]),
   agentActivity: defineTable({
     ...owner,
     grantId: v.optional(v.id("agentGrants")),
@@ -81,12 +110,21 @@ export default defineSchema({
     readOnly: v.boolean(),
     success: v.boolean(),
     createdAt: v.number(),
+    // The connection's display name when the call ran, kept after revocation.
+    connection: v.optional(v.string()),
+    // What a write changed: one plain line, counts, and a bounded list of
+    // before/after values (text truncated; ids, names and amounts only).
+    summary: v.optional(v.string()),
+    counts: v.optional(v.record(v.string(), v.number())),
+    changes: v.optional(v.array(agentChange)),
+    changesTruncated: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"]),
   creditScores: defineTable({
     ...owner,
     ...creditScoreFields,
+    writtenBy: v.optional(agentWriter),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -243,9 +281,13 @@ export default defineSchema({
       v.object({
         ...statementReminderFields,
         updatedAt: v.number(),
+        writtenBy: v.optional(agentWriter),
       }),
     ),
     apy: v.optional(v.number()),
+    // Set when an AI connection last wrote this manual account's balance or
+    // statement; cleared when the owner edits those values.
+    writtenBy: v.optional(agentWriter),
   })
     .index("by_userId", ["userId"])
     .index("by_itemId", ["itemId"])
@@ -260,6 +302,7 @@ export default defineSchema({
     accountId: v.id("accounts"),
     date: v.string(),
     balanceCents: v.number(),
+    writtenBy: v.optional(agentWriter),
   })
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_accountId_and_date", ["accountId", "date"]),
@@ -291,6 +334,17 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_and_normalizedName", ["userId", "normalizedName"]),
+  // Statement names a merchant used to have. A rename or merge records the old
+  // normalized name here so the next bank sync or import that still sends it
+  // lands on the renamed merchant instead of recreating the old one. A real
+  // merchant with the same normalized name always wins over an alias.
+  merchantAliases: defineTable({
+    ...owner,
+    normalizedName: v.string(),
+    merchantId: v.id("merchants"),
+  })
+    .index("by_userId_and_normalizedName", ["userId", "normalizedName"])
+    .index("by_merchantId", ["merchantId"]),
   tags: defineTable({
     ...owner,
     name: v.string(),
@@ -390,6 +444,9 @@ export default defineSchema({
     ...owner,
     transactionId: v.id("transactions"),
     message: v.string(),
+    // The AI connection that made this change, e.g. "ChatGPT".
+    actor: v.optional(v.string()),
+    grantId: v.optional(v.id("agentGrants")),
   })
     .index("by_transactionId", ["transactionId"])
     .index("by_userId", ["userId"]),

@@ -680,3 +680,34 @@ Starting funds as a quiet button. A scenario with unsaved edits shows
   dialog is closed; toasts move up while the card is visible.
 - A category dialog offers **Merge into another category** as its secondary
   action (start of the action row); the merge dialog mirrors the account merge.
+
+### AI connection trust and keys, September 29, 2026
+
+- An OAuth client Marten cannot verify (any dynamically registered client, or
+  anything outside the ChatGPT/Claude allowlist) shows an **Unverified app**
+  pill (`.agent-trust-badge`, `ShieldAlert`, the warning amber used by
+  `.inline-notice.warning`). The consent page leads with that pill, quotes the
+  self-reported name, and shows the callback host in bold in the identity box.
+  Verified clients keep the plain "Connect ChatGPT?" presentation.
+- Consent offers **Keep access** as a shared `Select` inside a `Field`, with
+  the selected option's meaning as the field hint rather than a footnote.
+- Settings → AI connections lists each connection with access, last use and
+  expiry on separate muted lines. Access keys use the `KeyRound` icon, an
+  `Empty` state inside their `Panel`, an `InfoTip` in the panel title, a
+  create dialog (name, access, expiry), a one-time reveal dialog with Copy,
+  and a danger-tone Revoke that confirms first.
+
+### Assistant provenance and activity, September 29, 2026
+
+- A value an AI connection wrote says so in muted meta text where the value
+  appears, never with a new icon or badge color: the account row's secondary
+  line reads "Updated by ChatGPT · 2h ago" (`src/lib/provenance.ts`), the
+  account detail status line names the connection with an `InfoTip`
+  explaining it, statement cards on Recurring use the existing status chip
+  ("Added by ChatGPT"), and the credit-score Entry column reads "Added by
+  ChatGPT". An owner's edit removes the label.
+- Transaction activity appends " · by ChatGPT" to the change line.
+- Settings → AI connections → Recent agent activity leads each write with its
+  one-line summary ("Recategorized 12 transactions"); the muted second line is
+  the connection and the tool. Reads keep the tool name as the title. Long
+  summaries wrap inside the row instead of pushing the time off screen.

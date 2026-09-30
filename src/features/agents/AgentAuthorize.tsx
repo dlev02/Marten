@@ -2,7 +2,15 @@ import { useState } from "react";
 import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../../convex/_generated/api";
-import { Button, Loading, Toggle, useTask } from "../../components/folio/ui";
+import { ShieldAlert } from "lucide-react";
+import {
+  Button,
+  Field,
+  Loading,
+  Toggle,
+  useTask,
+} from "../../components/folio/ui";
+import { Select } from "../../components/folio/Select";
 import { Brand } from "../Auth";
 import "./agent-access.css";
 
@@ -35,11 +43,25 @@ export function AgentAuthorize() {
   );
 }
 
+type Lifetime = "idle" | "fixed" | "untilRevoked";
+const lifetimeOptions: { value: Lifetime; label: string }[] = [
+  { value: "idle", label: "While it’s in use" },
+  { value: "fixed", label: "For 30 days" },
+  { value: "untilRevoked", label: "Until I disconnect it" },
+];
+const lifetimeHints: Record<Lifetime, string> = {
+  idle: "Stays connected while your assistant keeps using it, including scheduled tasks. Ends after 90 days without use.",
+  fixed: "Ends 30 days from today, even if your assistant is still using it.",
+  untilRevoked:
+    "Stays connected until you disconnect it in Settings → AI connections.",
+};
+
 function ConsentRequest({ request }: { request: string }) {
   const details = useQuery(api.agentAccess.authorizationRequest, { request });
   const authorize = useAction(api.agentAccess.authorize);
   const deny = useMutation(api.agentAccess.denyAuthorization);
   const [allowEdits, setAllowEdits] = useState(false);
+  const [lifetime, setLifetime] = useState<Lifetime>("idle");
   const task = useTask();
   if (details === undefined) return <Loading />;
   if (!details || details.expiresAt <= Date.now())
@@ -52,23 +74,42 @@ function ConsentRequest({ request }: { request: string }) {
         </a>
       </>
     );
+  const callback = new URL(details.redirectUri);
+  const unverified = details.trust === "unverified";
   return (
     <>
-      <h1>Connect {details.clientName}?</h1>
+      <h1>
+        {unverified
+          ? "Connect an unverified app?"
+          : `Connect ${details.clientName}?`}
+      </h1>
+      {unverified && (
+        <div className="agent-unverified" role="note">
+          <span className="agent-trust-badge">
+            <ShieldAlert size={13} aria-hidden="true" />
+            Unverified app
+          </span>
+          <p>
+            This app calls itself “{details.clientName}”. Marten can’t confirm
+            who runs it. After you approve, access is sent to{" "}
+            <strong>{callback.host}</strong>. Continue only if you just started
+            this connection yourself in an app you trust.
+          </p>
+        </div>
+      )}
       <p>
-        This assistant will be able to read your Marten accounts, transactions,
-        categories, merchants, tags, rules, preferences, reports, recurring
-        schedules, investments, forecasts and credit-score history.
+        {unverified ? "It" : "This assistant"} will be able to read your Marten
+        accounts, transactions, categories, merchants, tags, rules, preferences,
+        reports, recurring schedules, investments, forecasts and credit-score
+        history.
       </p>
       <div className="agent-consent-identity">
-        <span>Client</span>
-        <code>{details.clientId}</code>
         <span>Returns to</span>
-        <code>{new URL(details.redirectUri).origin}</code>
+        <code className="agent-consent-host">{callback.host}</code>
+        <span>Client ID</span>
+        <code>{details.clientId}</code>
       </div>
-      {["localhost", "127.0.0.1", "[::1]"].includes(
-        new URL(details.redirectUri).hostname,
-      ) && (
+      {["localhost", "127.0.0.1", "[::1]"].includes(callback.hostname) && (
         <p className="agent-consent-note">
           Approve only if you started this connection in a local assistant on
           this device.
@@ -77,16 +118,27 @@ function ConsentRequest({ request }: { request: string }) {
       {details.requestedScopes.includes("finance:write") && (
         <Toggle
           label="Also allow edits"
-          description="Allow transaction annotations, bulk recategorizing, merchant names, categories, tags, rules, review and pending preferences, account display, recurring schedules and saved forecasts. Bank payments, trades, deleting data and bank connections are not available."
+          description="Allow transaction annotations, bulk recategorizing, merchant names and logos, categories, tags, rules, review and pending preferences, account display, manual account balances and statement dates, credit scores, recurring schedules and saved forecasts. Merging a duplicate merchant or category removes the duplicate. Bank payments, trades, deleting transactions or accounts, and bank connections are not available."
           checked={allowEdits}
           disabled={task.busy}
           onChange={setAllowEdits}
         />
       )}
+      <div className="agent-consent-lifetime">
+        <Field label="Keep access" hint={lifetimeHints[lifetime]}>
+          <Select
+            aria-label="Keep access"
+            value={lifetime}
+            onValueChange={(value) => setLifetime(value as Lifetime)}
+            options={lifetimeOptions}
+            disabled={task.busy}
+          />
+        </Field>
+      </div>
       <p className="agent-consent-note">
-        Access lasts up to 30 days. You can disconnect this assistant at any
-        time in Settings → AI connections. Information sent to the assistant is
-        subject to that service’s data settings.
+        You can disconnect {unverified ? "this app" : "this assistant"} at any
+        time in Settings → AI connections. Information sent to it is subject to
+        that service’s data settings.
       </p>
       <div className="modal-actions">
         <Button
@@ -105,7 +157,11 @@ function ConsentRequest({ request }: { request: string }) {
           disabled={task.busy}
           onClick={() =>
             void task.run(async () => {
-              const result = await authorize({ request, allowEdits });
+              const result = await authorize({
+                request,
+                allowEdits,
+                lifetime,
+              });
               window.location.assign(result.redirectUrl);
             })
           }

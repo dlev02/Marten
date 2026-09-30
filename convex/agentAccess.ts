@@ -16,14 +16,28 @@ import {
   agentId,
 } from "./lib/agentExecution";
 import {
+  ACCESS_KEY_CLIENT_ID,
+  ACCESS_KEY_PREFIX,
   AGENT_ACCESS_MS,
-  AGENT_GRANT_MS,
+  AGENT_GRANT_TOUCH_MS,
+  AGENT_IDLE_MS,
+  AGENT_NEVER,
+  AGENT_REFRESH_GRACE_MS,
+  AGENT_REFRESH_GRACE_REUSES,
   AGENT_REQUEST_MS,
+  AGENT_USED_REFRESH_RETAIN_MS,
+  accessKeyLifetimes,
   authorizationRedirect,
+  cleanClientName,
+  clientTrust,
+  grantDeadline,
   hashSecret,
   randomSecret,
+  timingSafeEqual,
 } from "./lib/agentAuth";
 import { agentConfiguration } from "./lib/agentConfig";
+import { BROWSER_ASSISTANT } from "./lib/agentActor";
+import { auditWrite } from "./lib/agentAudit";
 import { agentRateLimiter } from "./lib/agentLimits";
 import { performAgentCall } from "./lib/agentCall";
 import { readWorkspace } from "./workspace";
@@ -47,7 +61,15 @@ async function eligibleOwner(ctx: QueryCtx, userId: Id<"users">) {
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique(),
   ]);
-  return Boolean(user && !user.isAnonymous && profile && !profile.demo);
+  // An account with a pending deletion must not keep sharing data while the
+  // deletion sweep runs.
+  return Boolean(
+    user &&
+      !user.isAnonymous &&
+      profile &&
+      !profile.demo &&
+      profile.deletionRequestedAt === undefined,
+  );
 }
 async function requireRealOwner(ctx: QueryCtx, userId: Id<"users">) {
   if (!(await eligibleOwner(ctx, userId)))
@@ -63,7 +85,7 @@ async function tokenGrant(ctx: QueryCtx, tokenHash: string, now: number) {
     .unique();
   if (
     !token ||
-    token.kind !== "access" ||
+    (token.kind !== "access" && token.kind !== "key") ||
     token.expiresAt <= now ||
     token.usedAt !== undefined
   )
@@ -72,6 +94,8 @@ async function tokenGrant(ctx: QueryCtx, tokenHash: string, now: number) {
   const config = agentConfiguration();
   if (
     !grant ||
+    // An access key only authenticates its own key grant, and vice versa.
+    (token.kind === "key") !== (grant.credential === "key") ||
     grant.revokedAt !== undefined ||
     grant.expiresAt <= now ||
     grant.resource !== config.mcpUrl ||
@@ -80,7 +104,12 @@ async function tokenGrant(ctx: QueryCtx, tokenHash: string, now: number) {
     !(await eligibleOwner(ctx, grant.userId))
   )
     return null;
-  return grant;
+  // A refresh may narrow one access token; it never widens past the grant.
+  const scopes = (token.scopes ?? grant.scopes).filter((scope) =>
+    grant.scopes.includes(scope),
+  );
+  if (!scopes.includes("finance:read")) return null;
+  return { grant, scopes };
 }
 
 async function authorizeExecution(
@@ -108,18 +137,25 @@ async function authorizeExecution(
       userId: auth.userId,
       grantId: undefined,
       source: "browser" as const,
+      connection: BROWSER_ASSISTANT,
     };
   }
-  const grant = await tokenGrant(ctx, auth.tokenHash, now);
-  if (!grant)
+  const authenticated = await tokenGrant(ctx, auth.tokenHash, now);
+  if (!authenticated)
     throw new ConvexError(
       "Agent access expired or was revoked. Reconnect from your AI app.",
     );
-  if (!tool.readOnly && !grant.scopes.includes("finance:write"))
+  const { grant, scopes } = authenticated;
+  if (!tool.readOnly && !scopes.includes("finance:write"))
     throw new ConvexError(
       "This connection has read-only access. Reconnect and approve editing to make this change.",
     );
-  return { userId: grant.userId, grantId: grant._id, source: "mcp" as const };
+  return {
+    userId: grant.userId,
+    grantId: grant._id,
+    source: "mcp" as const,
+    connection: grant.clientName,
+  };
 }
 
 export const browserStatus = userQuery({
@@ -158,23 +194,39 @@ export const status = userQuery({
       .order("desc")
       .take(50);
     const { mcpUrl, appOrigin, remoteReady } = agentConfiguration();
+    const visible = rows
+      .slice(0, 100)
+      .map(
+        ({
+          userId: _owner,
+          resource: _resource,
+          issuer: _issuer,
+          ...grant
+        }) => ({
+          ...grant,
+          lifetime: grant.lifetime ?? ("fixed" as const),
+          trust: clientTrust(grant.clientId),
+        }),
+      );
+    const names = new Map(
+      visible.map((grant) => [grant._id, grant.clientName]),
+    );
     return {
       mcpUrl,
       appOrigin,
       remoteReady,
       canEnable: await eligibleOwner(ctx, ctx.userId),
-      grants: rows
-        .slice(0, 100)
-        .map(
-          ({
-            userId: _owner,
-            resource: _resource,
-            issuer: _issuer,
-            ...grant
-          }) => grant,
-        ),
+      grants: visible.filter((grant) => grant.credential !== "key"),
+      keys: visible.filter((grant) => grant.credential === "key"),
       grantsComplete: rows.length <= 100,
-      activity: events.map(({ userId: _owner, ...event }) => event),
+      activity: events.map(
+        ({ userId: _owner, changes: _changes, ...event }) => ({
+          ...event,
+          connection:
+            event.connection ??
+            (event.grantId ? names.get(event.grantId) : undefined),
+        }),
+      ),
     };
   },
 });
@@ -197,11 +249,24 @@ export const setBrowserAccess = userMutation({
     return null;
   },
 });
+/** Revocation also deletes the grant's tokens so nothing lingers until expiry. */
+async function revokeGrant(
+  ctx: MutationCtx,
+  grantId: Id<"agentGrants">,
+  now: number,
+) {
+  await ctx.db.patch(grantId, { revokedAt: now });
+  const tokens = await ctx.db
+    .query("agentTokens")
+    .withIndex("by_grantId", (q) => q.eq("grantId", grantId))
+    .take(200);
+  for (const token of tokens) await ctx.db.delete(token._id);
+}
 export const revoke = userMutation({
   args: { id: v.id("agentGrants") },
   handler: async (ctx, { id }) => {
     await owned(ctx, id);
-    await ctx.db.patch(id, { revokedAt: Date.now() });
+    await revokeGrant(ctx, id, Date.now());
     return null;
   },
 });
@@ -221,14 +286,24 @@ export const authorizationRequest = userQuery({
     return {
       clientId: row.clientId,
       clientName: row.clientName,
+      trust: clientTrust(row.clientId),
       redirectUri: row.redirectUri,
       requestedScopes: row.scopes,
       expiresAt: row.expiresAt,
     };
   },
 });
+const grantLifetime = v.union(
+  v.literal("idle"),
+  v.literal("fixed"),
+  v.literal("untilRevoked"),
+);
 export const authorize = userAction({
-  args: { request: v.string(), allowEdits: v.boolean() },
+  args: {
+    request: v.string(),
+    allowEdits: v.boolean(),
+    lifetime: v.optional(grantLifetime),
+  },
   handler: async (ctx, args): Promise<{ redirectUrl: string }> => {
     const code = randomSecret("code");
     const info = await ctx.runMutation(internal.agentAccess.approveRequest, {
@@ -236,6 +311,7 @@ export const authorize = userAction({
       requestHash: hashSecret(args.request),
       codeHash: hashSecret(code),
       allowEdits: args.allowEdits,
+      lifetime: args.lifetime ?? "idle",
     });
     return {
       redirectUrl: authorizationRedirect(
@@ -278,6 +354,7 @@ export const approveRequest = internalMutation({
     requestHash: v.string(),
     codeHash: v.string(),
     allowEdits: v.boolean(),
+    lifetime: grantLifetime,
   },
   handler: async (ctx, args) => {
     await requireRealOwner(ctx, args.userId);
@@ -295,18 +372,7 @@ export const approveRequest = internalMutation({
       throw new ConvexError(
         "The server configuration changed. Start again from your AI app.",
       );
-    const grants = await ctx.db
-      .query("agentGrants")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("revokedAt"), undefined),
-          q.gt(q.field("expiresAt"), now),
-        ),
-      )
-      .take(50);
-    if (grants.length >= 50)
-      throw new ConvexError("Revoke an old connection before adding another.");
+    await requireGrantCapacity(ctx, args.userId, now);
     const scopes = row.scopes.filter(
       (scope) => scope !== "finance:write" || args.allowEdits,
     );
@@ -318,7 +384,9 @@ export const approveRequest = internalMutation({
       resource: row.resource,
       issuer: row.issuer,
       createdAt: now,
-      expiresAt: now + AGENT_GRANT_MS,
+      expiresAt: grantDeadline(args.lifetime, now),
+      lifetime: args.lifetime,
+      credential: "oauth",
     });
     await ctx.db.patch(row._id, {
       codeHash: args.codeHash,
@@ -332,6 +400,26 @@ export const approveRequest = internalMutation({
     };
   },
 });
+async function requireGrantCapacity(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  now: number,
+) {
+  const grants = await ctx.db
+    .query("agentGrants")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .filter((q) =>
+      q.and(
+        q.eq(q.field("revokedAt"), undefined),
+        q.gt(q.field("expiresAt"), now),
+      ),
+    )
+    .take(50);
+  if (grants.length >= 50)
+    throw new ConvexError(
+      "Disconnect an old connection or access key before adding another.",
+    );
+}
 export const createRequest = internalMutation({
   args: {
     requestHash: v.string(),
@@ -379,22 +467,41 @@ export const expireToken = internalMutation({
 async function insertToken(
   ctx: MutationCtx,
   grantId: Id<"agentGrants">,
-  kind: "access" | "refresh",
+  kind: "access" | "refresh" | "key",
   tokenHash: string,
   expiresAt: number,
+  scopes?: string[],
 ) {
   const id = await ctx.db.insert("agentTokens", {
     grantId,
     kind,
     tokenHash,
     expiresAt,
+    ...(scopes ? { scopes } : {}),
   });
-  await ctx.scheduler.runAt(
-    expiresAt + 60_000,
-    internal.agentAccess.expireToken,
-    { id },
-  );
+  // Long-lived refresh tokens and keys are removed by the hourly sweep (or on
+  // revocation) rather than one scheduled job each.
+  if (kind === "access")
+    await ctx.scheduler.runAt(
+      expiresAt + 60_000,
+      internal.agentAccess.expireToken,
+      { id },
+    );
 }
+/** Hourly cron: deletes expired token rows in bounded batches. */
+export const sweepTokens = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const expired = await ctx.db
+      .query("agentTokens")
+      .withIndex("by_expiresAt", (q) => q.lte("expiresAt", Date.now()))
+      .take(200);
+    for (const token of expired) await ctx.db.delete(token._id);
+    if (expired.length === 200)
+      await ctx.scheduler.runAfter(0, internal.agentAccess.sweepTokens, {});
+    return null;
+  },
+});
 export const exchange = internalMutation({
   args: {
     grantType: v.union(
@@ -415,29 +522,30 @@ export const exchange = internalMutation({
     if (!limited.ok) return { error: "temporarily_unavailable" as const };
     const now = Date.now();
     let grant: Doc<"agentGrants"> | null = null;
-    let requestId: Id<"agentAuthorizationRequests"> | undefined;
-    let refreshId: Id<"agentTokens"> | undefined;
+    let request: Doc<"agentAuthorizationRequests"> | undefined;
+    let refresh: Doc<"agentTokens"> | undefined;
+    let retry = false;
     if (args.grantType === "authorization_code") {
-      const request = await ctx.db
+      const row = await ctx.db
         .query("agentAuthorizationRequests")
         .withIndex("by_codeHash", (q) => q.eq("codeHash", args.credentialHash))
         .unique();
       if (
-        !request ||
-        !request.grantId ||
-        request.expiresAt <= now ||
-        request.clientId !== args.clientId ||
-        request.resource !== args.resource ||
-        request.redirectUri !== args.redirectUri ||
-        request.challenge !== args.challenge
+        !row ||
+        !row.grantId ||
+        row.expiresAt <= now ||
+        row.clientId !== args.clientId ||
+        row.resource !== args.resource ||
+        row.redirectUri !== args.redirectUri ||
+        !timingSafeEqual(row.challenge, args.challenge ?? "")
       )
         return { error: "invalid_grant" as const };
-      grant = await ctx.db.get(request.grantId);
-      if (request.redeemedAt !== undefined) {
-        if (grant) await ctx.db.patch(grant._id, { revokedAt: now });
+      grant = await ctx.db.get(row.grantId);
+      if (row.redeemedAt !== undefined) {
+        if (grant) await revokeGrant(ctx, grant._id, now);
         return { error: "invalid_grant" as const };
       }
-      requestId = request._id;
+      request = row;
     } else {
       const token = await ctx.db
         .query("agentTokens")
@@ -450,15 +558,23 @@ export const exchange = internalMutation({
       grant = await ctx.db.get(token.grantId);
       if (
         !grant ||
+        grant.credential === "key" ||
         grant.clientId !== args.clientId ||
         grant.resource !== args.resource
       )
         return { error: "invalid_grant" as const };
       if (token.usedAt !== undefined) {
-        await ctx.db.patch(grant._id, { revokedAt: now });
-        return { error: "invalid_grant" as const };
+        // A hosted client that lost the response retries with the same token.
+        // Shortly after rotation that is a retry; later, it is replay.
+        if (now - token.usedAt > AGENT_REFRESH_GRACE_MS) {
+          await revokeGrant(ctx, grant._id, now);
+          return { error: "invalid_grant" as const };
+        }
+        if ((token.graceReuses ?? 0) >= AGENT_REFRESH_GRACE_REUSES)
+          return { error: "invalid_grant" as const };
+        retry = true;
       }
-      refreshId = token._id;
+      refresh = token;
     }
     const config = agentConfiguration();
     if (
@@ -470,24 +586,50 @@ export const exchange = internalMutation({
       !(await eligibleOwner(ctx, grant.userId))
     )
       return { error: "invalid_grant" as const };
-    if (args.scope && args.scope.some((scope) => !grant.scopes.includes(scope)))
+    const consented = grant.scopes;
+    // offline_access describes refresh-token delivery, not data access, and
+    // refresh tokens are always issued, so asking for it is never escalation.
+    const requested = args.scope?.filter(
+      (scope) => scope !== "offline_access" || consented.includes(scope),
+    );
+    if (requested && requested.some((scope) => !consented.includes(scope)))
       return { error: "invalid_scope" as const };
-    const scopes = args.scope ?? grant.scopes;
+    const scopes = requested ?? grant.scopes;
     if (!scopes.includes("finance:read"))
       return { error: "invalid_scope" as const };
     // Only consume an otherwise valid credential after every grant/scope check.
-    if (requestId) await ctx.db.patch(requestId, { redeemedAt: now });
-    if (refreshId) await ctx.db.patch(refreshId, { usedAt: now });
-    if (args.scope) await ctx.db.patch(grant._id, { scopes });
-    const accessExpires = Math.min(now + AGENT_ACCESS_MS, grant.expiresAt);
-    await insertToken(ctx, grant._id, "access", args.accessHash, accessExpires);
+    if (request) await ctx.db.patch(request._id, { redeemedAt: now });
+    if (refresh && retry)
+      await ctx.db.patch(refresh._id, {
+        graceReuses: (refresh.graceReuses ?? 0) + 1,
+      });
+    else if (refresh)
+      await ctx.db.patch(refresh._id, {
+        usedAt: now,
+        // Keep the used row only long enough to recognise replay.
+        expiresAt: Math.min(
+          refresh.expiresAt,
+          now + AGENT_USED_REFRESH_RETAIN_MS,
+        ),
+      });
+    // Per RFC 6749 §6 a narrower scope narrows this access token only; the
+    // grant, and the refresh token issued with it, keep the consented scopes.
+    // A "while in use" grant's deadline moves forward with each refresh.
+    const deadline =
+      grant.lifetime === "idle" ? now + AGENT_IDLE_MS : grant.expiresAt;
+    if (refresh && deadline !== grant.expiresAt)
+      await ctx.db.patch(grant._id, { expiresAt: deadline });
+    const narrowed = consented.some((scope) => !scopes.includes(scope));
+    const accessExpires = Math.min(now + AGENT_ACCESS_MS, deadline);
     await insertToken(
       ctx,
       grant._id,
-      "refresh",
-      args.refreshHash,
-      grant.expiresAt,
+      "access",
+      args.accessHash,
+      accessExpires,
+      narrowed ? scopes : undefined,
     );
+    await insertToken(ctx, grant._id, "refresh", args.refreshHash, deadline);
     return { scopes, expiresIn: Math.floor((accessExpires - now) / 1000) };
   },
 });
@@ -499,34 +641,130 @@ export const revokeToken = internalMutation({
       .withIndex("by_tokenHash", (q) => q.eq("tokenHash", args.tokenHash))
       .unique();
     const grant = token ? await ctx.db.get(token.grantId) : null;
-    if (grant && (!args.clientId || grant.clientId === args.clientId))
-      await ctx.db.patch(grant._id, { revokedAt: Date.now() });
+    // RFC 7009 revocation is for OAuth clients; access keys are revoked in Settings.
+    if (
+      grant &&
+      grant.credential !== "key" &&
+      (!args.clientId || grant.clientId === args.clientId)
+    )
+      await revokeGrant(ctx, grant._id, Date.now());
     return null;
   },
 });
 export const authenticateMcp = internalQuery({
   args: { tokenHash: v.string(), now: v.number() },
   handler: async (ctx, { tokenHash, now }) => {
-    const grant = await tokenGrant(ctx, tokenHash, now);
-    return grant
-      ? { clientId: grant.clientId, scopes: grant.scopes, grantId: grant._id }
+    const authenticated = await tokenGrant(ctx, tokenHash, now);
+    return authenticated
+      ? {
+          clientId: authenticated.grant.clientId,
+          scopes: authenticated.scopes,
+          grantId: authenticated.grant._id,
+        }
       : null;
   },
 });
 
 /**
- * Every call reads its grant, so rewriting lastUsedAt on every call made
- * parallel tool calls from one assistant conflict and occasionally fail.
- * Settings only shows the time coarsely; once a minute is enough.
+ * Every call reads its grant, so rewriting it on every call made parallel
+ * tool calls from one assistant conflict. Last use, and a "while in use"
+ * grant's deadline, move at most once an hour (and on each token refresh).
  */
-const GRANT_TOUCH_MS = 60_000;
 async function touchGrant(ctx: MutationCtx, grantId?: Id<"agentGrants">) {
   if (!grantId) return;
   const grant = await ctx.db.get(grantId);
   const now = Date.now();
-  if (grant && now - (grant.lastUsedAt ?? 0) >= GRANT_TOUCH_MS)
-    await ctx.db.patch(grantId, { lastUsedAt: now });
+  if (!grant || now - (grant.lastUsedAt ?? 0) < AGENT_GRANT_TOUCH_MS) return;
+  await ctx.db.patch(grantId, {
+    lastUsedAt: now,
+    ...(grant.lifetime === "idle" ? { expiresAt: now + AGENT_IDLE_MS } : {}),
+  });
 }
+
+/**
+ * Personal access keys are for assistants that call Marten with a stored
+ * bearer key instead of OAuth (for example Meta Muse custom connectors). A key
+ * is a grant with its own credential type, so it shares the grant's scope
+ * checks, rate limit, activity log, revocation and account-deletion sweep.
+ * The key is returned once and only its hash is stored.
+ */
+export const createAccessKey = userAction({
+  args: {
+    name: v.string(),
+    allowEdits: v.boolean(),
+    lifetime: v.union(
+      v.literal("30d"),
+      v.literal("90d"),
+      v.literal("1y"),
+      v.literal("never"),
+    ),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ key: string; id: Id<"agentGrants"> }> => {
+    const name = cleanClientName(args.name);
+    if (!name || args.name.trim().length > 60)
+      throw new ConvexError("Name this key with up to 60 characters.");
+    const key = randomSecret(ACCESS_KEY_PREFIX);
+    const id: Id<"agentGrants"> = await ctx.runMutation(
+      internal.agentAccess.insertAccessKey,
+      {
+        userId: ctx.userId,
+        name,
+        allowEdits: args.allowEdits,
+        lifetime: args.lifetime,
+        tokenHash: hashSecret(key),
+      },
+    );
+    return { key, id };
+  },
+});
+export const insertAccessKey = internalMutation({
+  args: {
+    userId: v.id("users"),
+    name: v.string(),
+    allowEdits: v.boolean(),
+    lifetime: v.union(
+      v.literal("30d"),
+      v.literal("90d"),
+      v.literal("1y"),
+      v.literal("never"),
+    ),
+    tokenHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireRealOwner(ctx, args.userId);
+    const limited = await agentRateLimiter.limit(ctx, "agentKeyCreate", {
+      key: args.userId,
+    });
+    if (!limited.ok)
+      throw new ConvexError(
+        "Too many access keys were created recently. Try again later.",
+      );
+    const now = Date.now();
+    await requireGrantCapacity(ctx, args.userId, now);
+    const duration = accessKeyLifetimes[args.lifetime];
+    const expiresAt = duration === null ? AGENT_NEVER : now + duration;
+    const config = agentConfiguration();
+    const grantId = await ctx.db.insert("agentGrants", {
+      userId: args.userId,
+      clientId: ACCESS_KEY_CLIENT_ID,
+      clientName: args.name,
+      scopes: args.allowEdits
+        ? ["finance:read", "finance:write"]
+        : ["finance:read"],
+      resource: config.mcpUrl,
+      issuer: config.issuer,
+      createdAt: now,
+      expiresAt,
+      lifetime: duration === null ? "untilRevoked" : "fixed",
+      credential: "key",
+    });
+    await insertToken(ctx, grantId, "key", args.tokenHash, expiresAt);
+    return grantId;
+  },
+});
 
 export const execute = userAction({
   args: { name: v.string(), arguments: v.any() },
@@ -588,12 +826,17 @@ export const write = internalMutation({
     );
     const tool = getAgentTool(args.name);
     const result = await executeAgentWrite(
-      { ...ctx, userId: access.userId },
+      {
+        ...ctx,
+        userId: access.userId,
+        agent: { grantId: access.grantId, name: access.connection },
+      },
       tool.name,
       args.arguments,
     );
     await ctx.db.insert("agentActivity", {
       ...access,
+      ...auditWrite(tool.name, args.arguments, result),
       tool: args.name,
       readOnly: false,
       success: true,
@@ -604,7 +847,14 @@ export const write = internalMutation({
   },
 });
 export const logRead = internalMutation({
-  args: { auth: executionAuth, name: v.string(), success: v.boolean() },
+  args: {
+    auth: executionAuth,
+    name: v.string(),
+    success: v.boolean(),
+    // apply_rule's writes run in page mutations; its summary arrives here.
+    summary: v.optional(v.string()),
+    counts: v.optional(v.record(v.string(), v.number())),
+  },
   handler: async (ctx, args) => {
     const access = await authorizeExecution(
       ctx,
@@ -614,6 +864,8 @@ export const logRead = internalMutation({
     );
     await ctx.db.insert("agentActivity", {
       ...access,
+      ...(args.summary ? { summary: args.summary.slice(0, 200) } : {}),
+      ...(args.counts ? { counts: args.counts } : {}),
       tool: args.name,
       readOnly: getAgentTool(args.name).readOnly,
       success: args.success,
@@ -636,7 +888,11 @@ export const applyRulePage = internalMutation({
       "apply_rule",
       Date.now(),
     );
-    const owner = { ...ctx, userId: access.userId };
+    const owner = {
+      ...ctx,
+      userId: access.userId,
+      agent: { grantId: access.grantId, name: access.connection },
+    };
     return await applyRuleForUser(owner, {
       id: agentId(owner, "rules", args.id),
       paginationOpts: { cursor: args.cursor, numItems: 100 },
@@ -687,5 +943,25 @@ export const reportContext = internalQuery({
       await owned(owner, agentId(owner, "categories", input.categoryId));
     if (input.tagId) await owned(owner, agentId(owner, "tags", input.tagId));
     return await readWorkspace(owner);
+  },
+});
+
+/** Activity older than this is removed; Settings describes the window. */
+export const AGENT_ACTIVITY_RETENTION_MS = 90 * 24 * 60 * 60_000;
+const PRUNE_BATCH = 500;
+/** Daily retention sweep, oldest first in bounded batches. */
+export const pruneActivity = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const cutoff = Date.now() - AGENT_ACTIVITY_RETENTION_MS;
+    const rows = await ctx.db
+      .query("agentActivity")
+      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
+      .take(PRUNE_BATCH);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length === PRUNE_BATCH)
+      await ctx.scheduler.runAfter(0, internal.agentAccess.pruneActivity, {});
+    return null;
   },
 });

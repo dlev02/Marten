@@ -197,7 +197,8 @@ updating them to the domain you will actually use:
 - Pull updates from the original repository into your fork; Netlify rebuilds
   on push. Run `npx convex deploy` again whenever the `convex/` folder changes.
 - `npm test`, `npm run lint`, and `npm run build` before deploying changes.
-- The daily SimpleFIN catch-up and six-hour Plaid sweep run from
+- The daily SimpleFIN catch-up, six-hour Plaid sweep, hourly AI-connection
+  token cleanup and daily removal of unused AI app registrations run from
   `convex/crons.ts`; the Convex dashboard shows their logs.
 - Back up the Convex deployment from the dashboard before schema changes.
 

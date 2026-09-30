@@ -836,8 +836,102 @@ describe("remote OAuth and token lifecycle", () => {
     expect(renewed.status).toBe(200);
     const next = (await renewed.json()) as Tokens;
     expect(next.refresh_token).not.toBe(tokens.refresh_token);
+    // Replay after the retry grace revokes the whole grant.
+    now += 120_001;
     expect((await exchange(f, refresh)).status).toBe(400);
     expect((await rpc(f, next.access_token, "tools/list")).status).toBe(401);
+    expect(
+      (
+        await exchange(f, {
+          grant_type: "refresh_token",
+          refresh_token: next.refresh_token,
+        })
+      ).status,
+    ).toBe(400);
+  });
+  test("a retried refresh inside the grace window gets a fresh pair instead of revoking", async () => {
+    const f = await fixture();
+    const tokens = await connected(f);
+    const refresh = {
+      grant_type: "refresh_token",
+      refresh_token: tokens.refresh_token,
+    };
+    const first = (await (await exchange(f, refresh)).json()) as Tokens;
+    now += 30_000;
+    // The client lost the first response and retries with the same token.
+    const retried = await exchange(f, refresh);
+    expect(retried.status).toBe(200);
+    const second = (await retried.json()) as Tokens;
+    expect(second.refresh_token).not.toBe(first.refresh_token);
+    for (const token of [first.access_token, second.access_token])
+      expect((await rpc(f, token, "tools/list")).status).toBe(200);
+    // Retries are bounded even inside the window, without revoking.
+    for (let i = 0; i < 2; i++)
+      expect((await exchange(f, refresh)).status).toBe(200);
+    expect((await exchange(f, refresh)).status).toBe(400);
+    expect((await rpc(f, second.access_token, "tools/list")).status).toBe(200);
+    // Only hashes of the successors are stored.
+    const serialized = JSON.stringify(
+      await f.t.run((ctx) => ctx.db.query("agentTokens").collect()),
+    );
+    for (const secret of [first, second].flatMap((pair) => [
+      pair.access_token,
+      pair.refresh_token,
+    ]))
+      expect(serialized.includes(secret)).toBe(false);
+    // After the window the same token is replay and revokes the grant.
+    now += 120_000;
+    expect((await exchange(f, refresh)).status).toBe(400);
+    expect((await rpc(f, second.access_token, "tools/list")).status).toBe(401);
+  });
+  test("a narrower refresh scope narrows only that access token, never the grant", async () => {
+    const f = await fixture();
+    const tokens = await connected(f, true);
+    expect(tokens.scope).toBe("finance:read finance:write offline_access");
+    const narrowed = await exchange(f, {
+      grant_type: "refresh_token",
+      refresh_token: tokens.refresh_token,
+      scope: "finance:read",
+    });
+    expect(narrowed.status).toBe(200);
+    const readOnly = (await narrowed.json()) as Tokens;
+    expect(readOnly.scope).toBe("finance:read");
+    const write = {
+      name: "update_account",
+      arguments: { id: f.seed.alice.accountId, patch: { name: "Renamed" } },
+    };
+    expect((await rpc(f, readOnly.access_token, "tools/call", write)).status).toBe(
+      403,
+    );
+    const grant = await f.t.run((ctx) => ctx.db.query("agentGrants").first());
+    expect(grant?.scopes).toEqual([
+      "finance:read",
+      "finance:write",
+      "offline_access",
+    ]);
+    // The next refresh without a scope gets the full consented access back.
+    const full = (await (
+      await exchange(f, {
+        grant_type: "refresh_token",
+        refresh_token: readOnly.refresh_token,
+      })
+    ).json()) as Tokens;
+    expect(full.scope).toBe("finance:read finance:write offline_access");
+    const edited = await rpcBody(
+      await rpc(f, full.access_token, "tools/call", write),
+    );
+    expect(edited.result.isError).toBeFalsy();
+    // Asking for offline_access on refresh is never treated as escalation.
+    const readOnlyGrant = await connected(f);
+    expect(
+      (
+        await exchange(f, {
+          grant_type: "refresh_token",
+          refresh_token: readOnlyGrant.refresh_token,
+          scope: "finance:read offline_access",
+        })
+      ).status,
+    ).toBe(200);
   });
   test("revocation belongs to the owner and invalidates access and refresh tokens", async () => {
     const f = await fixture();
@@ -1460,7 +1554,8 @@ describe("expanded agent tool surface", () => {
       id: alice.transactionId,
     });
     expect(edited.activity[0]).toMatchObject({
-      message: "Updated reviewed",
+      message: "Changed review status",
+      actor: "Browser assistant",
       createdAtIso: expect.stringMatching(/^\d{4}-/),
     });
     const baseline = await f.call<Row>("get_forecast_baseline", {
@@ -1472,7 +1567,7 @@ describe("expanded agent tool surface", () => {
     );
     expect(baseline.exampleFields).not.toContain("cashCents");
   });
-  test("records grant use at most once a minute so parallel calls do not contend", async () => {
+  test("records grant use at most once an hour so parallel calls do not contend", async () => {
     const f = await fixture();
     const tokens = await connected(f);
     const lastUsed = async () =>
@@ -1494,12 +1589,19 @@ describe("expanded agent tool surface", () => {
       arguments: {},
     });
     expect(await lastUsed()).toBe(first);
-    now += 60_000;
-    await rpc(f, tokens.access_token, "tools/call", {
+    now += 3600_000;
+    // Access tokens last an hour, so this use needs a refresh first.
+    const renewed = (await (
+      await exchange(f, {
+        grant_type: "refresh_token",
+        refresh_token: tokens.refresh_token,
+      })
+    ).json()) as Tokens;
+    await rpc(f, renewed.access_token, "tools/call", {
       name: "get_accounts",
       arguments: {},
     });
-    expect(await lastUsed()).toBe(first! + 70_000);
+    expect(await lastUsed()).toBe(first! + 3610_000);
   });
   test("explains valid occurrence dates when a checkmark is off schedule", async () => {
     const f = await fixture();

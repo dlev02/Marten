@@ -10,6 +10,7 @@
 
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as agentAccess from "../agentAccess.js";
+import type * as agentClients from "../agentClients.js";
 import type * as agentHttp from "../agentHttp.js";
 import type * as auth from "../auth.js";
 import type * as authEmail from "../authEmail.js";
@@ -21,11 +22,14 @@ import type * as imports from "../imports.js";
 import type * as investmentInternal from "../investmentInternal.js";
 import type * as investments from "../investments.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_agentActor from "../lib/agentActor.js";
+import type * as lib_agentAudit from "../lib/agentAudit.js";
 import type * as lib_agentAuth from "../lib/agentAuth.js";
 import type * as lib_agentCall from "../lib/agentCall.js";
 import type * as lib_agentConfig from "../lib/agentConfig.js";
 import type * as lib_agentExecution from "../lib/agentExecution.js";
 import type * as lib_agentLimits from "../lib/agentLimits.js";
+import type * as lib_agentSnapshots from "../lib/agentSnapshots.js";
 import type * as lib_agentTools from "../lib/agentTools.js";
 import type * as lib_bankProviders from "../lib/bankProviders.js";
 import type * as lib_categoryDefaults from "../lib/categoryDefaults.js";
@@ -40,7 +44,9 @@ import type * as lib_importedAccounts from "../lib/importedAccounts.js";
 import type * as lib_investmentData from "../lib/investmentData.js";
 import type * as lib_investmentSample from "../lib/investmentSample.js";
 import type * as lib_investmentSync from "../lib/investmentSync.js";
+import type * as lib_limits from "../lib/limits.js";
 import type * as lib_lunchflowApi from "../lib/lunchflowApi.js";
+import type * as lib_merchantAliases from "../lib/merchantAliases.js";
 import type * as lib_merchantNames from "../lib/merchantNames.js";
 import type * as lib_passwordReset from "../lib/passwordReset.js";
 import type * as lib_plaidApi from "../lib/plaidApi.js";
@@ -78,6 +84,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
   agentAccess: typeof agentAccess;
+  agentClients: typeof agentClients;
   agentHttp: typeof agentHttp;
   auth: typeof auth;
   authEmail: typeof authEmail;
@@ -89,11 +96,14 @@ declare const fullApi: ApiFromModules<{
   investmentInternal: typeof investmentInternal;
   investments: typeof investments;
   "lib/access": typeof lib_access;
+  "lib/agentActor": typeof lib_agentActor;
+  "lib/agentAudit": typeof lib_agentAudit;
   "lib/agentAuth": typeof lib_agentAuth;
   "lib/agentCall": typeof lib_agentCall;
   "lib/agentConfig": typeof lib_agentConfig;
   "lib/agentExecution": typeof lib_agentExecution;
   "lib/agentLimits": typeof lib_agentLimits;
+  "lib/agentSnapshots": typeof lib_agentSnapshots;
   "lib/agentTools": typeof lib_agentTools;
   "lib/bankProviders": typeof lib_bankProviders;
   "lib/categoryDefaults": typeof lib_categoryDefaults;
@@ -108,7 +118,9 @@ declare const fullApi: ApiFromModules<{
   "lib/investmentData": typeof lib_investmentData;
   "lib/investmentSample": typeof lib_investmentSample;
   "lib/investmentSync": typeof lib_investmentSync;
+  "lib/limits": typeof lib_limits;
   "lib/lunchflowApi": typeof lib_lunchflowApi;
+  "lib/merchantAliases": typeof lib_merchantAliases;
   "lib/merchantNames": typeof lib_merchantNames;
   "lib/passwordReset": typeof lib_passwordReset;
   "lib/plaidApi": typeof lib_plaidApi;

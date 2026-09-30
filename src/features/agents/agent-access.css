@@ -30,6 +30,8 @@
   flex: 1;
   overflow-wrap: anywhere;
   font-size: 12px;
+  /* One click selects the whole address or key when copying is blocked. */
+  user-select: all;
 }
 .agent-setup-steps {
   list-style: decimal;
@@ -107,6 +109,11 @@
 }
 .agent-activity time {
   text-align: right;
+  flex-shrink: 0;
+}
+.agent-activity li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .agent-consent-page {
   min-height: 100vh;
@@ -149,6 +156,60 @@
 .agent-consent-identity code {
   overflow-wrap: anywhere;
 }
+.agent-consent-identity .agent-consent-host {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.agent-unverified {
+  border: 1px solid #d7b46566;
+  background: #e5ba5420;
+  border-radius: 8px;
+  padding: 14px;
+  margin: 0 0 18px;
+}
+.agent-unverified p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.agent-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d7b46599;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  white-space: nowrap;
+}
+/* Beside the name in a connection row (wrapping under it when narrow), not
+   one of the row's muted lines. */
+.agent-grants .agent-grant strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.agent-grant strong .agent-trust-badge {
+  display: inline-flex;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.agent-trust-badge.verified {
+  border-color: var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+.agent-consent-lifetime {
+  margin: 20px 0 0;
+}
 .agent-consent-card > .agent-consent-note {
   font-size: 12px;
   margin-top: 20px;
@@ -172,4 +233,39 @@
 }
 .inline-notice.agent-notice {
   margin: 0 0 20px;
+}
+.agent-grant span + span {
+  margin-top: 2px;
+}
+.agent-keys > .agent-grant:first-child {
+  padding-top: 0;
+}
+.agent-settings-panel .panel-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-modal-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.agent-revealed-key .agent-server-address code {
+  font-size: 13px;
+  user-select: all;
+}
+.agent-key-usage {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0 0 20px;
+  font-size: 12px;
+}
+.agent-key-usage dt {
+  color: var(--muted);
+}
+.agent-key-usage dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }

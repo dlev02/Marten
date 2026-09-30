@@ -211,6 +211,30 @@ export const searchDestinations: SearchDestination[] = [
       "assistant agent ai webmcp mcp chatgpt claude aside permissions read edit revoke connection subscription model",
   },
   {
+    id: "agent-remote",
+    title: "Connect ChatGPT, Claude or Grok · MCP",
+    section: "AI connections",
+    path: "/settings/agents#remote-mcp",
+    keywords:
+      "mcp server remote connector oauth chatgpt claude grok xai scheduled tasks automation cowork connected assistants disconnect last used expires unverified app",
+  },
+  {
+    id: "agent-access-keys",
+    title: "Access keys · API keys for assistants",
+    section: "AI connections",
+    path: "/settings/agents#access-keys",
+    keywords:
+      "access key api key token personal access token bearer mrtn meta muse custom connector mcp create revoke",
+  },
+  {
+    id: "agent-activity",
+    title: "AI connection activity · what assistants changed",
+    section: "AI connections",
+    path: "/settings/agents#agent-activity",
+    keywords:
+      "activity audit log history changes edits made by assistant chatgpt claude before after snapshot balances credit score",
+  },
+  {
     id: "preferences",
     title: "Preferences",
     section: "Settings",
