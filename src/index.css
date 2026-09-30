@@ -1284,6 +1284,12 @@ label select {
   z-index: 100;
   animation: fade-in 0.18s;
 }
+/* A dialog receives focus itself when it has no field to start in; that
+   programmatic landing is not an interactive control, so it draws no ring. */
+.modal:focus-visible,
+.drawer:focus-visible {
+  outline: none;
+}
 .modal {
   position: fixed;
   z-index: 101;

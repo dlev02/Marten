@@ -11,7 +11,7 @@ can connect to a remote MCP server. Connection details are in
 
 Every skill needs a connection with **Read and edit** access. Choose **While
 it's in use** under Keep access so a weekly task does not expire. Each change
-is listed under Settings → AI connections → Recent agent activity with the
+is listed under Settings → AI connections → Recent activity with the
 connection's name, and values an assistant saves say who saved them.
 
 ## Claude

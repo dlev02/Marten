@@ -36,7 +36,7 @@ export const changelog: ChangelogEntry[] = [
           "Assistants can rename and merge duplicate merchants, add a merchant’s logo from its own website, add or remove one tag without touching the others, and reorder your rules.",
           "Assistants can add a manual account and keep its balance, statement balance, due date and minimum payment up to date, and save a credit score, from numbers they can already see.",
           "Anything an assistant saves says so: “Updated by ChatGPT” on the account, “Added by ChatGPT” on statements and credit scores, and “· by ChatGPT” in a transaction’s activity. Editing the value yourself makes it yours again.",
-          "**Recent agent activity** in [Settings → AI connections](/settings/agents#agent-activity) sums up each change in one line, such as “Recategorized 12 transactions”, and is kept for 90 days.",
+          "**Recent activity** in [Settings → AI connections](/settings/agents#agent-activity) sums up each change in one line, such as “Recategorized 12 transactions”, and is kept for 90 days.",
           "A ready-made weekly clean-up routine for assistants, with setup steps for Claude, ChatGPT, Grok and Muse, is in Marten’s documentation.",
         ],
       },

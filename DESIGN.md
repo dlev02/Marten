@@ -681,21 +681,55 @@ Starting funds as a quiet button. A scenario with unsaved edits shows
 - A category dialog offers **Merge into another category** as its secondary
   action (start of the action row); the merge dialog mirrors the account merge.
 
-### AI connection trust and keys, September 29, 2026
+### Consent screens, September 29, 2026
 
-- An OAuth client Marten cannot verify (any dynamically registered client, or
-  anything outside the ChatGPT/Claude allowlist) shows an **Unverified app**
-  pill (`.agent-trust-badge`, `ShieldAlert`, the warning amber used by
-  `.inline-notice.warning`). The consent page leads with that pill, quotes the
-  self-reported name, and shows the callback host in bold in the identity box.
-  Verified clients keep the plain "Connect ChatGPT?" presentation.
-- Consent offers **Keep access** as a shared `Select` inside a `Field`, with
-  the selected option's meaning as the field hint rather than a footnote.
-- Settings → AI connections lists each connection with access, last use and
-  expiry on separate muted lines. Access keys use the `KeyRound` icon, an
-  `Empty` state inside their `Panel`, an `InfoTip` in the panel title, a
-  create dialog (name, access, expiry), a one-time reveal dialog with Copy,
-  and a danger-tone Revoke that confirms first.
+The OAuth consent page (`AgentAuthorize.tsx`) follows the shape of GitHub's
+and Linear's authorize screens, in Marten's calm voice:
+
+- One title and one line under it. A verified client reads "Connect
+  ChatGPT?" / "ChatGPT wants to use your Marten workspace." A client Marten
+  cannot verify (any dynamically registered client) is titled "Connect an
+  unverified app?" and never repeats its self-reported name as if vouched for;
+  the line under the title quotes that name beside a `ShieldAlert` in the
+  warning amber and says to continue only if you just started the connection.
+- One bordered list of what approving means, each row an outline icon, a
+  14px/500 label and a single muted line: the destination host (bold, first
+  row), read access, the **Also allow edits** switch (only when requested), and
+  **Keep access** with a shared `Select` whose meaning is the row's muted line.
+- Full detail is progressive: the list's last row is a "What it can access"
+  disclosure holding the complete read and edit lists, what is never allowed,
+  the data-settings note and the client ID. The wording lives once in
+  `src/features/agents/agentScopes.ts` and is shared with Settings.
+- The action row ends with the one primary button ("Allow read access" /
+  "Allow read and edit"); a single caption below says where to disconnect.
+- Phones: rows wrap, the lifetime select drops under its label, and the card
+  keeps 18px side padding.
+
+### Copying secrets and addresses
+
+- A value to copy sits in a read-only monospace field; the Copy action is a
+  button beside it (server address) or the dialog's primary action (a new
+  key), never inside the field. The button swaps to a check and "Copied" for
+  two seconds at a fixed width; a blocked clipboard explains how to copy by
+  hand, and one click selects the whole value.
+- The one-time key dialog is "Save your access key": one sentence, the key
+  (wrapping, selectable), the server and header it goes with, then Done and
+  **Copy key**.
+- A dialog that focuses itself because it has no field draws no focus ring;
+  its controls keep theirs.
+
+### AI connections settings
+
+- Panels: In your browser, In your AI app (setup), Connected assistants,
+  Access keys, Recent activity. Empty lists use `Empty` inside their panel,
+  compacted to the height of the rows they stand in for.
+- Connections and keys share one row: name (with a small **Unverified** pill
+  for unverified clients), then one muted line "Read and edit · Used within
+  the last hour · Expires Dec 28, 2026" with dates as "Mon D, YYYY".
+- Row actions are default-tone Disconnect / Revoke; the confirmation dialog
+  carries the danger button, matching bank disconnects in Institutions.
+- Panel explanations (keys, activity) live in the title's `InfoTip`; the
+  create-key dialog pairs Access and Expires on one row with one hint below.
 
 ### Assistant provenance and activity, September 29, 2026
 
@@ -703,11 +737,16 @@ Starting funds as a quiet button. A scenario with unsaved edits shows
   appears, never with a new icon or badge color: the account row's secondary
   line reads "Updated by ChatGPT · 2h ago" (`src/lib/provenance.ts`), the
   account detail status line names the connection with an `InfoTip`
-  explaining it, statement cards on Recurring use the existing status chip
-  ("Added by ChatGPT"), and the credit-score Entry column reads "Added by
-  ChatGPT". An owner's edit removes the label.
-- Transaction activity appends " · by ChatGPT" to the change line.
-- Settings → AI connections → Recent agent activity leads each write with its
+  explaining it, and statement cards on Recurring use the existing status chip
+  ("Added by ChatGPT"), centered beside the due date and truncated rather than
+  wrapped. An owner's edit removes the label.
+- The credit-score Entry column reads "Assistant" when the source already
+  names the connection, and "Added by ChatGPT" only when it does not. The
+  bureau and model appear once, in the history selector; the latest-score
+  card and History table do not repeat them.
+- Transaction activity keeps the change as the line ("Changed tags") and puts
+  who with when in the muted line ("ChatGPT · Sep 29, 2026, 3:21 PM").
+- Settings → AI connections → Recent activity leads each write with its
   one-line summary ("Recategorized 12 transactions"); the muted second line is
   the connection and the tool. Reads keep the tool name as the title. Long
   summaries wrap inside the row instead of pushing the time off screen.

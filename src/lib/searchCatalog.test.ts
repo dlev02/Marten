@@ -19,6 +19,7 @@ describe("search destinations", () => {
       ["Grok", "agent-remote"],
       ["MCP", "agent-remote"],
       ["audit log", "agent-activity"],
+      ["disconnect assistant", "agent-connected"],
     ]) {
       expect(
         searchMatches(searchDestinations, query).some((item) => item.id === id),

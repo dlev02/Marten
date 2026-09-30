@@ -216,7 +216,15 @@ export const searchDestinations: SearchDestination[] = [
     section: "AI connections",
     path: "/settings/agents#remote-mcp",
     keywords:
-      "mcp server remote connector oauth chatgpt claude grok xai scheduled tasks automation cowork connected assistants disconnect last used expires unverified app",
+      "mcp server remote connector oauth chatgpt claude grok xai scheduled tasks automation cowork server address client id",
+  },
+  {
+    id: "agent-connected",
+    title: "Connected assistants · disconnect",
+    section: "AI connections",
+    path: "/settings/agents#connected-assistants",
+    keywords:
+      "connected assistants apps disconnect revoke access last used expires unverified app grants",
   },
   {
     id: "agent-access-keys",
