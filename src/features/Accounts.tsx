@@ -557,7 +557,7 @@ function AccountDetail({
           {account.manual && account.writtenBy && (
             <InfoTip
               label="About assistant updates"
-              text="An AI connection you approved in Settings → AI connections recorded this balance from your own finance data. Editing the balance here makes it yours again."
+              text="Recorded by an AI connection you approved in Settings → AI connections. Edit the balance to make it yours again."
             />
           )}
           <span>

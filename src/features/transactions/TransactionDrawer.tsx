@@ -622,8 +622,9 @@ function TransactionFields({
                     <span />
                     <div>
                       {a.message}
-                      {a.actor && ` · by ${a.actor}`}
                       <small>
+                        {/* Who made a change sits with when, not in the sentence. */}
+                        {a.actor && `${a.actor} · `}
                         {new Date(a._creationTime).toLocaleString("en-US", {
                           month: "short",
                           day: "numeric",

@@ -83,6 +83,25 @@ const frequencies: { value: Fields["frequency"]; label: string }[] = [
 const frequencyName = (frequency: Fields["frequency"]) =>
   frequencies.find((f) => f.value === frequency)?.label ?? frequency;
 
+/** Where a card's statement date came from, shown beside the due date. */
+function statementSource(account: {
+  dueDate?: string;
+  statementPaidDate?: string;
+  statementReminder?: { writtenBy?: { name: string } } | null;
+  manual?: boolean;
+  writtenBy?: { name: string };
+}) {
+  if (account.statementPaidDate === account.dueDate) return "Marked paid";
+  if (account.statementReminder)
+    return account.statementReminder.writtenBy
+      ? `Added by ${account.statementReminder.writtenBy.name}`
+      : "Entered by you";
+  if (account.manual)
+    return account.writtenBy
+      ? `Added by ${account.writtenBy.name}`
+      : "Manual account";
+  return "Bank reported";
+}
 export function Recurring() {
   useAmountsHidden();
   const [params, setParams] = useSearchParams();
@@ -617,20 +636,12 @@ export function Recurring() {
                   <CreditCard size={18} className="muted" />
                 </div>
                 <div className="recurring-statement-due">
-                  Due{" "}
-                  {dateLabel(a.dueDate!, { month: "short", day: "numeric" })}
-                  <span className="status-chip">
-                    {a.statementPaidDate === a.dueDate
-                      ? "Marked paid"
-                      : a.statementReminder
-                        ? a.statementReminder.writtenBy
-                          ? `Added by ${a.statementReminder.writtenBy.name}`
-                          : "Entered by you"
-                        : a.manual
-                          ? a.writtenBy
-                            ? `Added by ${a.writtenBy.name}`
-                            : "Manual account"
-                          : "Bank reported"}
+                  <span>
+                    Due{" "}
+                    {dateLabel(a.dueDate!, { month: "short", day: "numeric" })}
+                  </span>
+                  <span className="status-chip" title={statementSource(a)}>
+                    {statementSource(a)}
                   </span>
                 </div>
                 <dl>

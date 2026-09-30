@@ -56,6 +56,13 @@ const fullDate = (date: string) =>
 const pdfHelp =
   "PDFs stay on this device. Review the details before saving. Files can be up to 10 MB and 20 pages.";
 
+/**
+ * An assistant's entry defaults its source to the connection's name, so the
+ * Entry column only names the connection when the source says something else.
+ */
+function agentEntryLabel(source: string, writer?: string) {
+  return !writer || writer === source ? "Assistant" : `Added by ${writer}`;
+}
 export function CreditScores() {
   const entries = useQuery(api.creditScores.list, {});
   const [selected, setSelected] = useState("");
@@ -281,7 +288,8 @@ export function CreditScores() {
               onValueChange={setSelected}
               options={groups.map((group) => ({
                 value: group.key,
-                label: group.key,
+                // The selector is the one place that names the bureau and model.
+                label: group.key.replace(" / ", " · "),
               }))}
             />
             <span>
@@ -292,9 +300,7 @@ export function CreditScores() {
           <Panel className="credit-history-panel">
             <div className="credit-history-heading">
               <div>
-                <p>
-                  {latest?.bureau} · {latest?.model}
-                </p>
+                <p>Latest score</p>
                 <div className="credit-current-score">{latest?.score}</div>
                 <p>
                   As of {latest ? fullDate(latest.date) : "—"} ·{" "}
@@ -375,10 +381,13 @@ export function CreditScores() {
           </Panel>
           <Panel className="credit-table-panel">
             <div className="credit-table-heading">
-              <h2>History</h2>
-              <span>
-                {latest?.bureau} · {latest?.model}
-              </span>
+              <h2>
+                History
+                <InfoTip
+                  label="About score history"
+                  text="These are saved observations, not a live credit feed. Scores from different bureaus or model versions are kept as separate histories."
+                />
+              </h2>
             </div>
             <div className="credit-table-scroll">
               <table className="credit-history-table">
@@ -403,7 +412,10 @@ export function CreditScores() {
                         {entry.entryMethod === "pdf"
                           ? "Reviewed PDF"
                           : entry.entryMethod === "agent"
-                            ? `Added by ${entry.writtenBy?.name ?? "an assistant"}`
+                            ? agentEntryLabel(
+                                entry.source,
+                                entry.writtenBy?.name,
+                              )
                             : "Manual"}
                       </td>
                       <td>
@@ -420,10 +432,6 @@ export function CreditScores() {
               </table>
             </div>
           </Panel>
-          <p className="credit-history-footnote">
-            These are saved observations, not a live credit feed. Scores from
-            different bureaus or model versions are shown separately.
-          </p>
         </>
       )}
       {draft && (
