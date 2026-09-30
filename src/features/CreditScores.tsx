@@ -19,6 +19,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { tick, valueAxisProps } from "../components/folio/chartAxisProps";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import {
@@ -328,7 +329,7 @@ export function CreditScores() {
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart
                     data={[...history].reverse()}
-                    margin={{ top: 15, right: 18, bottom: 4, left: -16 }}
+                    margin={{ top: 15, right: 18, bottom: 4, left: 0 }}
                   >
                     <CartesianGrid vertical={false} stroke="var(--border)" />
                     <XAxis
@@ -337,16 +338,12 @@ export function CreditScores() {
                         dateLabel(value, { month: "short", day: "numeric" })
                       }
                       minTickGap={45}
-                      tick={{ fontSize: 12, fill: "var(--muted)" }}
+                      tick={tick}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
-                      domain={[300, 850]}
-                      ticks={[300, 550, 850]}
-                      tick={{ fontSize: 12, fill: "var(--muted)" }}
-                      axisLine={false}
-                      tickLine={false}
+                      {...valueAxisProps([300, 550, 850], String, "left")}
                     />
                     <Tooltip
                       labelFormatter={(label) => fullDate(String(label))}

@@ -1,8 +1,8 @@
 import {
   useAmountsHidden,
-  displayCompactMoney as compactMoney,
   displayMoney as money,
 } from "../../lib/amountVisibility";
+import { moneyAxisProps } from "./chartAxisProps";
 import {
   Bar,
   Cell,
@@ -42,7 +42,7 @@ export function CashFlowTimeline({
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chart}
-            margin={{ top: 16, right: 22, bottom: 18, left: 4 }}
+            margin={{ top: 16, right: 0, bottom: 18, left: 0 }}
           >
             <CartesianGrid
               vertical={false}
@@ -98,11 +98,14 @@ export function CashFlowTimeline({
               }}
             />
             <YAxis
-              tickFormatter={(value: number) => compactMoney(value)}
-              tick={{ fontSize: 11, fill: "var(--muted)" }}
-              width={58}
-              axisLine={false}
-              tickLine={false}
+              {...moneyAxisProps(
+                chart.flatMap((period) => [
+                  period.income,
+                  period.outflow,
+                  period.savings,
+                ]),
+                { includeZero: true, orientation: "left" },
+              )}
             />
             <ReferenceLine y={0} stroke="var(--strong-border)" />
             <Tooltip

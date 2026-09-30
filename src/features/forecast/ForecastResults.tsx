@@ -1,6 +1,5 @@
 import {
   useAmountsHidden,
-  displayCompactMoney as compactMoney,
   displayMoney as money,
 } from "../../lib/amountVisibility";
 import { useId, useMemo, useState } from "react";
@@ -16,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { moneyAxisProps, tick } from "../../components/folio/chartAxisProps";
 import type {
   ForecastInputs,
   ForecastResult,
@@ -27,11 +27,6 @@ import { csv, dateLabel, download } from "../../lib/format";
 
 const ageLabel = (age: number) =>
   Number.isInteger(age) ? String(age) : age.toFixed(1);
-const tick = {
-  fontSize: 11,
-  fill: "var(--muted)",
-  fontFamily: "var(--font-app)",
-};
 
 export function ForecastResults({
   inputs,
@@ -209,13 +204,14 @@ export function ForecastResults({
                 interval="preserveStartEnd"
               />
               <YAxis
-                tickFormatter={(value: number) => compactMoney(value)}
-                orientation="right"
-                width={60}
-                tick={tick}
-                axisLine={false}
-                tickLine={false}
-                domain={[0, "auto"]}
+                {...moneyAxisProps(
+                  chartData.flatMap((point) =>
+                    point.comparison === undefined
+                      ? [point.value]
+                      : [point.value, point.comparison],
+                  ),
+                  { includeZero: true },
+                )}
               />
               <Tooltip
                 content={({ active, payload }) => {

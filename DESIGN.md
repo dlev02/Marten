@@ -496,6 +496,17 @@ than documenting an unused icon export as already implemented.
   accessible descriptions. Hover is supplemental.
 - Link chart-shape and legend hover in both directions. Distinguish selection
   without hiding the rest of the financial context.
+- Value axes come from `moneyAxisProps` / `valueAxisProps` in
+  [chartAxisProps.ts](src/components/folio/chartAxisProps.ts), never ad hoc
+  `YAxis` props. Ticks are round 1-2-2.5-5 steps (at most six) labeled
+  exactly with the fewest decimals, so "$2K $2K" cannot happen. Labels are
+  pinned to the chart's outer edge: right-aligned on a right axis,
+  left-aligned on a left axis.
+- A chart's box shares its panel's text inset (20px; 16px at 1240px and
+  below, matching the panel header), so axis numbers line up with the
+  heading, range control and figures around them. Panels that pad their own
+  body (Accounts net worth, account details) set the chart's inline padding
+  to 0.
 - Keep the treemap and pie chart fixed while their value lists scroll; on a
   phone the pie's list flows with the page below the ring.
 - A selected breakdown row (Cash Flow, Reports) opens its transactions in a

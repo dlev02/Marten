@@ -923,9 +923,13 @@ label select {
   padding: 4px 7px;
   font-size: 11px;
 }
+/* A chart's box matches its panel's text inset, and the value-axis labels
+   are pinned to the box's outer edge, so axis numbers line up with the
+   headings and figures around them. Panels that pad their own body set the
+   inline padding to 0. */
 .networth-chart {
   height: 180px;
-  padding: 0 14px 9px 18px;
+  padding: 0 20px 9px;
   margin-top: 12px;
 }
 .sparkline {
@@ -1218,7 +1222,7 @@ label select {
 .flow-chart {
   width: 100%;
   height: 270px;
-  padding: 5px 17px 19px;
+  padding: 5px 20px 19px;
 }
 .dashboard-cashflow .flow-chart {
   height: 255px;
@@ -3090,6 +3094,14 @@ label select {
   .networth-top {
     padding: 0 16px;
   }
+  .networth-chart,
+  .flow-chart {
+    padding-inline: 16px;
+  }
+  /* Keep the summary on the same 16px edge as the panel header. */
+  .cashflow-summary {
+    padding-inline: 16px;
+  }
   .hero-value {
     font-size: 30px;
   }
@@ -3265,7 +3277,6 @@ label select {
   }
   .networth-chart {
     height: 170px;
-    padding-right: 8px;
   }
   .hero-value {
     font-size: 30px;
@@ -3308,7 +3319,7 @@ label select {
   }
   .flow-chart {
     height: 220px;
-    padding: 0 4px 14px;
+    padding: 0 16px 14px;
   }
   .dashboard-cashflow .flow-chart {
     height: 235px;

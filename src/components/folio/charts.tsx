@@ -1,8 +1,8 @@
 import {
   useAmountsHidden,
-  displayCompactMoney as compactMoney,
   displayMoney as money,
 } from "../../lib/amountVisibility";
+import { moneyAxisProps, tick } from "./chartAxisProps";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Area,
@@ -25,11 +25,6 @@ import {
 import { chartColors } from "../../lib/constants";
 import { useReducedMotion } from "../../lib/useReducedMotion";
 import "./charts.css";
-const tick = {
-  fontSize: 11,
-  fill: "var(--muted)",
-  fontFamily: "var(--font-app)",
-};
 function ChartTooltip({
   active,
   payload,
@@ -116,7 +111,7 @@ export function NetWorthChart({
           margin={
             compact
               ? { top: 4, right: 0, bottom: 4, left: 0 }
-              : { top: 15, right: 8, bottom: 0, left: 0 }
+              : { top: 15, right: 0, bottom: 0, left: 0 }
           }
         >
           <defs>
@@ -151,15 +146,7 @@ export function NetWorthChart({
                 minTickGap={36}
                 dy={7}
               />
-              <YAxis
-                orientation="right"
-                tickFormatter={(value: number) => compactMoney(value)}
-                axisLine={false}
-                tickLine={false}
-                tick={tick}
-                width={58}
-                domain={["auto", "auto"]}
-              />
+              <YAxis {...moneyAxisProps(data.map((point) => point.value))} />
               <Tooltip content={<ChartTooltip />} />
             </>
           )}
@@ -179,6 +166,18 @@ export function NetWorthChart({
       </ResponsiveContainer>
     </div>
   );
+}
+/** The bar heights FlowChart draws, so its axis covers exactly those. */
+function flowValues(
+  data: { income: number; expense: number }[],
+  report: string,
+  stacked: boolean,
+) {
+  return data.flatMap((period) => {
+    const income = report !== "spending" ? period.income : 0;
+    const expense = report !== "income" ? period.expense : 0;
+    return stacked ? [income + expense] : [income, expense];
+  });
 }
 export function FlowChart({
   data,
@@ -219,11 +218,10 @@ export function FlowChart({
             dy={5}
           />
           <YAxis
-            tickFormatter={(value: number) => compactMoney(value)}
-            tick={tick}
-            axisLine={false}
-            tickLine={false}
-            width={60}
+            {...moneyAxisProps(flowValues(data, report, stacked), {
+              includeZero: true,
+              orientation: "left",
+            })}
           />
           <Tooltip
             content={<ChartTooltip />}

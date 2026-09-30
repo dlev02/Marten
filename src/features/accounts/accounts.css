@@ -58,6 +58,7 @@
 .accounts-networth .networth-chart {
   height: 235px;
   margin-top: 12px;
+  padding-inline: 0;
 }
 .accounts-chart-footer {
   display: flex;
@@ -638,6 +639,7 @@
 }
 .account-detail-chart .networth-chart {
   height: 180px;
+  padding-inline: 0;
 }
 .account-facts {
   margin: 20px 0;

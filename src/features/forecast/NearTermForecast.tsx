@@ -1,7 +1,6 @@
 import { AmountInput } from "../../components/folio/AmountInput";
 import {
   useAmountsHidden,
-  displayCompactMoney as compactMoney,
   displayMoney as money,
 } from "../../lib/amountVisibility";
 import { mergePaymentStatus } from "../../../convex/lib/recurringPayments";
@@ -19,6 +18,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { moneyAxisProps, tick } from "../../components/folio/chartAxisProps";
 import { api } from "../../../convex/_generated/api";
 import { Button, Empty, Loading } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
@@ -28,11 +28,6 @@ import { cashRunway, runwayDate, type RunwayHorizon } from "./cashRunway";
 import { ForecastPreview } from "./ForecastPreview";
 import "./nearTerm.css";
 
-const tick = {
-  fontSize: 11,
-  fill: "var(--muted)",
-  fontFamily: "var(--font-app)",
-};
 const shortDate = (date: string) =>
   dateLabel(date, { month: "short", day: "numeric" });
 
@@ -279,7 +274,7 @@ export function NearTermForecast({
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={result.points}
-                    margin={{ top: 15, right: 4, bottom: 8, left: 0 }}
+                    margin={{ top: 15, right: 0, bottom: 8, left: 0 }}
                   >
                     <CartesianGrid
                       vertical={false}
@@ -295,13 +290,9 @@ export function NearTermForecast({
                       minTickGap={45}
                     />
                     <YAxis
-                      tickFormatter={(value: number) => compactMoney(value)}
-                      orientation="right"
-                      width={63}
-                      tick={tick}
-                      axisLine={false}
-                      tickLine={false}
-                      domain={["auto", "auto"]}
+                      {...moneyAxisProps(
+                        result.points.map((point) => point.balanceCents),
+                      )}
                     />
                     <Tooltip
                       content={({ active, payload }) => {
