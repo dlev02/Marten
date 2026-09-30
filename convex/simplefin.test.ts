@@ -465,6 +465,15 @@ describe("SimpleFIN connections", () => {
     });
     remote.accounts[0].transactions[0].amount = "-15.00";
     remote.accounts[0].balance = "1200.00";
+    // A repeat sync re-reads only a few days before the last import. Date the
+    // last import just after the fixture rows so the retry covers them on any
+    // wall-clock day.
+    await t.run(async (ctx) => {
+      for (const connection of await ctx.db
+        .query("simplefinConnections")
+        .collect())
+        await ctx.db.patch(connection._id, { toDate: "2026-09-11" });
+    });
     const second = await asUser.action(api.simplefin.sync, {});
     expect(second).toMatchObject({ imported: 0, updated: 2 });
     const updated = (await t.run((ctx) => ctx.db.get(row._id)))!;
