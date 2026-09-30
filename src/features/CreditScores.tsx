@@ -405,7 +405,9 @@ export function CreditScores() {
                       <td>
                         {entry.entryMethod === "pdf"
                           ? "Reviewed PDF"
-                          : "Manual"}
+                          : entry.entryMethod === "agent"
+                            ? `Added by ${entry.writtenBy?.name ?? "an assistant"}`
+                            : "Manual"}
                       </td>
                       <td>
                         <Button
@@ -504,8 +506,12 @@ function ScoreEditor({
               bureau,
               model,
               source,
+              // Saving an assistant's entry from this form makes it yours.
               entryMethod:
-                draft.entry?.entryMethod ?? (suggested ? "pdf" : "manual"),
+                draft.entry?.entryMethod === "agent"
+                  ? "manual"
+                  : (draft.entry?.entryMethod ??
+                    (suggested ? "pdf" : "manual")),
             });
             onSaved(`${bureau} / ${model}`);
             onClose();

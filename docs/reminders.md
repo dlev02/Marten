@@ -42,7 +42,10 @@ Paid schedule occurrences are excluded. Statement cards now have a separate
 **Mark paid / Mark unpaid** control. Its checkmark belongs to that statement's
 due date, does not change balances or transactions, and stops reminders for
 that statement. A new due date is a new statement. Clearing a manual reminder
-reveals any bank-provided statement details as before.
+reveals any bank-provided statement details as before. An AI connection can
+add a reminder for a bank-connected card or loan whose feed supplies no
+statement, and can update a manual account's statement fields; the card then
+reads "Added by ChatGPT" (see [AI connections](agent-access.md#snapshots-from-an-assistants-own-finance-data)).
 
 The delivery job recomputes current schedules, accounts, and paid records when
 it claims work. Editing a due date, pausing/deleting a schedule, closing an

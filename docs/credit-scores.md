@@ -84,3 +84,7 @@ Issuer names never fill missing PDF score metadata. The import remains conservat
 ## Demo observations
 
 New fictional workspaces include six monthly TransUnion / VantageScore 3.0 observations, labeled Fictional demo observation. They are seeded only with sample data, never into a personal workspace, and are visible in Credit scores and the demo dashboard widget. These are illustrative values, not a live credit feed.
+
+## Scores relayed by an assistant — September 29, 2026
+
+An AI connection with edit access can save an observation with `save_credit_score` (for example the monthly Experian VantageScore 3.0 some assistants show). It upserts on bureau, model and date, stores entry method `agent` and the connection's name, and appears in the history's Entry column as "Added by ChatGPT". It never replaces a different score the owner entered or reviewed from a PDF. Editing the observation in the form makes it a manual entry. See [AI connections](agent-access.md#snapshots-from-an-assistants-own-finance-data).

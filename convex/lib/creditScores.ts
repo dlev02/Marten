@@ -19,7 +19,12 @@ export const creditScoreFields = {
   ),
   model: v.union(...creditModels.map((model) => v.literal(model))),
   source: v.string(),
-  entryMethod: v.union(v.literal("manual"), v.literal("pdf")),
+  // "agent" rows were relayed by an AI connection; see the row's writtenBy.
+  entryMethod: v.union(
+    v.literal("manual"),
+    v.literal("pdf"),
+    v.literal("agent"),
+  ),
 };
 export type CreditBureau = (typeof creditBureaus)[number];
 export type CreditModel = (typeof creditModels)[number];

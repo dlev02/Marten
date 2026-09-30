@@ -623,9 +623,13 @@ export function Recurring() {
                     {a.statementPaidDate === a.dueDate
                       ? "Marked paid"
                       : a.statementReminder
-                        ? "Entered by you"
+                        ? a.statementReminder.writtenBy
+                          ? `Added by ${a.statementReminder.writtenBy.name}`
+                          : "Entered by you"
                         : a.manual
-                          ? "Manual account"
+                          ? a.writtenBy
+                            ? `Added by ${a.writtenBy.name}`
+                            : "Manual account"
                           : "Bank reported"}
                   </span>
                 </div>

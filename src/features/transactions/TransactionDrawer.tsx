@@ -622,6 +622,7 @@ function TransactionFields({
                     <span />
                     <div>
                       {a.message}
+                      {a.actor && ` · by ${a.actor}`}
                       <small>
                         {new Date(a._creationTime).toLocaleString("en-US", {
                           month: "short",

@@ -43,7 +43,7 @@ export const privacyPolicy: SiteDocument = {
             "**Spreadsheet imports.** Rows from an Excel or CSV file you choose, including a Monarch Money export, become transactions or balance history in your workspace. The original file is read in your browser; only the reviewed rows are saved.",
             "**Preferences.** Settings such as whether new transactions need review, whether pending transactions are shown, which dashboard widgets and default report charts you use, and reminder timing.",
             "**Reminder consent.** If you enable email reminders, Marten stores a hash of the verification code you enter, your chosen timing and time zone, and a record of each reminder it attempted to deliver. Delivery records do not contain message contents.",
-            "**AI-connection records.** If you enable an assistant connection, Marten stores your consent choices, hashed OAuth grant secrets, and an activity log with the tool name, source, time, and whether the call succeeded. The log never stores amounts, arguments, or conversation text.",
+            "**AI-connection records.** If you enable an assistant connection, Marten stores your consent choices, hashed OAuth grant secrets and access keys, the name and callback addresses of apps that register themselves, and an activity log with the tool name, the connection's name, time, whether the call succeeded, and for edits a one-line summary with the changed values before and after (for example a category, a balance, or a credit score, with long text shortened). The log never stores conversation text or credentials, and entries are deleted after 90 days. Balances, statements and scores an assistant saves are labeled with the connection that saved them.",
           ],
         },
         {
@@ -239,7 +239,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "A few housekeeping records expire on their own: password-reset and reminder verification codes after 15 minutes, expired AI OAuth requests and tokens shortly after they lapse, and reminder delivery records 32 days after their due date.",
+          text: "A few housekeeping records expire on their own: password-reset and reminder verification codes after 15 minutes, expired AI OAuth requests and tokens shortly after they lapse, app registrations with no active connection after a day, and reminder delivery records 32 days after their due date.",
         },
         {
           type: "p",

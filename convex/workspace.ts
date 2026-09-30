@@ -14,6 +14,7 @@ import {
   cents,
 } from "./lib/access";
 import { accountKind, avatarPreset } from "./validators";
+import type { AgentActor } from "./lib/agentActor";
 import { dashboardWidgetIds } from "./lib/dashboardWidgets";
 import { api, internal } from "./_generated/api";
 import { internalAction, internalMutation } from "./_generated/server";
@@ -96,7 +97,7 @@ async function readInstitutions(ctx: UserRead) {
     }) => safe,
   );
 }
-async function readTaxonomy(ctx: UserRead) {
+export async function readTaxonomy(ctx: UserRead) {
   const [groups, categories, tags] = await Promise.all([
     ctx.db
       .query("groups")
@@ -484,9 +485,11 @@ const accountFields = {
 };
 const accountInput = v.object(accountFields);
 export async function saveAccountForUser(
-  ctx: UserMutationCtx,
+  ctx: UserMutationCtx & { agent?: AgentActor },
   { id, ...fields }: { id?: Id<"accounts"> } & Infer<typeof accountInput>,
 ) {
+  // An owner's edit to a value an assistant relayed makes it the owner's value.
+  let ownerEditedValues = false;
   fields.name = text(fields.name);
   fields.institution = text(fields.institution);
   cents(fields.balanceCents);
@@ -578,9 +581,23 @@ export async function saveAccountForUser(
       await ctx.db.patch(id, fields);
       return id;
     }
+    ownerEditedValues =
+      !ctx.agent &&
+      (
+        [
+          "balanceCents",
+          "availableCents",
+          "limitCents",
+          "statementCents",
+          "minimumCents",
+          "dueDate",
+          "statementDate",
+        ] as const
+      ).some((key) => fields[key] !== current[key]);
     await ctx.db.patch(id, {
       ...fields,
       apy: fields.apy,
+      ...(ownerEditedValues ? { writtenBy: undefined } : {}),
       updatedAt: Date.now(),
     });
   } else
@@ -603,7 +620,12 @@ export async function saveAccountForUser(
     )
     .unique();
   if (balance)
-    await ctx.db.patch(balance._id, { balanceCents: fields.balanceCents });
+    await ctx.db.patch(balance._id, {
+      balanceCents: fields.balanceCents,
+      ...(ownerEditedValues && balance.balanceCents !== fields.balanceCents
+        ? { writtenBy: undefined }
+        : {}),
+    });
   else
     await ctx.db.insert("balances", {
       userId: ctx.userId,
@@ -832,8 +854,13 @@ export async function importBalancesForUser(
           q.eq("accountId", accountId).eq("date", row.date),
         )
         .unique();
+      // An imported row replaces an assistant's value for that day; the
+      // agent tool stamps its own rows again after this runs.
       if (existing)
-        await ctx.db.patch(existing._id, { balanceCents: row.balanceCents });
+        await ctx.db.patch(existing._id, {
+          balanceCents: row.balanceCents,
+          writtenBy: undefined,
+        });
       else
         await ctx.db.insert("balances", {
           userId: ctx.userId,
@@ -854,6 +881,7 @@ export async function importBalancesForUser(
       if (latest && latest.date === newest.date)
         await ctx.db.patch(accountId, {
           balanceCents: newest.balanceCents,
+          writtenBy: undefined,
           updatedAt: Date.now(),
         });
     }

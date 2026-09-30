@@ -40,6 +40,7 @@ import {
   Button,
   Empty,
   Field,
+  InfoTip,
   Loading,
   Modal,
   Panel,
@@ -51,6 +52,7 @@ import {
 import { NetWorthChart } from "../components/folio/charts";
 import { AccountForm } from "./accounts/AddAccount";
 import { PageHeader } from "../components/folio/PageHeader";
+import { elapsedLabel, writtenByLabel } from "../lib/provenance";
 import "./accounts/accounts.css";
 
 const groups = [
@@ -112,7 +114,8 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
     [params, setParams] = useSearchParams(),
     [period, setPeriod] = useState("6M"),
     [showHidden, setShowHidden] = useState(false),
-    [collapsed, setCollapsed] = useState<string[]>([]);
+    [collapsed, setCollapsed] = useState<string[]>([]),
+    [now] = useState(Date.now);
   const today = data.profile?.demo ? "2026-09-10" : localDate(),
     from = rangeStart(period, today),
     history = useQuery(api.workspace.netWorthHistory, { from, to: today }),
@@ -386,12 +389,12 @@ export function Accounts({ onAddAccount }: { onAddAccount: () => void }) {
                               <span className="account-row-value">
                                 <strong>{money(account.balanceCents)}</strong>
                                 <small>
-                                  {
-                                    accountConnection(
-                                      account,
-                                      data.institutions,
-                                    ).label
-                                  }
+                                  {account.manual && account.writtenBy
+                                    ? writtenByLabel(account.writtenBy, now)
+                                    : accountConnection(
+                                        account,
+                                        data.institutions,
+                                      ).label}
                                 </small>
                               </span>
                               <ChevronRight size={16} />
@@ -497,7 +500,8 @@ function AccountDetail({
     [tab, setTab] = useState("overview"),
     [editing, setEditing] = useState(false),
     [importing, setImporting] = useState(false),
-    [merging, setMerging] = useState(false);
+    [merging, setMerging] = useState(false),
+    [now] = useState(Date.now);
   const history = useQuery(api.workspace.balanceHistory, {
     accountId: account._id,
     from: rangeStart("1Y", today),
@@ -546,14 +550,25 @@ function AccountDetail({
           {account.closed
             ? "Closed account"
             : account.manual
-              ? "Manually updated"
+              ? account.writtenBy
+                ? `Updated by ${account.writtenBy.name}`
+                : "Manually updated"
               : connection.label}
+          {account.manual && account.writtenBy && (
+            <InfoTip
+              label="About assistant updates"
+              text="An AI connection you approved in Settings → AI connections recorded this balance from your own finance data. Editing the balance here makes it yours again."
+            />
+          )}
           <span>
-            {account.simplefinConnectionId ? "Imported" : "Updated"}{" "}
-            {new Date(account.updatedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
+            {account.manual && account.writtenBy
+              ? elapsedLabel(account.writtenBy.at, now)
+              : `${account.simplefinConnectionId ? "Imported" : "Updated"} ${new Date(
+                  account.updatedAt,
+                ).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}`}
           </span>
         </div>
         {account.simplefinConnectionId && (

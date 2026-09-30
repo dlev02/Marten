@@ -40,6 +40,15 @@ export const recurringFields = {
   source: v.union(v.literal("manual"), v.literal("detected")),
   note: v.string(),
 };
+/**
+ * Which AI connection last wrote a value (its display name at the time), so
+ * the interface can say "Updated by ChatGPT". A person's own edit clears it.
+ */
+export const agentWriter = v.object({
+  grantId: v.optional(v.id("agentGrants")),
+  name: v.string(),
+  at: v.number(),
+});
 export const statementReminderFields = {
   dueDate: v.string(),
   statementCents: v.optional(v.number()),
