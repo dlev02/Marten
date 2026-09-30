@@ -15,24 +15,6 @@
   color: var(--muted);
   line-height: 1.6;
 }
-.agent-server-address {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 16px;
-}
-.agent-server-address code {
-  min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  /* One click selects the whole address or key when copying is blocked. */
-  user-select: all;
-}
 .agent-setup-steps {
   list-style: decimal;
   padding-left: 20px;
@@ -48,6 +30,7 @@
   font-size: 12px;
 }
 .agent-client-note {
+  margin: 14px 0 0;
   font-size: 12px;
   color: var(--muted);
   line-height: 1.7;
@@ -59,21 +42,13 @@
   color: var(--accent);
   margin-left: 6px;
 }
-.agent-grants {
-  margin-top: 23px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
-}
-.agent-grants h3 {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 12px;
-}
-.agent-grants > p,
-.agent-activity-empty {
+.agent-list-empty {
   font-size: 13px;
   color: var(--muted);
   margin: 0;
+}
+.agent-list + .agent-list-empty {
+  margin-top: 12px;
 }
 .agent-grant,
 .agent-activity li {
@@ -122,7 +97,7 @@
   padding: 30px 20px;
 }
 .agent-consent-card {
-  width: min(100%, 500px);
+  width: min(100%, 480px);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 30px;
@@ -132,47 +107,12 @@
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.5px;
-  margin: 30px 0 12px;
+  margin: 28px 0 8px;
 }
 .agent-consent-card > p {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
-}
-.agent-consent-identity {
-  display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
-  gap: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
-  margin: 22px 0;
-  font-size: 12px;
-}
-.agent-consent-identity span {
-  color: var(--muted);
-}
-.agent-consent-identity code {
-  overflow-wrap: anywhere;
-}
-.agent-consent-identity .agent-consent-host {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-.agent-unverified {
-  border: 1px solid #d7b46566;
-  background: #e5ba5420;
-  border-radius: 8px;
-  padding: 14px;
-  margin: 0 0 18px;
-}
-.agent-unverified p {
-  margin: 10px 0 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text);
 }
 .agent-trust-badge {
   display: inline-flex;
@@ -189,7 +129,7 @@
 }
 /* Beside the name in a connection row (wrapping under it when narrow), not
    one of the row's muted lines. */
-.agent-grants .agent-grant strong {
+.agent-grant strong {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -207,24 +147,16 @@
   color: var(--muted);
   font-weight: 500;
 }
-.agent-consent-lifetime {
-  margin: 20px 0 0;
-}
-.agent-consent-card > .agent-consent-note {
-  font-size: 12px;
-  margin-top: 20px;
-}
 .agent-back-link {
   color: var(--accent);
   font-size: 13px;
 }
 @media (max-width: 460px) {
-  .agent-server-address {
-    align-items: flex-start;
-    flex-direction: column;
+  .agent-consent-page {
+    padding: 16px 12px;
   }
   .agent-consent-card {
-    padding: 23px;
+    padding: 22px 18px;
   }
   .agent-grant,
   .agent-activity li {
@@ -233,12 +165,6 @@
 }
 .inline-notice.agent-notice {
   margin: 0 0 20px;
-}
-.agent-grant span + span {
-  margin-top: 2px;
-}
-.agent-keys > .agent-grant:first-child {
-  padding-top: 0;
 }
 .agent-settings-panel .panel-header h2 {
   display: inline-flex;
@@ -250,10 +176,6 @@
   line-height: 1.6;
   color: var(--muted);
   margin: 0 0 16px;
-}
-.agent-revealed-key .agent-server-address code {
-  font-size: 13px;
-  user-select: all;
 }
 .agent-key-usage {
   display: grid;
@@ -268,4 +190,220 @@
 .agent-key-usage dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Consent: title, one trust line, then a single list of what approving
+   means (destination, reading, editing, lifetime) with the full scope lists
+   and client ID folded into the last row. */
+.agent-consent-card > .agent-consent-lede {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.agent-consent-card > .agent-consent-lede.unverified {
+  color: var(--text);
+}
+/* The unverified amber from .inline-notice.warning, deep enough for text. */
+.agent-consent-lede svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: #a67a1f;
+}
+.dark .agent-consent-lede svg {
+  color: #d7b465;
+}
+.agent-consent-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.agent-consent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  min-height: 60px;
+}
+.agent-consent-row + .agent-consent-row,
+.agent-consent-list > .agent-consent-details {
+  border-top: 1px solid var(--border);
+}
+.agent-consent-row > svg {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.agent-consent-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.agent-consent-row strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.agent-consent-row span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.agent-consent-row .agent-consent-host {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+/* The shared switch row sits inside a consent row; the row owns spacing. */
+.agent-consent-row .toggle-row {
+  flex: 1;
+  padding: 0;
+  border-bottom: 0;
+}
+.agent-consent-row .toggle-row p {
+  margin-top: 2px;
+}
+.agent-consent-row > .folio-select {
+  flex-shrink: 0;
+  width: auto;
+}
+.agent-consent-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  border-radius: 0 0 9px 9px;
+}
+.agent-consent-details > summary::-webkit-details-marker {
+  display: none;
+}
+.agent-consent-details > summary:hover {
+  color: var(--text);
+}
+.agent-consent-details > summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.agent-consent-details > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 5px 2px 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms;
+}
+.agent-consent-details[open] > summary::before {
+  transform: rotate(45deg);
+  margin-bottom: 4px;
+}
+.agent-consent-details dl {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px 12px;
+  margin: 0;
+  padding: 2px 16px 16px 44px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.agent-consent-details dt {
+  color: var(--muted);
+}
+.agent-consent-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.agent-consent-actions {
+  margin-top: 22px;
+}
+.agent-consent-card > .agent-consent-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media (max-width: 460px) {
+  .agent-consent-row {
+    flex-wrap: wrap;
+  }
+  /* Text keeps a readable width; the lifetime select drops below it. */
+  .agent-consent-row > div {
+    min-width: 170px;
+  }
+  .agent-consent-row > .folio-select {
+    margin-left: 28px;
+  }
+  .agent-consent-details dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    padding-left: 16px;
+  }
+  .agent-consent-details dd + dt {
+    margin-top: 8px;
+  }
+}
+
+/* Shared copy pattern: the value sits in a read-only monospace field and the
+   Copy action stands beside it (or is the dialog's primary action), turning
+   into "Copied" with a check for two seconds. */
+.agent-copy-field {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.agent-copy-field input,
+.agent-secret {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+.agent-secret {
+  display: block;
+  border: 1px solid var(--strong-border);
+  border-radius: 6px;
+  padding: 11px 12px;
+  line-height: 1.6;
+  word-break: break-all;
+  user-select: all;
+  margin: 0 0 16px;
+}
+.agent-secret:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+/* Holds its width while the label swaps between Copy and Copied. */
+.agent-copy-action {
+  min-width: 96px;
+  flex-shrink: 0;
+}
+.agent-list > .agent-grant:first-child {
+  padding-top: 0;
+}
+.agent-list > .agent-grant:last-child {
+  padding-bottom: 0;
+}
+.agent-key-options > .field {
+  margin-bottom: 0;
+}
+/* Reads as the Access field's hint; the grid keeps both selects on one row. */
+.agent-key-access-hint {
+  margin: -11px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+/* Empty lists stay inside their panel, sized to the rows they stand in for. */
+.agent-settings-panel .empty {
+  min-height: 0;
+  padding: 10px 24px 6px;
 }

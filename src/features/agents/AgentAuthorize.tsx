@@ -2,16 +2,11 @@ import { useState } from "react";
 import { useAction, useMutation, useQuery } from "../../lib/convex";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../../convex/_generated/api";
-import { ShieldAlert } from "lucide-react";
-import {
-  Button,
-  Field,
-  Loading,
-  Toggle,
-  useTask,
-} from "../../components/folio/ui";
+import { Clock3, Eye, Globe, PencilLine, ShieldAlert } from "lucide-react";
+import { Button, Loading, Toggle, useTask } from "../../components/folio/ui";
 import { Select } from "../../components/folio/Select";
 import { Brand } from "../Auth";
+import { agentScopeCopy } from "./agentScopes";
 import "./agent-access.css";
 
 export function AgentAuthorize() {
@@ -50,11 +45,11 @@ const lifetimeOptions: { value: Lifetime; label: string }[] = [
   { value: "untilRevoked", label: "Until I disconnect it" },
 ];
 const lifetimeHints: Record<Lifetime, string> = {
-  idle: "Stays connected while your assistant keeps using it, including scheduled tasks. Ends after 90 days without use.",
-  fixed: "Ends 30 days from today, even if your assistant is still using it.",
-  untilRevoked:
-    "Stays connected until you disconnect it in Settings → AI connections.",
+  idle: "Ends after 90 days without use",
+  fixed: "Ends 30 days from today",
+  untilRevoked: "Ends only when you disconnect it",
 };
+const loopbackHosts = ["localhost", "127.0.0.1", "[::1]"];
 
 function ConsentRequest({ request }: { request: string }) {
   const details = useQuery(api.agentAccess.authorizationRequest, { request });
@@ -76,71 +71,100 @@ function ConsentRequest({ request }: { request: string }) {
     );
   const callback = new URL(details.redirectUri);
   const unverified = details.trust === "unverified";
+  const loopback = loopbackHosts.includes(callback.hostname);
+  const canEdit = details.requestedScopes.includes("finance:write");
   return (
     <>
+      {/* A registered app names itself, so an unverified title never repeats
+          that name as if Marten vouched for it. */}
       <h1>
         {unverified
           ? "Connect an unverified app?"
           : `Connect ${details.clientName}?`}
       </h1>
-      {unverified && (
-        <div className="agent-unverified" role="note">
-          <span className="agent-trust-badge">
-            <ShieldAlert size={13} aria-hidden="true" />
-            Unverified app
-          </span>
-          <p>
-            This app calls itself “{details.clientName}”. Marten can’t confirm
-            who runs it. After you approve, access is sent to{" "}
-            <strong>{callback.host}</strong>. Continue only if you just started
-            this connection yourself in an app you trust.
-          </p>
-        </div>
-      )}
-      <p>
-        {unverified ? "It" : "This assistant"} will be able to read your Marten
-        accounts, transactions, categories, merchants, tags, rules, preferences,
-        reports, recurring schedules, investments, forecasts and credit-score
-        history.
+      <p className={`agent-consent-lede ${unverified ? "unverified" : ""}`}>
+        {unverified ? (
+          <>
+            <ShieldAlert size={15} aria-hidden="true" />
+            <span>
+              It calls itself “{details.clientName}”. Continue only if you just
+              started this connection.
+            </span>
+          </>
+        ) : (
+          <span>{details.clientName} wants to use your Marten workspace.</span>
+        )}
       </p>
-      <div className="agent-consent-identity">
-        <span>Returns to</span>
-        <code className="agent-consent-host">{callback.host}</code>
-        <span>Client ID</span>
-        <code>{details.clientId}</code>
-      </div>
-      {["localhost", "127.0.0.1", "[::1]"].includes(callback.hostname) && (
-        <p className="agent-consent-note">
-          Approve only if you started this connection in a local assistant on
-          this device.
-        </p>
-      )}
-      {details.requestedScopes.includes("finance:write") && (
-        <Toggle
-          label="Also allow edits"
-          description="Allow transaction annotations, bulk recategorizing, merchant names and logos, categories, tags, rules, review and pending preferences, account display, manual account balances and statement dates, credit scores, recurring schedules and saved forecasts. Merging a duplicate merchant or category removes the duplicate. Bank payments, trades, deleting transactions or accounts, and bank connections are not available."
-          checked={allowEdits}
-          disabled={task.busy}
-          onChange={setAllowEdits}
-        />
-      )}
-      <div className="agent-consent-lifetime">
-        <Field label="Keep access" hint={lifetimeHints[lifetime]}>
+      <div className="agent-consent-list">
+        <div className="agent-consent-row">
+          <Globe size={16} aria-hidden="true" />
+          <div>
+            <strong className="agent-consent-host">{callback.host}</strong>
+            <span>
+              {loopback
+                ? "An app on this device receives access"
+                : "Receives access after you approve"}
+            </span>
+          </div>
+        </div>
+        <div className="agent-consent-row">
+          <Eye size={16} aria-hidden="true" />
+          <div>
+            <strong>Read your finances</strong>
+            <span>{agentScopeCopy.readSummary}</span>
+          </div>
+        </div>
+        {canEdit && (
+          <div className="agent-consent-row">
+            <PencilLine size={16} aria-hidden="true" />
+            <Toggle
+              label="Also allow edits"
+              description={`${agentScopeCopy.editSummary}. Never moves money.`}
+              checked={allowEdits}
+              disabled={task.busy}
+              onChange={setAllowEdits}
+            />
+          </div>
+        )}
+        <div className="agent-consent-row">
+          <Clock3 size={16} aria-hidden="true" />
+          <div>
+            <strong id="agent-keep-access">Keep access</strong>
+            <span>{lifetimeHints[lifetime]}</span>
+          </div>
           <Select
-            aria-label="Keep access"
+            aria-labelledby="agent-keep-access"
             value={lifetime}
             onValueChange={(value) => setLifetime(value as Lifetime)}
             options={lifetimeOptions}
             disabled={task.busy}
           />
-        </Field>
+        </div>
+        <details className="agent-consent-details">
+          <summary>
+            <span>What it can access</span>
+          </summary>
+          <dl>
+            <dt>Can read</dt>
+            <dd>{agentScopeCopy.readAll}</dd>
+            {canEdit && (
+              <>
+                <dt>With edits</dt>
+                <dd>{agentScopeCopy.editAll}</dd>
+              </>
+            )}
+            <dt>Never</dt>
+            <dd>{agentScopeCopy.never}</dd>
+            <dt>Once shared</dt>
+            <dd>Data it receives follows that app’s own data settings.</dd>
+            <dt>Client ID</dt>
+            <dd>
+              <code>{details.clientId}</code>
+            </dd>
+          </dl>
+        </details>
       </div>
-      <p className="agent-consent-note">
-        You can disconnect {unverified ? "this app" : "this assistant"} at any
-        time in Settings → AI connections. Information sent to it is subject to
-        that service’s data settings.
-      </p>
-      <div className="modal-actions">
+      <div className="modal-actions agent-consent-actions">
         <Button
           disabled={task.busy}
           onClick={() =>
@@ -173,6 +197,9 @@ function ConsentRequest({ request }: { request: string }) {
               : "Allow read access"}
         </Button>
       </div>
+      <p className="agent-consent-note">
+        You can disconnect it anytime in Settings → AI connections.
+      </p>
     </>
   );
 }
