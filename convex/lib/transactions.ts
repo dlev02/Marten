@@ -4,6 +4,8 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { transactionFields } from "../validators";
 import { owned, cents, date, text } from "./access";
+import { TRANSACTION_LIMITS } from "./limits";
+import type { AgentActor } from "./agentActor";
 import { matchesRule, normalize, validateSplits } from "./finance";
 
 export type TransactionFields = Infer<ReturnType<typeof transactionValidator>>;
@@ -11,7 +13,45 @@ function transactionValidator() {
   return v.object(transactionFields);
 }
 export type UserRead = QueryCtx & { userId: Id<"users"> };
-export type UserWrite = MutationCtx & { userId: Id<"users"> };
+/** `agent` is set when an AI connection makes the change. */
+export type UserWrite = MutationCtx & {
+  userId: Id<"users">;
+  agent?: AgentActor;
+};
+const FIELD_LABELS: Record<string, string> = {
+  categoryId: "category",
+  merchantId: "merchant",
+  tagIds: "tags",
+  notes: "notes",
+  hidden: "visibility",
+  reviewed: "review status",
+  splits: "splits",
+  amountCents: "amount",
+  date: "date",
+  accountId: "account",
+  pending: "pending status",
+  originalName: "statement name",
+};
+/** "Changed category and review status" from the patched field names. */
+export function describeTransactionChange(fields: string[]) {
+  // Label order is fixed so the same change always reads the same way.
+  const order = Object.keys(FIELD_LABELS);
+  const rank = (field: string) =>
+    order.includes(field) ? order.indexOf(field) : order.length;
+  const labels = [
+    ...new Set(
+      [...fields]
+        .sort((a, b) => rank(a) - rank(b))
+        .map((field) => FIELD_LABELS[field] ?? field),
+    ),
+  ];
+  if (!labels.length) return "Changed details";
+  const list =
+    labels.length === 1
+      ? labels[0]
+      : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+  return `Changed ${list}`;
+}
 export type RuleContext = {
   rules: Doc<"rules">[];
   merchantNames: Map<Id<"merchants">, string>;
@@ -42,8 +82,14 @@ export async function validateTransaction(
   cents(fields.amountCents);
   date(fields.date);
   text(fields.originalName, 500);
-  if (fields.notes.length > 10000 || fields.tagIds.length > 30)
-    throw new ConvexError("Notes or tags exceed the allowed size.");
+  if (fields.notes.length > TRANSACTION_LIMITS.notes)
+    throw new ConvexError(
+      `Notes can be at most ${TRANSACTION_LIMITS.notes.toLocaleString("en-US")} characters.`,
+    );
+  if (fields.tagIds.length > TRANSACTION_LIMITS.tags)
+    throw new ConvexError(
+      `A transaction can have at most ${TRANSACTION_LIMITS.tags} tags.`,
+    );
   validateSplits(fields.amountCents, fields.splits);
   await Promise.all([
     owned(ctx, fields.accountId),

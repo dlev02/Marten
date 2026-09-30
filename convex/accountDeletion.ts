@@ -245,6 +245,14 @@ export const deleteBatch = internalMutation({
     deleted += rules.length;
     if (budget() <= 0) return continueLater();
 
+    const aliases = await ctx.db
+      .query("merchantAliases")
+      .withIndex("by_userId_and_normalizedName", (q) => q.eq("userId", userId))
+      .take(budget());
+    for (const row of aliases) await ctx.db.delete(row._id);
+    deleted += aliases.length;
+    if (budget() <= 0) return continueLater();
+
     for (const table of byUserIdAndDate) {
       const rows = await ctx.db
         .query(table)

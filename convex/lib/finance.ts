@@ -7,9 +7,9 @@ export function validateSplits(
   splits: { amountCents: number }[],
 ) {
   if (splits.length === 0) return;
+  if (splits.length < 2 || splits.length > 50)
+    throw new ConvexError("A split needs between 2 and 50 lines.");
   if (
-    splits.length < 2 ||
-    splits.length > 50 ||
     splits.some((s) => !Number.isSafeInteger(s.amountCents)) ||
     splits.reduce((sum, s) => sum + s.amountCents, 0) !== amount
   )

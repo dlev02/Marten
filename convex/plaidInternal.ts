@@ -26,6 +26,7 @@ import {
   findMatchingTransaction,
 } from "./lib/transactions";
 import { normalize } from "./lib/finance";
+import { findMerchantByName } from "./lib/merchantAliases";
 const itemArgs = { itemId: v.id("plaidItems"), version: v.number() };
 const LEASE_MS = 120000;
 async function liveProfile(ctx: Pick<QueryCtx, "db">, userId: Id<"users">) {
@@ -455,12 +456,8 @@ export const ingestTransactions = internalMutation({
         continue;
       }
       const normalizedName = normalize(incoming.merchant);
-      let merchant = await ctx.db
-        .query("merchants")
-        .withIndex("by_userId_and_normalizedName", (q) =>
-          q.eq("userId", item.userId).eq("normalizedName", normalizedName),
-        )
-        .unique();
+      // Resolves renamed and merged merchants through their old names too.
+      let merchant = await findMerchantByName(ctx, item.userId, normalizedName);
       if (!merchant) {
         const id = await ctx.db.insert("merchants", {
           userId: item.userId,

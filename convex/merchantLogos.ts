@@ -189,6 +189,57 @@ export const expirePreview = internalMutation({
   },
 });
 
+/**
+ * Reads a logo from the merchant's own website: its declared icons, then the
+ * standard touch icon and favicon. Requests never leave that host or its
+ * subdomains, follow at most three checked redirects, and stop at 10 seconds.
+ */
+export async function fetchWebsiteLogo(
+  hostname: string,
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string }> {
+  const host = validateHostname(hostname);
+  const base = `https://${host}/`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    let candidates: string[] = [];
+    let documentUrl = base;
+    try {
+      const page = await readWebsite(
+        new URL(base),
+        host,
+        MAX_HTML,
+        controller.signal,
+      );
+      documentUrl = page.url;
+      candidates = iconLinks(new TextDecoder().decode(page.bytes));
+    } catch {
+      /* Sites without readable HTML may still provide standard icons. */
+    }
+    for (const path of [
+      ...new Set([...candidates, "/apple-touch-icon.png", "/favicon.ico"]),
+    ]) {
+      try {
+        const result = await readWebsite(
+          websiteUrl(path, documentUrl, host),
+          host,
+          MAX_IMAGE,
+          controller.signal,
+        );
+        const type = sniffImage(result.bytes);
+        if (type) return { bytes: result.bytes, type };
+      } catch {
+        /* Try the next first-party candidate. */
+      }
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+  throw new ConvexError(
+    "We couldn’t find a supported logo on that website. Check the domain, choose a catalog logo, or upload an image.",
+  );
+}
+
 export const findWebsiteLogo = userAction({
   args: { hostname: v.string() },
   returns: v.object({ storageId: v.id("_storage"), url: v.string() }),
@@ -196,52 +247,7 @@ export const findWebsiteLogo = userAction({
     ctx,
     { hostname },
   ): Promise<{ storageId: Id<"_storage">; url: string }> => {
-    const host = validateHostname(hostname);
-    const base = `https://${host}/`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
-    let image: { bytes: Uint8Array<ArrayBuffer>; type: string } | undefined;
-    try {
-      let candidates: string[] = [];
-      let documentUrl = base;
-      try {
-        const page = await readWebsite(
-          new URL(base),
-          host,
-          MAX_HTML,
-          controller.signal,
-        );
-        documentUrl = page.url;
-        candidates = iconLinks(new TextDecoder().decode(page.bytes));
-      } catch {
-        /* Sites without readable HTML may still provide standard icons. */
-      }
-      for (const path of [
-        ...new Set([...candidates, "/apple-touch-icon.png", "/favicon.ico"]),
-      ]) {
-        try {
-          const result = await readWebsite(
-            websiteUrl(path, documentUrl, host),
-            host,
-            MAX_IMAGE,
-            controller.signal,
-          );
-          const type = sniffImage(result.bytes);
-          if (type) {
-            image = { bytes: result.bytes, type };
-            break;
-          }
-        } catch {
-          /* Try the next first-party candidate. */
-        }
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-    if (!image)
-      throw new ConvexError(
-        "We couldn’t find a supported logo on that website. Check the domain, choose a catalog logo, or upload an image.",
-      );
+    const image = await fetchWebsiteLogo(hostname);
     let storageId: Id<"_storage"> | undefined;
     try {
       storageId = await ctx.storage.store(

@@ -145,6 +145,11 @@ async function seedUser(
     logoStorageId,
     transactionCount: rows,
   });
+  await ctx.db.insert("merchantAliases", {
+    userId,
+    normalizedName: `${label} old market name`,
+    merchantId,
+  });
   const uploadStorageId = await ctx.storage.store(
     new Blob(["fictional upload"], { type: "image/png" }),
   );
@@ -442,6 +447,7 @@ const userTables: TableName[] = [
   "groups",
   "categories",
   "merchants",
+  "merchantAliases",
   "tags",
   "transactions",
   "attachments",

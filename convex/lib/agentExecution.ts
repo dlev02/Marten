@@ -1,14 +1,20 @@
 import { automaticPaymentsForUser } from "./recurringPayments";
 import { ConvexError } from "convex/values";
+import { z } from "zod";
 import type { Doc, Id, TableNames } from "../_generated/dataModel";
-import { owned, date, type UserRead, type UserMutationCtx } from "./access";
+import { owned, date, type UserRead } from "./access";
 import {
+  COMPACT_EXTRA_FIELDS,
   DEFAULT_PAGE_SIZE,
   agentToolSchemas,
   type AgentToolName,
 } from "./agentTools";
-import { readWorkspace, saveAccountForUser } from "../workspace";
-import { listTransactionsForUser, updateOne } from "../transactions";
+import { readTaxonomy, readWorkspace, saveAccountForUser } from "../workspace";
+import {
+  listTransactionsForUser,
+  updateOne,
+  type TransactionReviewFilters,
+} from "../transactions";
 import {
   saveRecurringForUser,
   recurringPaymentsForUser,
@@ -27,13 +33,23 @@ import {
 import { creditScoresForUser } from "../creditScores";
 import {
   mergeCategoriesForUser,
+  mergeMerchantsForUser,
+  reorderRulesForUser,
   saveCategoryForUser,
   saveMerchantForUser,
   saveRuleForUser,
   saveTagForUser,
 } from "../settings";
 import { runForecast, type ForecastInputs } from "./forecast";
-import { recurringDates } from "./finance";
+import { normalize, recurringDates } from "./finance";
+import { unionTags } from "./transactions";
+import {
+  createAgentAccount,
+  recordAccountSnapshots,
+  recordBalanceHistory,
+  saveCreditScoreFromAgent,
+  type AgentWriteCtx,
+} from "./agentSnapshots";
 
 export function agentId<T extends TableNames>(
   ctx: UserRead,
@@ -109,6 +125,86 @@ function agentPage<
   return {
     ...rest,
     continueCursor: result.isDone ? null : result.continueCursor,
+  };
+}
+
+/**
+ * Merchant rows say whether a logo exists without exposing where it is
+ * stored; agentData strips the storage id and URL.
+ */
+function merchantView(merchant: Doc<"merchants">) {
+  return {
+    ...merchant,
+    hasLogo: Boolean(merchant.logoStorageId || merchant.logoUrl),
+  };
+}
+
+/** How many merchants and statement hits a merchantSearch reads. */
+const MERCHANT_SEARCH_SCAN = 2000;
+const STATEMENT_SEARCH_HITS = 50;
+/** Merchants one missingLogo page may scan before returning what it found. */
+const MERCHANT_FILTER_SCAN = 2000;
+
+type ListTransactionsInput = z.infer<
+  (typeof agentToolSchemas)["list_transactions"]
+>;
+const ISO_INSTANT =
+  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+/** updatedSince accepts a calendar date (midnight UTC) or an ISO timestamp. */
+export function parseInstant(value: string) {
+  const ms = ISO_INSTANT.test(value)
+    ? Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value)
+    : NaN;
+  if (!Number.isFinite(ms))
+    throw new ConvexError(
+      "updatedSince must be an ISO date such as 2026-09-27 or a timestamp such as 2026-09-27T14:00:00Z.",
+    );
+  return ms;
+}
+/** The categories named Uncategorized; none means nothing can match. */
+async function uncategorizedIds(ctx: UserRead) {
+  const { categories } = await readTaxonomy(ctx);
+  return categories
+    .filter((category) => normalize(category.name) === "uncategorized")
+    .map((category) => category._id);
+}
+async function reviewFilters(
+  ctx: UserRead,
+  args: ListTransactionsInput,
+): Promise<TransactionReviewFilters | null> {
+  const categoryIds = args.uncategorized
+    ? await uncategorizedIds(ctx)
+    : args.categoryIds?.map((value) => agentId(ctx, "categories", value));
+  if (categoryIds && !categoryIds.length) return null;
+  return {
+    reviewed: args.reviewed,
+    pending: args.pending,
+    hidden: args.hidden,
+    source: args.source,
+    updatedSince:
+      args.updatedSince === undefined
+        ? undefined
+        : parseInstant(args.updatedSince),
+    categoryIds,
+    tagId: args.tagId ? agentId(ctx, "tags", args.tagId) : undefined,
+  };
+}
+type DescribedTransaction = Awaited<
+  ReturnType<ReturnType<typeof nameResolver>>
+>;
+/** The few fields a cleanup pass scans, plus any extras the caller named. */
+function compactRow(
+  row: DescribedTransaction,
+  extras: readonly (typeof COMPACT_EXTRA_FIELDS)[number][] = [],
+) {
+  return {
+    id: row._id,
+    date: row.date,
+    amountCents: row.amountCents,
+    merchantName: row.merchantName,
+    categoryName: row.categoryName,
+    accountName: row.accountName,
+    ...Object.fromEntries(extras.map((field) => [field, row[field]])),
   };
 }
 
@@ -224,20 +320,32 @@ export async function executeAgentRead(
     }
     case "get_classifications": {
       const args = agentToolSchemas[name].parse(input);
-      const { groups, categories, tags } = await readWorkspace(ctx);
-      const groupById = new Map(groups.map((group) => [group._id, group]));
-      const describedCategories = categories.map((category) => ({
-        ...category,
-        groupName: groupById.get(category.groupId)?.name ?? null,
-        groupKind: groupById.get(category.groupId)?.kind ?? null,
-      }));
+      const pageSize = args.pageSize ?? DEFAULT_PAGE_SIZE;
+      const withLogoFilter = (merchant: Doc<"merchants">) =>
+        !args.missingLogo || !merchantView(merchant).hasLogo;
+      let taxonomy = {};
+      if (!args.merchantsOnly) {
+        const { groups, categories, tags } = await readTaxonomy(ctx);
+        const groupById = new Map(groups.map((group) => [group._id, group]));
+        taxonomy = {
+          groups,
+          categories: categories.map((category) => ({
+            ...category,
+            groupName: groupById.get(category.groupId)?.name ?? null,
+            groupKind: groupById.get(category.groupId)?.kind ?? null,
+          })),
+          tags,
+        };
+      }
       if (args.merchantSearch?.trim()) {
         const term = args.merchantSearch.trim(),
           needle = term.toLowerCase();
-        const all = await ctx.db
+        const scanned = await ctx.db
           .query("merchants")
           .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-          .take(2000);
+          .take(MERCHANT_SEARCH_SCAN + 1);
+        const all = scanned.slice(0, MERCHANT_SEARCH_SCAN);
+        const byId = new Map(all.map((merchant) => [merchant._id, merchant]));
         const byName = all.filter(
           (merchant) =>
             merchant.name.toLowerCase().includes(needle) ||
@@ -250,45 +358,74 @@ export async function executeAgentRead(
           .withSearchIndex("search_text", (q) =>
             q.search("searchText", term).eq("userId", ctx.userId),
           )
-          .take(50);
+          .take(STATEMENT_SEARCH_HITS + 1);
         const named = new Set(byName.map((merchant) => merchant._id));
-        const byStatement = [
-          ...new Set(statementRows.map((row) => row.merchantId)),
-        ]
-          .filter((merchantId) => !named.has(merchantId))
-          .map((merchantId) => all.find((m) => m._id === merchantId))
-          .filter((merchant) => merchant !== undefined);
+        const byStatement: Doc<"merchants">[] = [];
+        for (const merchantId of new Set(
+          statementRows
+            .slice(0, STATEMENT_SEARCH_HITS)
+            .map((row) => row.merchantId),
+        )) {
+          if (named.has(merchantId)) continue;
+          // Merchants beyond the scanned set are still resolved by id.
+          const merchant =
+            byId.get(merchantId) ?? (await ctx.db.get(merchantId));
+          if (merchant && merchant.userId === ctx.userId)
+            byStatement.push(merchant);
+        }
         const matches = [
-          ...byName.map((merchant) => ({ ...merchant, matchedBy: "name" })),
-          ...byStatement.map((merchant) => ({
-            ...merchant,
+          ...byName.filter(withLogoFilter).map((merchant) => ({
+            ...merchantView(merchant),
+            matchedBy: "name",
+          })),
+          ...byStatement.filter(withLogoFilter).map((merchant) => ({
+            ...merchantView(merchant),
             matchedBy: "statement text",
           })),
         ];
+        // Complete only if nothing was cut off: the merchant scan, the
+        // statement hits, and the page itself.
+        const complete =
+          scanned.length <= MERCHANT_SEARCH_SCAN &&
+          statementRows.length <= STATEMENT_SEARCH_HITS &&
+          matches.length <= pageSize;
         return {
-          groups,
-          categories: describedCategories,
-          tags,
-          merchants: matches.slice(0, args.pageSize ?? DEFAULT_PAGE_SIZE),
+          ...taxonomy,
+          merchants: matches.slice(0, pageSize),
           merchantSearch: term,
           continueCursor: null,
           isDone: true,
-          complete: matches.length <= (args.pageSize ?? DEFAULT_PAGE_SIZE),
+          complete,
+          ...(complete
+            ? {}
+            : {
+                hint: "Some matches may be missing. Use a more specific merchantSearch, or page merchants without it.",
+              }),
         };
       }
-      const merchants = await ctx.db
-        .query("merchants")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .paginate({
-          cursor: args.cursor ?? null,
-          numItems: args.pageSize ?? DEFAULT_PAGE_SIZE,
-        });
+      const merchants = args.missingLogo
+        ? await ctx.db
+            .query("merchants")
+            .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+            .filter((q) =>
+              q.and(
+                q.eq(q.field("logoUrl"), undefined),
+                q.eq(q.field("logoStorageId"), undefined),
+              ),
+            )
+            .paginate({
+              cursor: args.cursor ?? null,
+              numItems: pageSize,
+              maximumRowsRead: MERCHANT_FILTER_SCAN,
+            })
+        : await ctx.db
+            .query("merchants")
+            .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+            .paginate({ cursor: args.cursor ?? null, numItems: pageSize });
       return {
-        groups,
-        categories: describedCategories,
-        tags,
+        ...taxonomy,
         ...agentPage({
-          merchants: merchants.page,
+          merchants: merchants.page.filter(withLogoFilter).map(merchantView),
           continueCursor: merchants.continueCursor,
           isDone: merchants.isDone,
         }),
@@ -298,25 +435,40 @@ export async function executeAgentRead(
     case "list_transactions": {
       const args = agentToolSchemas[name].parse(input);
       checkRange(args.from, args.to);
-      const result = await listTransactionsForUser(ctx, {
-        from: args.from,
-        to: args.to,
-        search: args.search,
-        accountId: args.accountId
-          ? agentId(ctx, "accounts", args.accountId)
-          : undefined,
-        merchantId: args.merchantId
-          ? agentId(ctx, "merchants", args.merchantId)
-          : undefined,
-        paginationOpts: {
-          cursor: args.cursor ?? null,
-          numItems: args.pageSize ?? DEFAULT_PAGE_SIZE,
+      const filters = await reviewFilters(ctx, args);
+      if (!filters)
+        return {
+          page: [],
+          isDone: true,
+          continueCursor: null,
+          hint: "No category is named Uncategorized, so no transaction is uncategorized.",
+        };
+      const result = await listTransactionsForUser(
+        ctx,
+        {
+          from: args.from,
+          to: args.to,
+          search: args.search,
+          accountId: args.accountId
+            ? agentId(ctx, "accounts", args.accountId)
+            : undefined,
+          merchantId: args.merchantId
+            ? agentId(ctx, "merchants", args.merchantId)
+            : undefined,
+          paginationOpts: {
+            cursor: args.cursor ?? null,
+            numItems: args.pageSize ?? DEFAULT_PAGE_SIZE,
+          },
         },
-      });
+        filters,
+      );
       const describe = nameResolver(ctx);
+      const rows = await Promise.all(result.page.map(describe));
       return {
         ...agentPage(result),
-        page: await Promise.all(result.page.map(describe)),
+        page: args.compact
+          ? rows.map((row) => compactRow(row, args.fields))
+          : rows,
         order: args.search?.trim()
           ? "search relevance"
           : "newest first by date",
@@ -510,6 +662,14 @@ export async function executeAgentRead(
   }
 }
 
+/** Rows per merge call; category merges only rewrite matches, merchant merges rewrite every row. */
+const AGENT_CATEGORY_MERGE_PAGE = 2000;
+const AGENT_MERCHANT_MERGE_PAGE = 500;
+/** set_merchant_logo's internal form: the action adds the image it stored. */
+const logoWriteSchema = agentToolSchemas.set_merchant_logo.extend({
+  storageId: z.string().min(1).max(128),
+});
+
 type TransactionPatch = NonNullable<
   ReturnType<(typeof agentToolSchemas)["update_transaction"]["parse"]>["patch"]
 >;
@@ -538,7 +698,7 @@ function resolvePatch(ctx: UserRead, patch: TransactionPatch) {
 }
 
 export async function executeAgentWrite(
-  ctx: UserMutationCtx,
+  ctx: AgentWriteCtx,
   name: AgentToolName,
   input: unknown,
 ): Promise<unknown> {
@@ -556,16 +716,39 @@ export async function executeAgentWrite(
       const ids = [...new Set(args.ids)].map((value) =>
         agentId(ctx, "transactions", value),
       );
-      const patch = resolvePatch(ctx, args.patch);
-      const fields = Object.keys(args.patch) as (keyof Doc<"transactions">)[];
+      const patch = args.patch ? resolvePatch(ctx, args.patch) : {};
+      const tagChange = args.tagChange && {
+        mode: args.tagChange.mode,
+        tagIds: args.tagChange.tagIds.map((value) =>
+          agentId(ctx, "tags", value),
+        ),
+      };
+      // Removed tags are not re-validated by the row check, so own them here.
+      for (const tagId of tagChange?.tagIds ?? []) await owned(ctx, tagId);
+      const fields = [
+        ...new Set([
+          ...Object.keys(args.patch ?? {}),
+          ...(tagChange ? ["tagIds"] : []),
+        ]),
+      ] as (keyof Doc<"transactions">)[];
       const snapshot = (row: Doc<"transactions">) =>
         Object.fromEntries(fields.map((field) => [field, row[field]]));
       // Ownership and validation run inside one mutation, so a bad id reverts every change.
       const rows = [];
       for (const id of ids) {
-        const before = snapshot(await owned(ctx, id));
-        await updateOne(ctx, id, patch);
-        rows.push({ id, before, after: snapshot(await owned(ctx, id)) });
+        const current = await owned(ctx, id);
+        const changes = { ...patch };
+        if (tagChange)
+          changes.tagIds =
+            tagChange.mode === "add"
+              ? unionTags(current.tagIds, tagChange.tagIds)
+              : current.tagIds.filter((tag) => !tagChange.tagIds.includes(tag));
+        await updateOne(ctx, id, changes);
+        rows.push({
+          id,
+          before: snapshot(current),
+          after: snapshot(await owned(ctx, id)),
+        });
       }
       return {
         updated: ids.length,
@@ -630,14 +813,82 @@ export async function executeAgentWrite(
         color: args.patch.color ?? before.color,
       });
       return {
-        before,
-        after: await owned(ctx, id),
-        hint: "Search text for this merchant's transactions is refreshed in the background.",
+        before: merchantView(before),
+        after: merchantView(await owned(ctx, id)),
+        hint: "Search text for this merchant's transactions is refreshed in the background. The old name is kept as an alias so future bank syncs land on this merchant.",
+      };
+    }
+    case "create_merchant": {
+      const args = agentToolSchemas[name].parse(input);
+      const existing = await ctx.db
+        .query("merchants")
+        .withIndex("by_userId_and_normalizedName", (q) =>
+          q.eq("userId", ctx.userId).eq("normalizedName", normalize(args.name)),
+        )
+        .unique();
+      if (existing) return { created: null, existing: merchantView(existing) };
+      const id = await saveMerchantForUser(ctx, {
+        name: args.name,
+        color: args.color ?? "#64748b",
+      });
+      return { created: merchantView(await owned(ctx, id)) };
+    }
+    case "merge_merchants": {
+      const args = agentToolSchemas[name].parse(input);
+      const sourceId = agentId(ctx, "merchants", args.sourceId),
+        targetId = agentId(ctx, "merchants", args.targetId);
+      const source = await owned(ctx, sourceId),
+        target = await owned(ctx, targetId);
+      const step = await mergeMerchantsForUser(ctx, {
+        sourceId,
+        targetId,
+        cursor: args.cursor,
+        pageSize: AGENT_MERCHANT_MERGE_PAGE,
+      });
+      return {
+        merged: { id: sourceId, name: source.name },
+        into: { id: targetId, name: target.name },
+        movedTransactions: step.updated,
+        done: step.done,
+        cursor: step.done || !step.cursor ? null : step.cursor,
+        ...(step.done
+          ? {}
+          : {
+              next: "Call merge_merchants again with the same ids and this cursor (null restarts the final check) until done is true.",
+            }),
+      };
+    }
+    case "set_merchant_logo": {
+      // Only reached from the action that fetched and stored the image; the
+      // public schema is strict, so an assistant cannot supply storageId.
+      const args = logoWriteSchema.parse(input);
+      const merchantId = agentId(ctx, "merchants", args.merchantId);
+      const before = await owned(ctx, merchantId);
+      const storageId = ctx.db.system.normalizeId("_storage", args.storageId);
+      if (!storageId || !(await ctx.db.system.get(storageId)))
+        throw new ConvexError("The logo couldn’t be saved. Please try again.");
+      if (before.logoStorageId && before.logoStorageId !== storageId)
+        await ctx.storage.delete(before.logoStorageId);
+      await ctx.db.patch(merchantId, {
+        logoStorageId: storageId,
+        logoUrl: undefined,
+      });
+      return {
+        merchant: merchantView(await owned(ctx, merchantId)),
+        replacedLogo: merchantView(before).hasLogo,
+        domain: args.domain,
       };
     }
     case "create_category": {
       const args = agentToolSchemas[name].parse(input);
-      const { categories } = await readWorkspace(ctx);
+      // Only the order needs reading; merchants and accounts would widen the
+      // mutation's read set and its conflicts with bank syncs.
+      const categories = await ctx.db
+        .query("categories")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(501);
+      if (categories.length > 500)
+        throw new ConvexError("A workspace can have up to 500 categories.");
       const id = await saveCategoryForUser(ctx, {
         groupId: agentId(ctx, "groups", args.groupId),
         name: args.name,
@@ -669,30 +920,35 @@ export async function executeAgentWrite(
         targetId = agentId(ctx, "categories", args.targetId);
       const source = await owned(ctx, sourceId),
         target = await owned(ctx, targetId);
-      // Bounded pages keep one call inside mutation limits; the caller repeats.
-      let cursor: string | null = null,
-        updated = 0,
-        done = false;
-      for (let page = 0; page < 25 && !done; page++) {
-        const step = await mergeCategoriesForUser(ctx, {
-          sourceId,
-          targetId,
-          cursor,
-        });
-        updated += step.updated;
-        cursor = step.cursor;
-        done = step.done;
-      }
+      // Convex allows one paginated read per call, so each call handles one
+      // large page and returns a cursor; the source is deleted on the last.
+      const step = await mergeCategoriesForUser(ctx, {
+        sourceId,
+        targetId,
+        cursor: args.cursor ?? null,
+        pageSize: AGENT_CATEGORY_MERGE_PAGE,
+      });
       return {
         merged: { id: sourceId, name: source.name },
         into: { id: targetId, name: target.name },
-        updatedTransactions: updated,
-        done,
+        updatedTransactions: step.updated,
+        done: step.done,
+        cursor: step.done ? null : step.cursor,
+        ...(step.done
+          ? {}
+          : {
+              next: "Call merge_categories again with the same ids and this cursor until done is true.",
+            }),
       };
     }
     case "create_tag": {
       const args = agentToolSchemas[name].parse(input);
-      const { tags } = await readWorkspace(ctx);
+      const tags = await ctx.db
+        .query("tags")
+        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+        .take(201);
+      if (tags.length >= 200)
+        throw new ConvexError("A workspace can have up to 200 tags.");
       const id = await saveTagForUser(ctx, {
         name: args.name,
         color: args.color ?? "#64748b",
@@ -716,7 +972,12 @@ export async function executeAgentWrite(
       const args = agentToolSchemas[name].parse(input);
       const id = args.id ? agentId(ctx, "rules", args.id) : undefined;
       const before = id ? await owned(ctx, id) : null;
-      const { rules } = await readWorkspace(ctx);
+      // The last rule by order is all a new rule needs to go after it.
+      const lastRule = await ctx.db
+        .query("rules")
+        .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+        .order("desc")
+        .first();
       const { merchantId, categoryId, tagIds, splits, ...flags } = args.actions;
       const saved = await saveRuleForUser(ctx, {
         id,
@@ -752,12 +1013,32 @@ export async function executeAgentWrite(
             : {}),
         },
         enabled: args.enabled ?? before?.enabled ?? true,
-        order: before?.order ?? (await nextOrder(rules)),
+        order: before?.order ?? (lastRule ? lastRule.order + 1 : 0),
       });
       return {
         before,
         after: await owned(ctx, saved),
         hint: "Applies to future imports. Call apply_rule to update existing transactions.",
+      };
+    }
+    case "reorder_rules": {
+      const args = agentToolSchemas[name].parse(input);
+      await reorderRulesForUser(
+        ctx,
+        args.ids.map((value) => agentId(ctx, "rules", value)),
+      );
+      const rules = await ctx.db
+        .query("rules")
+        .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+        .take(201);
+      return {
+        rules: rules.map(({ _id, name: ruleName, order, enabled }) => ({
+          _id,
+          name: ruleName,
+          order,
+          enabled,
+        })),
+        order: "Rules run top to bottom on new imports when enabled.",
       };
     }
     case "update_preferences": {
@@ -844,6 +1125,26 @@ export async function executeAgentWrite(
         warnings: forecastWarnings(args.inputs),
       };
     }
+    case "create_account":
+      return await createAgentAccount(ctx, agentToolSchemas[name].parse(input));
+    case "record_account_snapshot":
+      return await recordAccountSnapshots(
+        ctx,
+        agentToolSchemas[name].parse(input),
+      );
+    case "record_balance_history": {
+      const args = agentToolSchemas[name].parse(input);
+      return await recordBalanceHistory(
+        ctx,
+        agentId(ctx, "accounts", args.accountId),
+        args.rows,
+      );
+    }
+    case "save_credit_score":
+      return await saveCreditScoreFromAgent(
+        ctx,
+        agentToolSchemas[name].parse(input),
+      );
     default:
       throw new ConvexError("This edit tool is unavailable.");
   }

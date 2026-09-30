@@ -27,6 +27,7 @@ import {
   findMatchingTransaction,
 } from "./lib/transactions";
 import { normalize } from "./lib/finance";
+import { findMerchantByName } from "./lib/merchantAliases";
 
 const LEASE_MS = 120000;
 const fenceArgs = {
@@ -669,14 +670,12 @@ export const ingest = internalMutation({
         continue;
       }
       const normalizedName = normalize(incoming.merchant);
-      let merchant = await ctx.db
-        .query("merchants")
-        .withIndex("by_userId_and_normalizedName", (q) =>
-          q
-            .eq("userId", connection.userId)
-            .eq("normalizedName", normalizedName),
-        )
-        .unique();
+      // Resolves renamed and merged merchants through their old names too.
+      let merchant = await findMerchantByName(
+        ctx,
+        connection.userId,
+        normalizedName,
+      );
       if (!merchant) {
         const merchantId = await ctx.db.insert("merchants", {
           userId: connection.userId,

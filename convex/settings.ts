@@ -18,6 +18,12 @@ import {
   type UserWrite,
 } from "./lib/transactions";
 import type { Id } from "./_generated/dataModel";
+import { RULE_LIMITS } from "./lib/limits";
+import {
+  moveMerchantAliases,
+  recordMerchantAlias,
+  releaseMerchantAlias,
+} from "./lib/merchantAliases";
 
 export const saveGroup = userMutation({
   args: {
@@ -92,9 +98,15 @@ export async function saveMerchantForUser(
       throw new ConvexError(
         "That merchant already exists. Merge the merchants instead.",
       );
+    // This merchant now owns the name, so an old alias for it no longer applies.
+    await releaseMerchantAlias(ctx, ctx.userId, normalizedName);
     if (id) {
-      await owned(ctx, id);
+      const before = await owned(ctx, id);
       await ctx.db.patch(id, { name, color, normalizedName });
+      // Banks keep sending the old statement name; remember it so the next
+      // sync lands on this merchant instead of recreating the old one.
+      if (before.normalizedName !== normalizedName)
+        await recordMerchantAlias(ctx, ctx.userId, before.normalizedName, id);
       await ctx.scheduler.runAfter(0, internal.settings.reindexMerchant, {
         userId: ctx.userId,
         merchantId: id,
@@ -148,6 +160,116 @@ export const reindexMerchant = internalMutation({
     return null;
   },
 });
+/** Merchants absorbed per call; every row is rewritten, so pages stay small. */
+const MERCHANT_MERGE_PAGE = 200;
+/**
+ * Folds one merchant into another, in pages the caller repeats until `done`:
+ * transactions move first, then recurring schedules, rule actions and saved
+ * reports. The source's statement names become aliases of the target so bank
+ * syncs keep landing on it, and the source is deleted only once no
+ * transaction still points at it.
+ */
+export async function mergeMerchantsForUser(
+  ctx: UserWrite,
+  {
+    sourceId,
+    targetId,
+    cursor,
+    pageSize = MERCHANT_MERGE_PAGE,
+  }: {
+    sourceId: Id<"merchants">;
+    targetId: Id<"merchants">;
+    cursor?: string | null;
+    pageSize?: number;
+  },
+) {
+  if (sourceId === targetId)
+    throw new ConvexError("Choose two different merchants.");
+  const source = await owned(ctx, sourceId);
+  const target = await owned(ctx, targetId);
+  const rows = await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_and_merchantId_and_date", (q) =>
+      q.eq("userId", ctx.userId).eq("merchantId", sourceId),
+    )
+    // An empty cursor restarts the scan (see the straggler check below).
+    .paginate({ numItems: pageSize, cursor: cursor || null });
+  let moved = 0;
+  for (const tx of rows.page) {
+    await ctx.db.patch(tx._id, {
+      merchantId: targetId,
+      editedFields: [...new Set([...tx.editedFields, "merchantId"])],
+      searchText: await refreshSearch(ctx, { ...tx, merchantId: targetId }),
+      updatedAt: Date.now(),
+    });
+    if (!tx.removedFromBank) moved++;
+  }
+  // One count update per page instead of two document writes per row.
+  if (moved) {
+    await ctx.db.patch(sourceId, {
+      transactionCount: Math.max(0, source.transactionCount - moved),
+    });
+    await ctx.db.patch(targetId, {
+      transactionCount: target.transactionCount + moved,
+    });
+  }
+  if (!rows.isDone)
+    return {
+      done: false,
+      cursor: rows.continueCursor,
+      updated: rows.page.length,
+    };
+  // A sync during a long merge can add rows behind the cursor; start over
+  // rather than delete a merchant that transactions still reference.
+  const straggler = await ctx.db
+    .query("transactions")
+    .withIndex("by_userId_and_merchantId_and_date", (q) =>
+      q.eq("userId", ctx.userId).eq("merchantId", sourceId),
+    )
+    .first();
+  if (straggler) return { done: false, cursor: "", updated: rows.page.length };
+  await moveMerchantReferences(ctx, sourceId, targetId);
+  await moveMerchantAliases(ctx, sourceId, targetId);
+  await recordMerchantAlias(ctx, ctx.userId, source.normalizedName, targetId);
+  if (source.logoStorageId && source.logoStorageId !== target.logoStorageId)
+    await ctx.storage.delete(source.logoStorageId);
+  await ctx.db.delete(sourceId);
+  return { done: true, cursor: rows.continueCursor, updated: rows.page.length };
+}
+/** Recurring schedules, rule actions and saved reports follow a merged merchant. */
+async function moveMerchantReferences(
+  ctx: UserWrite,
+  sourceId: Id<"merchants">,
+  targetId: Id<"merchants">,
+) {
+  const recurring = await ctx.db
+    .query("recurring")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(501);
+  if (recurring.length > 500)
+    throw new ConvexError("Too many recurring items to merge at once.");
+  for (const r of recurring)
+    if (r.merchantId === sourceId)
+      await ctx.db.patch(r._id, { merchantId: targetId });
+  const rules = await ctx.db
+    .query("rules")
+    .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+    .take(201);
+  for (const r of rules)
+    if (r.actions.merchantId === sourceId)
+      await ctx.db.patch(r._id, {
+        actions: { ...r.actions, merchantId: targetId },
+      });
+  const reports = await ctx.db
+    .query("savedReports")
+    .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
+    .take(101);
+  if (reports.length > 100)
+    throw new ConvexError("Too many saved reports to merge at once.");
+  for (const report of reports)
+    if (report.merchantId === sourceId)
+      await ctx.db.patch(report._id, { merchantId: targetId });
+}
 export const mergeMerchants = userMutation({
   args: {
     sourceId: v.id("merchants"),
@@ -159,65 +281,7 @@ export const mergeMerchants = userMutation({
     cursor: v.string(),
     updated: v.number(),
   }),
-  handler: async (ctx, { sourceId, targetId, cursor }) => {
-    if (sourceId === targetId)
-      throw new ConvexError("Choose two different merchants.");
-    const source = await owned(ctx, sourceId);
-    const target = await owned(ctx, targetId);
-    const rows = await ctx.db
-      .query("transactions")
-      .withIndex("by_userId_and_merchantId_and_date", (q) =>
-        q.eq("userId", ctx.userId).eq("merchantId", sourceId),
-      )
-      .paginate({ numItems: 100, cursor: cursor ?? null });
-    for (const tx of rows.page) {
-      await ctx.db.patch(tx._id, {
-        merchantId: targetId,
-        editedFields: [...new Set([...tx.editedFields, "merchantId"])],
-        searchText: await refreshSearch(ctx, { ...tx, merchantId: targetId }),
-        updatedAt: Date.now(),
-      });
-      if (!tx.removedFromBank)
-        await changeMerchantCount(ctx, sourceId, targetId);
-    }
-    if (rows.isDone) {
-      const recurring = await ctx.db
-        .query("recurring")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(501);
-      if (recurring.length > 500)
-        throw new ConvexError("Too many recurring items to merge at once.");
-      for (const r of recurring)
-        if (r.merchantId === sourceId)
-          await ctx.db.patch(r._id, { merchantId: targetId });
-      const rules = await ctx.db
-        .query("rules")
-        .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
-        .take(201);
-      for (const r of rules)
-        if (r.actions.merchantId === sourceId)
-          await ctx.db.patch(r._id, {
-            actions: { ...r.actions, merchantId: targetId },
-          });
-      const reports = await ctx.db
-        .query("savedReports")
-        .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
-        .take(101);
-      if (reports.length > 100)
-        throw new ConvexError("Too many saved reports to merge at once.");
-      for (const report of reports)
-        if (report.merchantId === sourceId)
-          await ctx.db.patch(report._id, { merchantId: targetId });
-      if (source.logoStorageId && source.logoStorageId !== target.logoStorageId)
-        await ctx.storage.delete(source.logoStorageId);
-      await ctx.db.delete(sourceId);
-    }
-    return {
-      done: rows.isDone,
-      cursor: rows.continueCursor,
-      updated: rows.page.length,
-    };
-  },
+  handler: (ctx, args) => mergeMerchantsForUser(ctx, args),
 });
 /**
  * Folds one category into another of the same kind, in pages the caller
@@ -231,10 +295,13 @@ export async function mergeCategoriesForUser(
     sourceId,
     targetId,
     cursor,
+    pageSize = 200,
   }: {
     sourceId: Id<"categories">;
     targetId: Id<"categories">;
     cursor?: string | null;
+    /** Transactions scanned per call; Convex allows one paginated read per call. */
+    pageSize?: number;
   },
 ) {
   if (sourceId === targetId)
@@ -254,20 +321,29 @@ export async function mergeCategoriesForUser(
   const rows = await ctx.db
     .query("transactions")
     .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
-    .paginate({ numItems: 200, cursor: cursor ?? null });
+    // Rows vary in size (search text), so bound bytes as well as rows.
+    .paginate({
+      numItems: pageSize,
+      cursor: cursor ?? null,
+      maximumBytesRead: 8_000_000,
+    });
+  const retarget = <T extends { categoryId: Id<"categories"> }>(lines: T[]) =>
+    lines.map((line) =>
+      line.categoryId === sourceId ? { ...line, categoryId: targetId } : line,
+    );
   let updated = 0;
   for (const tx of rows.page) {
     const mainMatches = tx.categoryId === sourceId;
     const splitMatches = tx.splits.some((s) => s.categoryId === sourceId);
-    if (!mainMatches && !splitMatches) continue;
+    // An unsaved split draft must not resurrect the deleted category.
+    const draftMatches =
+      tx.splitDraft?.some((s) => s.categoryId === sourceId) ?? false;
+    if (!mainMatches && !splitMatches && !draftMatches) continue;
     await ctx.db.patch(tx._id, {
       ...(mainMatches ? { categoryId: targetId } : {}),
-      ...(splitMatches
-        ? {
-            splits: tx.splits.map((s) =>
-              s.categoryId === sourceId ? { ...s, categoryId: targetId } : s,
-            ),
-          }
+      ...(splitMatches ? { splits: retarget(tx.splits) } : {}),
+      ...(draftMatches && tx.splitDraft
+        ? { splitDraft: retarget(tx.splitDraft) }
         : {}),
       updatedAt: Date.now(),
     });
@@ -407,10 +483,15 @@ async function validateRule(
         };
       },
 ) {
-  if (!fields.conditions.length || fields.conditions.length > 20)
-    throw new ConvexError("Add between 1 and 20 rule conditions.");
+  if (
+    !fields.conditions.length ||
+    fields.conditions.length > RULE_LIMITS.conditions
+  )
+    throw new ConvexError(
+      `Add between 1 and ${RULE_LIMITS.conditions} rule conditions.`,
+    );
   for (const c of fields.conditions) {
-    text(c.value, 500);
+    text(c.value, RULE_LIMITS.conditionText);
     if (c.field === "amount" && !Number.isFinite(Number(c.value)))
       throw new ConvexError("Enter a valid rule amount.");
     if (c.field !== "amount" && ["greater", "less"].includes(c.operator))
@@ -430,11 +511,12 @@ async function validateRule(
     if (!Number.isSafeInteger(s.amountCents))
       throw new ConvexError("Enter valid split amounts.");
   }
-  if (
-    (fields.actions.tagIds?.length ?? 0) > 30 ||
-    (fields.actions.splits?.length ?? 0) > 50
-  )
-    throw new ConvexError("Too many rule actions.");
+  if ((fields.actions.tagIds?.length ?? 0) > RULE_LIMITS.tags)
+    throw new ConvexError(`A rule can add at most ${RULE_LIMITS.tags} tags.`);
+  if ((fields.actions.splits?.length ?? 0) > RULE_LIMITS.splitLines)
+    throw new ConvexError(
+      `A split rule can have at most ${RULE_LIMITS.splitLines} lines.`,
+    );
   if (fields.actions.splits?.length === 1)
     throw new ConvexError("A split rule needs at least two allocations.");
 }
@@ -511,9 +593,12 @@ export async function applyRuleForUser(
     if (args.paginationOpts.numItems > 100)
       throw new ConvexError("Apply to at most 100 transactions at a time.");
     const rule = await owned(ctx, args.id);
+    // Newest first: recent imports are what a rule is usually meant to fix,
+    // and a caller that stops early has still covered them.
     const rows = await ctx.db
       .query("transactions")
       .withIndex("by_userId_and_date", (q) => q.eq("userId", ctx.userId))
+      .order("desc")
       .paginate(args.paginationOpts);
     let updated = 0;
     for (const tx of rows.page) {
@@ -535,6 +620,17 @@ export async function applyRuleForUser(
         ],
       });
       await changeMerchantCount(ctx, tx.merchantId, next.merchantId);
+      await ctx.db.insert("activity", {
+        userId: ctx.userId,
+        transactionId: tx._id,
+        message: `Applied rule “${rule.name}”`,
+        ...(ctx.agent
+          ? {
+              actor: ctx.agent.name,
+              ...(ctx.agent.grantId ? { grantId: ctx.agent.grantId } : {}),
+            }
+          : {}),
+      });
       updated++;
     }
     return {
@@ -570,6 +666,28 @@ export const reorder = userMutation({
     return null;
   },
 });
+/**
+ * Sets the run order of every rule. The list must name each of the user's
+ * rules exactly once so no two rules share a position.
+ */
+export async function reorderRulesForUser(ctx: UserWrite, ids: Id<"rules">[]) {
+  const rules = await ctx.db
+    .query("rules")
+    .withIndex("by_userId_and_order", (q) => q.eq("userId", ctx.userId))
+    .take(201);
+  const known = new Set(rules.map((rule) => rule._id));
+  if (
+    ids.length !== rules.length ||
+    new Set(ids).size !== ids.length ||
+    ids.some((id) => !known.has(id))
+  )
+    throw new ConvexError(
+      `List each of your ${rules.length} rules exactly once, in the order they should run.`,
+    );
+  for (const [order, id] of ids.entries())
+    if (rules.find((rule) => rule._id === id)?.order !== order)
+      await ctx.db.patch(id, { order });
+}
 export const merchantForUpload = userQuery({
   args: { id: v.id("merchants") },
   returns: v.null(),

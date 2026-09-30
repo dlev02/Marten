@@ -34,10 +34,15 @@ import {
   validateTransaction,
   type UserWrite,
   type TransactionFields,
+  describeTransactionChange,
 } from "./lib/transactions";
 import type { Id } from "./_generated/dataModel";
 import { normalize } from "./lib/finance";
 import { saveRecurringForUser } from "./recurring";
+import {
+  deleteMerchantAliases,
+  findMerchantByName,
+} from "./lib/merchantAliases";
 import { matchesRecurringCriteria } from "./lib/recurring";
 import { recurringFields } from "./validators";
 
@@ -106,20 +111,108 @@ function inRange(tx: Doc<"transactions">, args: TransactionRange) {
     (!args.to || tx.date <= args.to)
   );
 }
+/**
+ * Review filters the agent tools add to the list. They are not index fields,
+ * so a filtered page reads a bounded slice of history and may come back short
+ * with a cursor rather than scanning everything in one query.
+ */
+export type TransactionReviewFilters = {
+  reviewed?: boolean;
+  pending?: boolean;
+  hidden?: boolean;
+  source?: Doc<"transactions">["source"];
+  /** Epoch milliseconds; rows imported or edited at or after this time. */
+  updatedSince?: number;
+  /** Matches the main category or any split line. */
+  categoryIds?: Id<"categories">[];
+  tagId?: Id<"tags">;
+};
+/** Rows one filtered page may scan before returning what it found so far. */
+const FILTERED_SCAN_ROWS = 2000;
+function hasReviewFilters(filters?: TransactionReviewFilters) {
+  return (
+    !!filters && Object.values(filters).some((value) => value !== undefined)
+  );
+}
+/** The exact predicate, applied to every returned row. */
+function matchesReviewFilters(
+  tx: Doc<"transactions">,
+  filters: TransactionReviewFilters,
+) {
+  return (
+    (filters.reviewed === undefined || tx.reviewed === filters.reviewed) &&
+    (filters.pending === undefined || tx.pending === filters.pending) &&
+    (filters.hidden === undefined || tx.hidden === filters.hidden) &&
+    (filters.source === undefined || tx.source === filters.source) &&
+    (filters.updatedSince === undefined ||
+      tx.updatedAt >= filters.updatedSince) &&
+    (!filters.categoryIds ||
+      filters.categoryIds.includes(tx.categoryId) ||
+      tx.splits.some((split) =>
+        filters.categoryIds!.includes(split.categoryId),
+      )) &&
+    (!filters.tagId || tx.tagIds.includes(filters.tagId))
+  );
+}
+/**
+ * The same predicate in the database, so a page fills with matches instead of
+ * returning mostly-empty pages. Array membership cannot be expressed here, so
+ * split and tag filters only skip rows with no splits or tags; the exact check
+ * above finishes the job.
+ */
+function reviewPrefilter(
+  q: FilterBuilder<DataModel["transactions"]>,
+  filters: TransactionReviewFilters,
+) {
+  const parts = [q.neq(q.field("removedFromBank"), true)];
+  if (filters.reviewed !== undefined)
+    parts.push(q.eq(q.field("reviewed"), filters.reviewed));
+  if (filters.pending !== undefined)
+    parts.push(q.eq(q.field("pending"), filters.pending));
+  if (filters.hidden !== undefined)
+    parts.push(q.eq(q.field("hidden"), filters.hidden));
+  if (filters.source !== undefined)
+    parts.push(q.eq(q.field("source"), filters.source));
+  if (filters.updatedSince !== undefined)
+    parts.push(q.gte(q.field("updatedAt"), filters.updatedSince));
+  if (filters.categoryIds)
+    parts.push(
+      q.or(
+        ...filters.categoryIds.map((id) => q.eq(q.field("categoryId"), id)),
+        q.neq(q.field("splits"), []),
+      ),
+    );
+  if (filters.tagId) parts.push(q.neq(q.field("tagIds"), []));
+  return q.and(...parts);
+}
 export async function listTransactionsForUser(
   ctx: UserRead,
   args: Infer<typeof transactionListInput>,
+  filters?: TransactionReviewFilters,
 ) {
   if (args.paginationOpts.numItems > 200)
     throw new ConvexError("Load at most 200 transactions at a time.");
   await checkRange(ctx, args);
+  if (filters?.tagId) await owned(ctx, filters.tagId);
+  for (const id of filters?.categoryIds ?? []) await owned(ctx, id);
   const search = args.search?.trim();
+  const filtered = hasReviewFilters(filters);
   const result = search
     ? await searchQuery(ctx, search).paginate(args.paginationOpts)
-    : await rangeQuery(ctx, args).paginate(args.paginationOpts);
+    : filtered
+      ? await rangeQuery(ctx, args)
+          .filter((q) => reviewPrefilter(q, filters!))
+          .paginate({
+            ...args.paginationOpts,
+            maximumRowsRead: FILTERED_SCAN_ROWS,
+          })
+      : await rangeQuery(ctx, args).paginate(args.paginationOpts);
   return {
     ...result,
-    page: result.page.filter((tx) => inRange(tx, args)),
+    page: result.page.filter(
+      (tx) =>
+        inRange(tx, args) && (!filtered || matchesReviewFilters(tx, filters!)),
+    ),
   };
 }
 const SEARCH_SUMMARY_LIMIT = 1024;
@@ -288,11 +381,22 @@ export async function updateOne(
   });
   if (!tx.removedFromBank)
     await changeMerchantCount(ctx, tx.merchantId, next.merchantId);
-  if (Object.keys(patch).length)
+  // History names only fields whose value changed, so a bulk "mark reviewed"
+  // on an already-reviewed row does not claim it changed the review status.
+  const changed = (Object.keys(patch) as (keyof TransactionFields)[]).filter(
+    (field) => JSON.stringify(tx[field]) !== JSON.stringify(patch[field]),
+  );
+  if (changed.length)
     await ctx.db.insert("activity", {
       userId: ctx.userId,
       transactionId: id,
-      message: `Updated ${Object.keys(patch).join(", ")}`,
+      message: describeTransactionChange(changed),
+      ...(ctx.agent
+        ? {
+            actor: ctx.agent.name,
+            ...(ctx.agent.grantId ? { grantId: ctx.agent.grantId } : {}),
+          }
+        : {}),
     });
 }
 export const update = userMutation({
@@ -484,6 +588,7 @@ async function pruneEmptiedMerchants(
     if (referenced.has(merchantId)) continue;
     if (merchant.logoStorageId)
       await ctx.storage.delete(merchant.logoStorageId);
+    await deleteMerchantAliases(ctx, merchantId);
     await ctx.db.delete(merchantId);
   }
 }
@@ -741,12 +846,11 @@ export async function importMappedRows(
         ? "No merchant supplied"
         : text(merchantName);
       const normalizedName = normalize(name);
-      const merchant = await ctx.db
-        .query("merchants")
-        .withIndex("by_userId_and_normalizedName", (q) =>
-          q.eq("userId", ctx.userId).eq("normalizedName", normalizedName),
-        )
-        .unique();
+      const merchant = await findMerchantByName(
+        ctx,
+        ctx.userId,
+        normalizedName,
+      );
       const merchantId =
         merchant?._id ??
         (await ctx.db.insert("merchants", {
