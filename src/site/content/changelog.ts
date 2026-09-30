@@ -23,6 +23,41 @@ export const changeKindLabels: Record<ChangeKind, string> = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-09-29",
+    title: "Assistants that keep tidying while you are away",
+    lead: "Marten now works well with an assistant on a schedule: connections can stay approved, more assistants can connect, a weekly clean-up has the tools it needs, and anything an assistant changes is labeled and listed so you can check its work.",
+    groups: [
+      {
+        kind: "new",
+        items: [
+          "When you approve an assistant, choose how long it keeps access: **While it’s in use** (it ends after 90 days without use), **For 30 days**, or **Until I disconnect it**. Settings shows when each connection was last used and when it expires.",
+          "Grok and other assistants that register themselves can now connect. Marten labels them **Unverified app** and shows where access will be sent before you approve.",
+          "**Access keys** in [Settings → AI connections](/settings/agents#access-keys) connect assistants that use a saved key instead of signing in, such as Meta Muse. A key is shown once, can be read-only, and stops working the moment you revoke it.",
+          "Assistants can rename and merge duplicate merchants, add a merchant’s logo from its own website, add or remove one tag without touching the others, and reorder your rules.",
+          "Assistants can add a manual account and keep its balance, statement balance, due date and minimum payment up to date, and save a credit score, from numbers they can already see.",
+          "Anything an assistant saves says so: “Updated by ChatGPT” on the account, “Added by ChatGPT” on statements and credit scores, and “· by ChatGPT” in a transaction’s activity. Editing the value yourself makes it yours again.",
+          "**Recent agent activity** in [Settings → AI connections](/settings/agents#agent-activity) sums up each change in one line, such as “Recategorized 12 transactions”, and is kept for 90 days.",
+          "A ready-made weekly clean-up routine for assistants, with setup steps for Claude, ChatGPT, Grok and Muse, is in Marten’s documentation.",
+        ],
+      },
+      {
+        kind: "improved",
+        items: [
+          "Renaming a merchant now sticks: the next bank sync or spreadsheet import that uses the old name lands on the renamed merchant instead of bringing the old one back.",
+        ],
+      },
+      {
+        kind: "fixed",
+        items: [
+          "Applying a rule to past transactions now starts with the newest and continues where it stopped, so large histories are fully covered.",
+          "Merging a large category into another no longer fails partway; it finishes in steps and also updates unsaved splits.",
+          "A transaction’s activity no longer says the review status changed when it was already reviewed.",
+          "The AI connections page no longer flashes and jumps back to the top once a minute.",
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-09-28",
     title: "Snappier lists and category details where you click",
     lead: "A pass on the small waits and hunts: choosing a category in Cash Flow or Reports now opens its transactions right beside the chart, and long lists no longer make the page stutter.",
