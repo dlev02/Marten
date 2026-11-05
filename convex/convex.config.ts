@@ -16,6 +16,8 @@ const app = defineApp({
     // Required for new bank connections; 32 bytes, base64, seals every provider secret.
     CREDENTIALS_KEY: v.optional(v.string()),
     SIMPLEFIN_ALLOWED_HOSTS: v.optional(v.string()),
+    // Enable only after reviewing existing expired production records.
+    SECURITY_RETENTION_ENABLED: v.optional(v.string()),
   },
 });
 app.use(rateLimiter);

@@ -39,6 +39,7 @@ type Env = {
   readonly PLAID_ENV: string | undefined;
   readonly PLAID_REDIRECT_URI: string | undefined;
   readonly PLAID_SECRET: string | undefined;
+  readonly SECURITY_RETENTION_ENABLED: string | undefined;
   readonly SIMPLEFIN_ALLOWED_HOSTS: string | undefined;
   readonly SITE_URL: string | undefined;
 };

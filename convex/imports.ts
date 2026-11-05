@@ -9,7 +9,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { userMutation, userQuery, text, requireUser } from "./lib/access";
-import { httpAction } from "./_generated/server";
+import { env, httpAction } from "./_generated/server";
 import { readBoundedBody } from "./lib/agentAuth";
 import { fileHeaders } from "./lib/fileHttp";
 import { accountKind, kind } from "./validators";
@@ -570,6 +570,7 @@ export const cleanup = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    if (env.SECURITY_RETENTION_ENABLED !== "1") return null;
     const jobs = await ctx.db
       .query("importJobs")
       .withIndex("by_updatedAt", (q) =>

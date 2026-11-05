@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  env,
   internalAction,
   internalMutation,
   internalQuery,
@@ -367,6 +368,7 @@ export const expireGuests = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    if (env.SECURITY_RETENTION_ENABLED !== "1") return null;
     const users = await ctx.db
       .query("users")
       .withIndex("by_isAnonymous", (q) =>

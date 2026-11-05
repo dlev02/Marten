@@ -43,6 +43,8 @@ replacement checks the current pointer so a concurrent owner deletion or
 replacement cannot resurrect a file. The previous file is deleted only after
 its replacement is stored. Deleted or already-migrated rows are skipped.
 
+After reviewing existing expired records, set `SECURITY_RETENTION_ENABLED=1` on the intended deployment. Both cleanup functions default to no-op until that flag is enabled; unset it to suspend retention without another release.
+
 Run `imports:cleanup` and `accountDeletion:expireGuests` once to bring retention
 current, or allow their hourly schedules to do so. These act on expired records,
 not active personal accounts. Historical backups age out under Convex retention;
