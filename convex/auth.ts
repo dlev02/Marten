@@ -4,12 +4,22 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { passwordResetEmail } from "./lib/passwordReset";
 import { reserveResetEmail } from "./lib/resetLimits";
 import type { MutationCtx } from "./_generated/server";
+import { providerRateLimiter } from "./lib/providerLimits";
+import { ConvexError } from "convex/values";
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   // Failed password sign-ins are limited per account: ten in an hour, then
   // one more attempt every six minutes. Successful sign-ins are unaffected.
   signIn: { maxFailedAttempsPerHour: 10 },
   callbacks: {
     afterUserCreatedOrUpdated: async (ctx, args) => {
+      if (args.profile.isAnonymous && !args.existingUserId) {
+        const budget = await providerRateLimiter.limit(
+          ctx as MutationCtx,
+          "demoSignup",
+        );
+        if (!budget.ok)
+          throw new ConvexError("The demo is busy. Please try again later.");
+      }
       if (
         args.type === "email" &&
         args.provider.id === "folio-password-reset" &&
@@ -23,6 +33,11 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     Password({
       reset: passwordResetEmail,
       profile(params) {
+        // The provider's requirements callback only covers creation/reset;
+        // guard sign-in before it reaches the password hasher too.
+        for (const candidate of [params.password, params.newPassword])
+          if (typeof candidate === "string" && candidate.length > 1024)
+            throw new Error("Use a password with at most 1,024 characters.");
         const email = String(params.email ?? "")
           .trim()
           .toLowerCase();
@@ -36,6 +51,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         };
       },
       validatePasswordRequirements(password) {
+        if (typeof password === "string" && password.length > 1024)
+          throw new Error("Use a password with at most 1,024 characters.");
         if (typeof password !== "string" || password.length < 12)
           throw new Error("Use a password with at least 12 characters.");
       },

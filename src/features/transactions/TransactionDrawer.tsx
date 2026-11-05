@@ -14,6 +14,8 @@ import {
   type ChangeEvent,
 } from "react";
 import { useAction, useMutation, useQuery } from "../../lib/convex";
+import { useAuthToken } from "@convex-dev/auth/react";
+import { backendHttpUrl } from "../../lib/backendHttp";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -119,7 +121,7 @@ export function TransactionDrawer({
 }
 type Detail = {
   transaction: Doc<"transactions">;
-  attachments: (Doc<"attachments"> & { url: string | null })[];
+  attachments: Omit<Doc<"attachments">, "storageId">[];
   activity: Doc<"activity">[];
 };
 function TransactionFields({
@@ -169,6 +171,27 @@ function TransactionFields({
   );
   const fileRef = useRef<HTMLInputElement>(null);
   const { busy, run } = useTask();
+  const authToken = useAuthToken();
+  async function downloadReceipt(id: Id<"attachments">, name: string) {
+    if (!authToken) throw new Error("Sign in to download this receipt.");
+    const response = await fetch(
+      backendHttpUrl(`/receipts?id=${encodeURIComponent(id)}`),
+      {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: "no-store",
+      },
+    );
+    if (!response.ok)
+      throw new Error(
+        "This receipt could not be downloaded. Sign in and try again.",
+      );
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
   const merchant = data.merchants.find((m) => m._id === tx.merchantId),
     account = data.accounts.find((a) => a._id === tx.accountId);
   const canEdit = !tx.pending || !!data.profile?.allowPending;
@@ -501,14 +524,15 @@ function TransactionFields({
             {detail.attachments.map((a) => (
               <div key={a._id}>
                 <FileText size={19} />
-                {a.url ? (
-                  <a href={a.url} target="_blank" rel="noreferrer">
-                    {a.name}
-                    <small>{Math.ceil(a.size / 1024)} KB</small>
-                  </a>
-                ) : (
-                  <span>{a.name} · unavailable</span>
-                )}
+                <button
+                  type="button"
+                  className="attachment-download"
+                  disabled={busy}
+                  onClick={() => void run(() => downloadReceipt(a._id, a.name))}
+                >
+                  {a.name}
+                  <small>{Math.ceil(a.size / 1024)} KB</small>
+                </button>
                 <IconButton
                   label={`Delete ${a.name}`}
                   disabled={!canEdit || busy}

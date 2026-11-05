@@ -56,6 +56,7 @@ function ConsentRequest({ request }: { request: string }) {
   const authorize = useAction(api.agentAccess.authorize);
   const deny = useMutation(api.agentAccess.denyAuthorization);
   const [allowEdits, setAllowEdits] = useState(false);
+  const [startedHere, setStartedHere] = useState(false);
   const [lifetime, setLifetime] = useState<Lifetime>("idle");
   const task = useTask();
   if (details === undefined) return <Loading />;
@@ -161,9 +162,21 @@ function ConsentRequest({ request }: { request: string }) {
             <dd>
               <code>{details.clientId}</code>
             </dd>
+            <dt>Callback address</dt>
+            <dd>
+              <code>{details.redirectUri}</code>
+            </dd>
           </dl>
         </details>
       </div>
+      {unverified && (
+        <Toggle
+          label="I started this connection in my AI app"
+          checked={startedHere}
+          disabled={task.busy}
+          onChange={setStartedHere}
+        />
+      )}
       <div className="modal-actions agent-consent-actions">
         <Button
           disabled={task.busy}
@@ -178,7 +191,7 @@ function ConsentRequest({ request }: { request: string }) {
         </Button>
         <Button
           tone="primary"
-          disabled={task.busy}
+          disabled={task.busy || (unverified && !startedHere)}
           onClick={() =>
             void task.run(async () => {
               const result = await authorize({

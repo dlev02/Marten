@@ -422,6 +422,7 @@ async function requireGrantCapacity(
 }
 export const createRequest = internalMutation({
   args: {
+    addressKey: v.optional(v.string()),
     requestHash: v.string(),
     clientId: v.string(),
     clientName: v.string(),
@@ -433,11 +434,28 @@ export const createRequest = internalMutation({
     state: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (
+      !(
+        await agentRateLimiter.limit(ctx, "agentOAuthAddress", {
+          key: args.addressKey ?? "unknown",
+        })
+      ).ok
+    )
+      return false;
+    if (
+      !(
+        await agentRateLimiter.limit(ctx, "agentOAuthClient", {
+          key: args.clientId,
+        })
+      ).ok
+    )
+      return false;
     const limited = await agentRateLimiter.limit(ctx, "agentOAuthGlobal");
     if (!limited.ok) return false;
     const now = Date.now();
+    const { addressKey: _address, ...request } = args;
     const id = await ctx.db.insert("agentAuthorizationRequests", {
-      ...args,
+      ...request,
       createdAt: now,
       expiresAt: now + AGENT_REQUEST_MS,
     });
@@ -504,6 +522,7 @@ export const sweepTokens = internalMutation({
 });
 export const exchange = internalMutation({
   args: {
+    addressKey: v.optional(v.string()),
     grantType: v.union(
       v.literal("authorization_code"),
       v.literal("refresh_token"),
@@ -518,6 +537,14 @@ export const exchange = internalMutation({
     scope: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    if (
+      !(
+        await agentRateLimiter.limit(ctx, "agentTokenAddress", {
+          key: args.addressKey ?? "unknown",
+        })
+      ).ok
+    )
+      return { error: "temporarily_unavailable" as const };
     const limited = await agentRateLimiter.limit(ctx, "agentTokenGlobal");
     if (!limited.ok) return { error: "temporarily_unavailable" as const };
     const now = Date.now();

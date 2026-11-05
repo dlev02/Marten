@@ -891,7 +891,7 @@ describe("receipt and archived transaction ownership", () => {
     const detail = await alice.query(api.transactions.detail, { id });
     expect(detail.transaction.attachmentCount).toBe(1);
     expect(detail.attachments).toHaveLength(1);
-    expect(detail.attachments[0].url).toBeTruthy();
+    expect(detail.attachments[0]).not.toHaveProperty("storageId");
     await expect(
       bob.mutation(api.transactions.deleteAttachment, { id: attachment }),
     ).rejects.toThrow("unavailable");

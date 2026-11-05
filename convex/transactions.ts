@@ -323,9 +323,7 @@ export const detail = userQuery({
   args: { id: v.id("transactions") },
   returns: v.object({
     transaction: schema.doc("transactions"),
-    attachments: v.array(
-      schema.doc("attachments").extend({ url: v.union(v.string(), v.null()) }),
-    ),
+    attachments: v.array(schema.doc("attachments").omit("storageId")),
     activity: v.array(schema.doc("activity")),
   }),
   handler: async (ctx, { id }) => {
@@ -341,12 +339,7 @@ export const detail = userQuery({
       .take(50);
     return {
       transaction,
-      attachments: await Promise.all(
-        attachments.map(async (item) => ({
-          ...item,
-          url: await ctx.storage.getUrl(item.storageId),
-        })),
-      ),
+      attachments: attachments.map(({ storageId: _storage, ...item }) => item),
       activity,
     };
   },
@@ -910,7 +903,10 @@ export const attachStored = internalMutation({
     await ctx.db.patch(transaction._id, {
       attachmentCount: existing.length + 1,
     });
-    return await ctx.db.insert("attachments", args);
+    return await ctx.db.insert("attachments", {
+      ...args,
+      privateDownload: true,
+    });
   },
 });
 

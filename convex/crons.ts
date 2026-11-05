@@ -21,10 +21,22 @@ crons.interval(
   internal.reminders.sweep,
   { cursor: null },
 );
-crons.daily(
+crons.cron(
   "Remove old reminder delivery records",
-  { hourUTC: 7, minuteUTC: 43 },
+  "43 7 * * *",
   internal.reminders.cleanup,
+  {},
+);
+crons.interval(
+  "Remove abandoned import jobs",
+  { hours: 1 },
+  internal.imports.cleanup,
+  {},
+);
+crons.interval(
+  "Remove expired demo guests",
+  { hours: 1 },
+  internal.accountDeletion.expireGuests,
   {},
 );
 // AI connections: expired token rows, then app registrations nobody uses.

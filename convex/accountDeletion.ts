@@ -26,6 +26,7 @@ const CONFIRMATION = "DELETE";
 // Every table that stores a document for one user, grouped by the index whose
 // first field is `userId`. Keep this list in sync with schema.ts.
 const byUserId = [
+  "importJobs",
   "agentPreferences",
   "agentActivity",
   "reminderPreferences",
@@ -59,7 +60,8 @@ async function deleteStorage(
   ctx: MutationCtx,
   row: Doc<(typeof byUserId)[number]>,
 ) {
-  if ("storageId" in row) await ctx.storage.delete(row.storageId);
+  if ("storageId" in row && row.storageId)
+    await ctx.storage.delete(row.storageId);
   if ("logoStorageId" in row && row.logoStorageId)
     await ctx.storage.delete(row.logoStorageId);
 }
@@ -359,3 +361,29 @@ async function deleteRateLimits(ctx: MutationCtx, identifier: string) {
     .take(10);
   for (const limit of limits) await ctx.db.delete(limit._id);
 }
+
+/** Anonymous workspaces are disposable; no real account enters this path. */
+export const expireGuests = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_isAnonymous", (q) =>
+        q.eq("isAnonymous", true).lt("_creationTime", Date.now() - 86400_000),
+      )
+      .take(200);
+    for (const user of users) {
+      const profile = await ctx.db
+        .query("profiles")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .unique();
+      if (profile && !profile.deletionRequestedAt)
+        await ctx.db.patch(profile._id, { deletionRequestedAt: Date.now() });
+      await ctx.scheduler.runAfter(0, internal.accountDeletion.deleteBatch, {
+        userId: user._id,
+      });
+    }
+    return null;
+  },
+});

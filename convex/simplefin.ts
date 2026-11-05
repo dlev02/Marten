@@ -17,6 +17,7 @@ import { date, userAction, userMutation, userQuery } from "./lib/access";
 import { accountKind } from "./validators";
 import {
   isSealed,
+  credentialKeyBytes,
   openCredential,
   sealCredential,
 } from "./lib/credentialCrypto";
@@ -202,6 +203,11 @@ export const connect = userAction({
     warning: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, { setupToken, provider = "simplefin" }) => {
+    // Check before consuming a one-use setup token.
+    if (!credentialKeyBytes(env.CREDENTIALS_KEY))
+      throw new ConvexError(
+        "Bank connections need a valid server sealing key. Contact the server operator.",
+      );
     await ctx.runMutation(internal.simplefinInternal.reserveConnect, {
       userId: ctx.userId,
     });
@@ -261,6 +267,10 @@ export const preview = userAction({
   args: { provider: v.optional(bankProvider) },
   returns: previewResult,
   handler: async (ctx, { provider = "simplefin" }): Promise<PreviewResult> => {
+    await ctx.runMutation(internal.providerSecurity.reserve, {
+      userId: ctx.userId,
+      operation: "bankPreview",
+    });
     const { accessUrl, accounts } = await importContext(ctx, provider);
     try {
       return await fetchPreview(accessUrl, accounts, provider);
@@ -331,6 +341,10 @@ async function runImport(
   args?: { accounts: SimplefinSelection[]; fromDate: string },
   provider: BankProvider = "simplefin",
 ): Promise<ImportResult> {
+  await ctx.runMutation(internal.providerSecurity.reserve, {
+    userId: ctx.userId,
+    operation: "bankSync",
+  });
   const {
     connection,
     accounts: existing,

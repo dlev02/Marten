@@ -8,7 +8,10 @@ import {
   internalQuery,
   type QueryCtx,
 } from "./_generated/server";
-import { userMutation, userQuery, text } from "./lib/access";
+import { userMutation, userQuery, text, requireUser } from "./lib/access";
+import { httpAction } from "./_generated/server";
+import { readBoundedBody } from "./lib/agentAuth";
+import { fileHeaders } from "./lib/fileHttp";
 import { accountKind, kind } from "./validators";
 import { importMappedRows, importedRow } from "./transactions";
 import { importBalancesForUser } from "./workspace";
@@ -176,10 +179,67 @@ const batchRows = 100;
 /** A job that has not reported progress for this long is treated as abandoned. */
 const staleAfter = 15 * 60_000;
 
-export const createUploadUrl = userMutation({
-  args: {},
-  returns: v.string(),
-  handler: async (ctx) => await ctx.storage.generateUploadUrl(),
+const maxImportBytes = 20 * 1024 * 1024;
+
+/** The server stores the authenticated request itself; a caller cannot nominate a blob. */
+export const upload = httpAction(async (ctx, request) => {
+  let headers: Headers;
+  try {
+    headers = fileHeaders(request);
+  } catch {
+    return new Response("Forbidden", { status: 403 });
+  }
+  let userId: Id<"users">;
+  try {
+    userId = await requireUser(ctx);
+  } catch {
+    return new Response("Sign in before importing.", { status: 401, headers });
+  }
+  try {
+    const kind = new URL(request.url).searchParams.get("kind");
+    if (kind !== "transactions" && kind !== "balances")
+      return new Response("Choose an import type.", { status: 400, headers });
+    if (Number(request.headers.get("content-length")) > maxImportBytes)
+      return new Response("Import files must be at most 20 MB.", {
+        status: 413,
+        headers,
+      });
+    const body = await readBoundedBody(request.body, maxImportBytes);
+    let rows: unknown;
+    try {
+      rows = JSON.parse(body);
+    } catch {
+      return new Response("Upload a JSON row array.", { status: 400, headers });
+    }
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 50_000)
+      return new Response("Import between 1 and 50,000 rows at a time.", {
+        status: 400,
+        headers,
+      });
+    const storageId = await ctx.storage.store(
+      new Blob([body], { type: "application/json" }),
+    );
+    try {
+      const jobId = await ctx.runMutation(internal.imports.start, {
+        userId,
+        kind,
+        storageId,
+        total: rows.length,
+      });
+      headers.set("Content-Type", "application/json");
+      return new Response(JSON.stringify({ jobId }), { headers });
+    } catch (error) {
+      await ctx.storage.delete(storageId);
+      throw error;
+    }
+  } catch (error) {
+    return new Response(
+      error instanceof ConvexError && typeof error.data === "string"
+        ? error.data
+        : "The import could not be uploaded. Sign in and try again.",
+      { status: 400, headers },
+    );
+  }
 });
 
 async function latestJob(
@@ -193,19 +253,21 @@ async function latestJob(
     .first();
 }
 
-export const start = userMutation({
+export const start = internalMutation({
   args: {
+    userId: v.id("users"),
     kind: v.union(v.literal("transactions"), v.literal("balances")),
     storageId: v.id("_storage"),
     total: v.number(),
   },
   returns: v.id("importJobs"),
   handler: async (ctx, args) => {
+    await requireImportWorkspace(ctx, args.userId);
     if (!Number.isInteger(args.total) || args.total < 1 || args.total > 50_000)
       throw new ConvexError("Import between 1 and 50,000 rows at a time.");
     const meta = await ctx.db.system.get(args.storageId);
     if (!meta) throw new ConvexError("The uploaded rows were not found.");
-    const previous = await latestJob(ctx, ctx.userId);
+    const previous = await latestJob(ctx, args.userId);
     if (
       previous &&
       (previous.status === "queued" || previous.status === "running") &&
@@ -216,7 +278,7 @@ export const start = userMutation({
       );
     const now = Date.now();
     const jobId = await ctx.db.insert("importJobs", {
-      userId: ctx.userId,
+      userId: args.userId,
       kind: args.kind,
       status: "queued",
       storageId: args.storageId,
@@ -239,9 +301,27 @@ export const start = userMutation({
 /** The most recent import job, so the dialog and the app shell can show progress. */
 export const latest = userQuery({
   args: {},
-  returns: v.union(schema.doc("importJobs"), v.null()),
-  handler: async (ctx) => await latestJob(ctx, ctx.userId),
+  returns: v.union(schema.doc("importJobs").omit("storageId"), v.null()),
+  handler: async (ctx) => {
+    const job = await latestJob(ctx, ctx.userId);
+    if (!job) return null;
+    const { storageId: _storage, ...safe } = job;
+    return safe;
+  },
 });
+
+async function requireImportWorkspace(
+  ctx: Pick<QueryCtx, "db">,
+  userId: Id<"users">,
+) {
+  const user = await ctx.db.get(userId);
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  if (!user || !profile || profile.deletionRequestedAt || profile.clearingAt)
+    throw new ConvexError("This workspace is unavailable for imports.");
+}
 
 export const acknowledge = userMutation({
   args: { jobId: v.id("importJobs") },
@@ -272,7 +352,12 @@ export const recordProgress = internalMutation({
   args: { jobId: v.id("importJobs"), patch: progressPatch },
   returns: v.null(),
   handler: async (ctx, { jobId, patch }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) return null;
     const { storageId, ...rest } = patch;
+    // The transaction owns the pointer and cleanup, including failure paths.
+    if (storageId === null && job.storageId)
+      await ctx.storage.delete(job.storageId);
     await ctx.db.patch(jobId, {
       ...rest,
       ...(storageId === null
@@ -292,6 +377,9 @@ export const transactionBatch = internalMutation({
   handler: async (ctx, { jobId, rows }) => {
     const job = await ctx.db.get(jobId);
     if (!job) throw new ConvexError("This import was removed.");
+    await requireImportWorkspace(ctx, job.userId);
+    if (job.status !== "queued" && job.status !== "running")
+      throw new ConvexError("This import has ended.");
     const result = await importMappedRows({ ...ctx, userId: job.userId }, rows);
     await ctx.db.patch(jobId, {
       status: "running",
@@ -316,6 +404,9 @@ export const balanceBatch = internalMutation({
   handler: async (ctx, { jobId, accountId, rows, accounts }) => {
     const job = await ctx.db.get(jobId);
     if (!job) throw new ConvexError("This import was removed.");
+    await requireImportWorkspace(ctx, job.userId);
+    if (job.status !== "queued" && job.status !== "running")
+      throw new ConvexError("This import has ended.");
     const updates = await importBalancesForUser(
       { ...ctx, userId: job.userId },
       { accountId, rows },
@@ -388,7 +479,6 @@ export const run = internalAction({
         jobId,
         patch: { ...patch, storageId: null },
       });
-      await ctx.storage.delete(job.storageId!);
     };
     let parsed: unknown;
     try {
@@ -471,6 +561,27 @@ export const run = internalAction({
     } catch (error) {
       await finish({ status: "failed", error: errorText(error) });
     }
+    return null;
+  },
+});
+
+/** Bounded retention also reclaims abandoned uploads after an interrupted action. */
+export const cleanup = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const jobs = await ctx.db
+      .query("importJobs")
+      .withIndex("by_updatedAt", (q) =>
+        q.lt("updatedAt", Date.now() - 7 * 86400_000),
+      )
+      .take(100);
+    for (const job of jobs) {
+      if (job.storageId) await ctx.storage.delete(job.storageId);
+      await ctx.db.delete(job._id);
+    }
+    if (jobs.length === 100)
+      await ctx.scheduler.runAfter(0, internal.imports.cleanup, {});
     return null;
   },
 });

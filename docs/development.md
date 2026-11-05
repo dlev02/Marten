@@ -23,19 +23,19 @@ The current intended development backend is `stoic-narwhal-224.convex.cloud`. Tr
 
 ## Environment and authentication
 
-| Variable                              | Where it belongs                                        | Meaning                                                                     |
-| ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                               |
-| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                            |
-| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                                |
-| `AGENT_APP_ORIGIN`                    | Convex deployment environment                           | Optional exact frontend origin for MCP consent; falls back to `SITE_URL`    |
-| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                           |
-| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                    |
-| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                    |
-| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows       |
-| `PLAID_ALLOWED_EMAILS`                | Convex deployment environment                           | Optional comma-separated verified emails allowed to link Plaid; others use SimpleFIN |
-| `CREDENTIALS_KEY`                     | Convex deployment environment                           | Optional 32-byte base64 key that seals user-entered provider tokens         |
-| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config          |
+| Variable                              | Where it belongs                                        | Meaning                                                                                |
+| ------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `VITE_CONVEX_URL`                     | Ignored local frontend env / frontend hosting build env | Public Convex client endpoint                                                          |
+| `CONVEX_DEPLOYMENT`                   | CLI-managed local configuration                         | Identifies the deployment used by the Convex CLI                                       |
+| `SITE_URL`                            | Convex deployment environment                           | Exact frontend origin used by authentication                                           |
+| `AGENT_APP_ORIGIN`                    | Convex deployment environment                           | Optional exact frontend origin for MCP consent; falls back to `SITE_URL`               |
+| `JWT_PRIVATE_KEY`, `JWKS`             | Convex deployment environment                           | Convex Auth signing configuration                                                      |
+| `PLAID_CLIENT_ID`, `PLAID_SECRET`     | Convex deployment environment                           | Matching Plaid credentials; never client build variables                               |
+| `PLAID_ENV`                           | Convex deployment environment                           | Explicit `sandbox` or `production`; unset disables links                               |
+| `PLAID_REDIRECT_URI`                  | Convex deployment environment                           | Optional registered OAuth callback; required for redirect-based flows                  |
+| `PLAID_ALLOWED_EMAILS`                | Convex deployment environment                           | Optional comma-separated verified emails allowed to link Plaid; others use SimpleFIN   |
+| `CREDENTIALS_KEY`                     | Convex deployment environment                           | Required for new bank connections; 32-byte base64 key sealing all provider credentials |
+| `CONVEX_SITE_URL`, `CONVEX_CLOUD_URL` | Supplied by Convex                                      | HTTP-action and client origins; do not redefine them in app config                     |
 
 The installed Convex Auth initializer can configure a new development deployment:
 
@@ -132,7 +132,6 @@ there to stop automatic backend deploys.
   `convex deploy` rejects a schema that current data does not satisfy.
 - `npx convex deploy -y` from a signed-in machine remains the manual fallback.
 
-
 1. Finish the relevant checks and record observed results in [verification.md](verification.md).
 2. Choose the intended backend explicitly. Set that deployment's auth and Plaid configuration separately from development.
 3. Build the frontend with the intended public `VITE_CONVEX_URL`. Configure the final HTTPS origin and a SPA fallback to `index.html` on the static host.
@@ -156,3 +155,5 @@ Escape cancellation, saved order after reload, and reduced-motion CSS.
 ## Lunch Flow and shared bank imports
 
 [The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.
+
+Security upgrades and bounded maintenance commands are documented in [security-hardening.md](security-hardening.md). Keep the theme bootstrap hash in Netlify CSP synchronized with `ThemeProvider` options; preview uses the production policy to catch drift. The temporary minimatch 11 override fixes the vulnerable transitive parser dependency without downgrading the linter; remove it once the upstream parser range includes the patched major.

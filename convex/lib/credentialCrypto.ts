@@ -5,8 +5,8 @@ import { ConvexError } from "convex/values";
  * key) are stored in Convex. When the deployment operator sets
  * `CREDENTIALS_KEY` (32 random bytes, base64), those secrets are additionally
  * sealed with AES-256-GCM so the raw value never appears in the database,
- * dashboard, or backups. Without the key, values are stored as entered; the
- * status query reports which mode is active so the operator can tell.
+ * dashboard, or backups. New writes require a valid key; legacy plaintext can
+ * still be read while the bounded security migration seals existing records.
  */
 const PREFIX = "enc1.";
 const encoder = new TextEncoder();
@@ -24,7 +24,7 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Accepts a base64 key of exactly 32 bytes; anything else means "no encryption". */
+/** Accepts a base64 key of exactly 32 bytes; callers must reject a null result before saving. */
 export function credentialKeyBytes(
   raw: string | undefined,
 ): Uint8Array<ArrayBuffer> | null {
@@ -47,13 +47,16 @@ export function isSealed(value: string) {
   return value.startsWith(PREFIX);
 }
 
-/** Returns the sealed form when a key is configured, otherwise the plaintext. */
+/** New provider credentials are always sealed; missing or invalid keys fail closed. */
 export async function sealCredential(
   plaintext: string,
   rawKey: string | undefined,
 ): Promise<string> {
   const keyBytes = credentialKeyBytes(rawKey);
-  if (!keyBytes) return plaintext;
+  if (!keyBytes)
+    throw new ConvexError(
+      "Bank connections need a valid server CREDENTIALS_KEY. Contact the server operator.",
+    );
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(

@@ -14,6 +14,17 @@ import { agentToolSchemas } from "./lib/agentTools";
 import { agentErrorMessage, untrustedTextWarnings } from "./lib/agentCall";
 import { findMerchantByName } from "./lib/merchantAliases";
 
+vi.mock("./lib/safeWebsiteRequest", () => ({
+  safeWebsiteRequest: async (url: URL, _limit: number, signal: AbortSignal) => {
+    const response = await fetch(url, { redirect: "manual", signal });
+    return {
+      status: response.status,
+      location: response.headers.get("location") ?? undefined,
+      bytes: new Uint8Array(await response.arrayBuffer()),
+    };
+  },
+}));
+
 const modules = import.meta.glob("./**/*.ts");
 type Row = Record<string, any>;
 let now: number;

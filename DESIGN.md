@@ -761,3 +761,7 @@ and Linear's authorize screens, in Marten's calm voice:
   one-line summary ("Recategorized 12 transactions"); the muted second line is
   the connection and the tool. Reads keep the tool name as the title. Long
   summaries wrap inside the row instead of pushing the time off screen.
+
+### Security controls, November 5, 2026
+
+Receipt names in transaction details are download buttons styled like the existing attachment links; activation authenticates and downloads the file without exposing a permanent URL. Unverified OAuth consent uses the shared Toggle for an explicit “I started this connection” acknowledgement; the Allow action stays disabled until acknowledged. The complete callback address is available in the existing access-details disclosure. Preserve the warning, focus styles and wrapped addresses at narrow widths.

@@ -73,3 +73,5 @@ Account refresh may adopt an imported manual account in place when its source la
 ## Choosing a service
 
 The account dialog presents the service first. Configured, eligible Plaid users choose checking/cards or investments only after selecting Plaid; those modes request different Plaid products. SimpleFIN and [Lunch Flow](lunchflow.md) review account types after reading their own connected accounts. Institutions displays one overall empty state and existing provider connections, without claiming Plaid is unavailable merely because it has no items.
+
+Provider secrets: new Plaid access tokens are sealed with AES-256-GCM and require a valid `CREDENTIALS_KEY`. Requests decrypt only on the server. Existing tokens can be sealed in place through the bounded [security migration](security-hardening.md); do not rotate or discard the sealing key. Link creation, exchanges and manual syncs have per-user budgets. Webhook bodies are capped while streaming, verification-key lookups are briefly cached, and public requests have address/global abuse budgets before a Plaid key request.

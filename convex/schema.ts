@@ -30,6 +30,7 @@ const agentChange = v.object({
 });
 export default defineSchema({
   ...authTables,
+  users: authTables.users.index("by_isAnonymous", ["isAnonymous"]),
   agentPreferences: defineTable({
     ...owner,
     browserEnabled: v.boolean(),
@@ -214,6 +215,7 @@ export default defineSchema({
     // Set when the owner asked to delete the account; the scheduled sweep in
     // accountDeletion.ts is emptying every table and will remove the sign-in last.
     deletionRequestedAt: v.optional(v.number()),
+    clearingAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
   // One connection per user and provider. Legacy simplefin table/field names
   // remain for persisted IDs; absent provider means SimpleFIN. accessUrl holds
@@ -399,6 +401,7 @@ export default defineSchema({
       filterFields: ["userId"],
     }),
   attachments: defineTable({
+    privateDownload: v.optional(v.boolean()),
     ...owner,
     transactionId: v.id("transactions"),
     storageId: v.id("_storage"),
@@ -439,7 +442,9 @@ export default defineSchema({
     acknowledged: v.boolean(),
     startedAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_updatedAt", ["updatedAt"]),
   activity: defineTable({
     ...owner,
     transactionId: v.id("transactions"),

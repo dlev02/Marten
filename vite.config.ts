@@ -25,13 +25,23 @@ function buildIdentifier() {
 // Keep local/preview consent pages protected like the deployed static site.
 // This restricts embedding Marten, not the Plaid frames Marten opens itself.
 const securityHeaders = {
-  "Content-Security-Policy": "frame-ancestors 'none'",
+  // Vite's development bootstrap requires inline scripts. Production/preview
+  // use the exact policy from Netlify, including the theme bootstrap hash.
+  "Content-Security-Policy":
+    "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
   "X-Frame-Options": "DENY",
 };
 export default defineConfig({
   plugins: [react()],
   server: { headers: securityHeaders },
-  preview: { headers: securityHeaders },
+  preview: {
+    headers: {
+      ...securityHeaders,
+      "Content-Security-Policy": readFileSync("netlify.toml", "utf8").match(
+        /Content-Security-Policy = "([^"]+)"/,
+      )![1],
+    },
+  },
   define: {
     __MARTEN_BUILD__: JSON.stringify(buildIdentifier()),
   },

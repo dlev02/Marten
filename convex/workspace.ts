@@ -43,11 +43,15 @@ function checkLimit(rows: unknown[], limit: number) {
   if (rows.length > limit) throw new ConvexError(limitMessage);
 }
 const profileValidator = v.union(
-  schema.doc("profiles").extend({ avatarUrl: v.union(v.string(), v.null()) }),
+  schema
+    .doc("profiles")
+    .omit("photoStorageId")
+    .extend({ avatarUrl: v.union(v.string(), v.null()) }),
   v.null(),
 );
 const merchantValidator = schema
   .doc("merchants")
+  .omit("logoStorageId")
   .extend({ resolvedLogoUrl: v.union(v.string(), v.null()) });
 const taxonomyValidator = v.object({
   groups: v.array(schema.doc("groups")),
@@ -64,14 +68,12 @@ async function readProfile(ctx: UserRead) {
     .query("profiles")
     .withIndex("by_userId", (q) => q.eq("userId", ctx.userId))
     .unique();
-  return profile
-    ? {
-        ...profile,
-        avatarUrl: profile.photoStorageId
-          ? await ctx.storage.getUrl(profile.photoStorageId)
-          : null,
-      }
-    : null;
+  if (!profile) return null;
+  const { photoStorageId, ...safe } = profile;
+  return {
+    ...safe,
+    avatarUrl: photoStorageId ? await ctx.storage.getUrl(photoStorageId) : null,
+  };
 }
 async function readAccounts(ctx: UserRead) {
   const accounts = await ctx.db
@@ -128,10 +130,10 @@ async function readMerchants(ctx: UserRead) {
     .take(2001);
   checkLimit(merchants, 2000);
   return await Promise.all(
-    merchants.map(async (m) => ({
+    merchants.map(async ({ logoStorageId, ...m }) => ({
       ...m,
-      resolvedLogoUrl: m.logoStorageId
-        ? await ctx.storage.getUrl(m.logoStorageId)
+      resolvedLogoUrl: logoStorageId
+        ? await ctx.storage.getUrl(logoStorageId)
         : (m.logoUrl ?? null),
     })),
   );
@@ -1055,6 +1057,8 @@ export const clearSample = userMutation({
     if (!profile) return { done: true, deleted: 0 };
     if (!profile.demo)
       throw new ConvexError("Only a sample workspace can be reset this way.");
+    if (!profile.clearingAt)
+      await ctx.db.patch(profile._id, { clearingAt: Date.now() });
     if (
       (
         await ctx.db
@@ -1074,7 +1078,18 @@ export const clearSample = userMutation({
       for (const rule of rules) await ctx.db.delete(rule._id);
       return { done: false, deleted: rules.length };
     }
+    const aliases = await ctx.db
+      .query("merchantAliases")
+      .withIndex("by_userId_and_normalizedName", (q) =>
+        q.eq("userId", ctx.userId),
+      )
+      .take(100);
+    if (aliases.length) {
+      for (const row of aliases) await ctx.db.delete(row._id);
+      return { done: false, deleted: aliases.length };
+    }
     for (const table of [
+      "importJobs",
       "forecastScenarios",
       "investmentHoldings",
       "investmentTransactions",
@@ -1097,7 +1112,8 @@ export const clearSample = userMutation({
         .take(100);
       if (!rows.length) continue;
       for (const row of rows) {
-        if ("storageId" in row) await ctx.storage.delete(row.storageId);
+        if ("storageId" in row && row.storageId)
+          await ctx.storage.delete(row.storageId);
         if ("logoStorageId" in row && row.logoStorageId)
           await ctx.storage.delete(row.logoStorageId);
         await ctx.db.delete(row._id);
@@ -1128,6 +1144,7 @@ export const clearSample = userMutation({
 // Tables emptied by clearWorkspace, grouped by the index whose first field is
 // userId. Preferences, reminders, assistant grants and the profile are kept.
 const clearedByUserId = [
+  "importJobs",
   "forecastScenarios",
   "investmentHoldings",
   "investmentTransactions",
@@ -1176,6 +1193,8 @@ export const clearWorkspace = userMutation({
     if (!profile) throw new ConvexError("Set up your workspace first.");
     if (profile.deletionRequestedAt)
       throw new ConvexError("This account is already being deleted.");
+    if (!profile.clearingAt)
+      await ctx.db.patch(profile._id, { clearingAt: Date.now() });
     // Bank access at Plaid is revoked as the connection rows go. SimpleFIN
     // keeps no server-side grant; its access URL simply leaves with the row.
     const items = await ctx.db
@@ -1215,6 +1234,16 @@ export const clearWorkspace = userMutation({
       for (const row of deliveries) await ctx.db.delete(row._id);
       return { done: false, deleted: deliveries.length };
     }
+    const aliases = await ctx.db
+      .query("merchantAliases")
+      .withIndex("by_userId_and_normalizedName", (q) =>
+        q.eq("userId", ctx.userId),
+      )
+      .take(100);
+    if (aliases.length) {
+      for (const row of aliases) await ctx.db.delete(row._id);
+      return { done: false, deleted: aliases.length };
+    }
     for (const table of clearedByUserId) {
       const rows = await ctx.db
         .query(table)
@@ -1222,7 +1251,8 @@ export const clearWorkspace = userMutation({
         .take(100);
       if (!rows.length) continue;
       for (const row of rows) {
-        if ("storageId" in row) await ctx.storage.delete(row.storageId);
+        if ("storageId" in row && row.storageId)
+          await ctx.storage.delete(row.storageId);
         if ("logoStorageId" in row && row.logoStorageId)
           await ctx.storage.delete(row.logoStorageId);
         await ctx.db.delete(row._id);
@@ -1240,7 +1270,7 @@ export const clearWorkspace = userMutation({
     }
     // Everything is gone: a fresh workspace gets its default categories back so
     // the next import or manual entry has somewhere to land.
-    await ctx.db.patch(profile._id, { demo: false });
+    await ctx.db.patch(profile._id, { demo: false, clearingAt: undefined });
     await seedCategories(ctx);
     return { done: true, deleted: 0 };
   },

@@ -13,7 +13,7 @@ If you use Marten on someone else's deployment, such as the hosted Marten site,
 SimpleFIN is how you connect your banks. You keep your own SimpleFIN Bridge
 subscription and your bank logins stay in the bridge; Marten never sees them.
 The only thing Marten stores is the access URL the bridge issues when you paste
-your setup token, and when the operator has set `CREDENTIALS_KEY` that URL is
+your setup token, and that URL is
 sealed so it never appears in plain form in the database, dashboard, or
 backups. You can revoke Marten's access at any time in the bridge, and
 **Remove** in Marten forgets the connection while keeping the history you
@@ -45,12 +45,13 @@ follows the [SimpleFIN protocol](https://www.simplefin.org/protocol.html):
   credentials embedded. The claim works exactly once, so the URL is stored
   before the first data request; a failed preview leaves a retryable
   connection instead of burning the token.
-- The access URL is stored in `simplefinConnections`, one row per user. When
-  the deployment operator sets `CREDENTIALS_KEY` (32 random bytes, base64), the
-  URL is sealed with AES-256-GCM by
+- The access URL is stored in `simplefinConnections`, one row per user. A valid
+  `CREDENTIALS_KEY` (32 random bytes, base64) is required before claiming a setup
+  token. The URL is sealed with AES-256-GCM by
   [`credentialCrypto.ts`](../convex/lib/credentialCrypto.ts) so it never appears
-  in plain form in the database, dashboard, or backups. Without the key it is
-  stored as received, the same posture as Plaid access tokens. Public functions
+  in plain form in new database records. Missing or invalid keys reject new
+  connections before consuming the setup token. Existing plaintext records can
+  be upgraded with the bounded security migration, which also handles Plaid. Public functions
   never return it; status reports only the host and whether it is sealed.
 - Data comes from `GET {access}/accounts` with `start-date`, `end-date`
   (exclusive, so Marten adds a day), `account` filters for the selected accounts,
@@ -180,3 +181,5 @@ card (which led to the 45-day window). No real bank or subscription was used.
 ## Lunch Flow and shared bank imports
 
 [The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.
+
+Only `bridge.simplefin.org` and `beta-bridge.simplefin.org` are trusted by default. Self-hosted operators may add exact hosts with `SIMPLEFIN_ALLOWED_HOSTS`; doing so trusts those hosts with outbound requests and credentials. Redirects and custom ports remain disallowed.

@@ -10,7 +10,6 @@ import { summarize } from "../../src/lib/reporting";
 import type { Metadata } from "../../src/lib/types";
 import { date } from "./access";
 import { entries } from "./finance";
-import { fetchWebsiteLogo } from "../merchantLogos";
 import { auditApplyRule } from "./agentAudit";
 
 /**
@@ -287,10 +286,9 @@ async function setMerchantLogo(
   value: unknown,
 ) {
   const input = agentToolSchemas.set_merchant_logo.parse(value);
-  const image = await fetchWebsiteLogo(input.domain);
-  const storageId = await ctx.storage.store(
-    new Blob([image.bytes], { type: image.type }),
-  );
+  const storageId = await ctx.runAction(internal.merchantLogoFetch.store, {
+    hostname: input.domain,
+  });
   try {
     return await ctx.runMutation(internal.agentAccess.write, {
       auth,

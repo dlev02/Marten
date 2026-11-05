@@ -19,9 +19,9 @@ import {
 } from "./lib/simplefinApi";
 
 const modules = import.meta.glob("./**/*.ts");
-const bridge = "https://bridge.example.org/simplefin";
+const bridge = "https://bridge.simplefin.org/simplefin";
 const accessUrl =
-  "https://fixture-user:fixture-secret@bridge.example.org/simplefin";
+  "https://fixture-user:fixture-secret@bridge.simplefin.org/simplefin";
 const claimUrl = `${bridge}/claim/FIXTURE-TOKEN`;
 const setupToken = btoa(claimUrl);
 const day = (date: string) =>
@@ -75,6 +75,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 async function fixture(options: { connected?: boolean } = {}) {
+  vi.stubEnv("CREDENTIALS_KEY", btoa("f".repeat(32)));
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t);
   const seeded = await t.run(async (ctx) => {
@@ -105,7 +106,7 @@ async function fixture(options: { connected?: boolean } = {}) {
       connectionId = await ctx.db.insert("simplefinConnections", {
         userId,
         accessUrl,
-        host: "bridge.example.org",
+        host: "bridge.simplefin.org",
         status: "connected",
         syncVersion: 0,
         createdAt: Date.now(),
@@ -212,9 +213,9 @@ describe("SimpleFIN protocol helpers", () => {
   test("decodes setup tokens, splits access URLs, and refuses unsafe hosts", () => {
     expect(decodeSetupToken(` ${setupToken} `)).toBe(claimUrl);
     expect(() => decodeSetupToken("not base64!!")).toThrow("SETUP_TOKEN");
-    expect(() => decodeSetupToken(btoa("http://bridge.example.org/x"))).toThrow(
-      "SETUP_TOKEN",
-    );
+    expect(() =>
+      decodeSetupToken(btoa("http://bridge.simplefin.org/x")),
+    ).toThrow("SETUP_TOKEN");
     expect(() => decodeSetupToken(btoa("https://localhost/claim"))).toThrow(
       "SETUP_TOKEN",
     );
@@ -225,10 +226,10 @@ describe("SimpleFIN protocol helpers", () => {
     expect(parsed).toEqual({
       base: bridge,
       authorization: `Basic ${btoa("fixture-user:fixture-secret")}`,
-      host: "bridge.example.org",
+      host: "bridge.simplefin.org",
     });
     expect(() =>
-      parseAccessUrl("https://bridge.example.org/simplefin"),
+      parseAccessUrl("https://bridge.simplefin.org/simplefin"),
     ).toThrow("INVALID_RESPONSE");
     expect(simplefinError(new SimplefinFailure("CLAIMED"))).toContain(
       "already used",
@@ -366,7 +367,7 @@ describe("SimpleFIN connections", () => {
     const connected = await asUser.action(api.simplefin.connect, {
       setupToken,
     });
-    expect(connected.host).toBe("bridge.example.org");
+    expect(connected.host).toBe("bridge.simplefin.org");
     expect(connected.preview?.accounts.map((row) => row.kind)).toEqual([
       "cash",
       "credit",

@@ -4,6 +4,8 @@ import {
 } from "../../lib/amountVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "../../lib/convex";
+import { useAuthToken } from "@convex-dev/auth/react";
+import { backendHttpUrl } from "../../lib/backendHttp";
 import { CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
@@ -55,8 +57,7 @@ export function ImportTransactions({
   useAmountsHidden();
   const data = useData();
   const prepareDestinations = useMutation(api.imports.prepareDestinations);
-  const createUploadUrl = useMutation(api.imports.createUploadUrl);
-  const startJob = useMutation(api.imports.start);
+  const authToken = useAuthToken();
   // The rows are saved by a server job so the import survives leaving the page.
   const latestJob = useQuery(api.imports.latest, {});
   const [jobId, setJobId] = useState<Id<"importJobs"> | null>(null);
@@ -314,22 +315,37 @@ export function ImportTransactions({
       choices,
     ]);
   }
-  async function uploadRows(rows: unknown[]) {
+  async function uploadRows(
+    rows: unknown[],
+    kind: "transactions" | "balances",
+  ) {
     setProgress("Uploading rows…");
-    const url = await createUploadUrl({});
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rows),
-    });
+    if (!authToken) throw new Error("Sign in before importing.");
+    const body = JSON.stringify(rows);
+    if (new Blob([body]).size > 20 * 1024 * 1024)
+      throw new Error(
+        "Import files must be at most 20 MB. Split this file and try again.",
+      );
+    const response = await fetch(
+      backendHttpUrl(`/imports/upload?kind=${kind}`),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body,
+      },
+    );
     if (!response.ok)
       throw new Error(
-        "The rows could not be uploaded. Check your connection and retry.",
+        (await response.text()) ||
+          "The rows could not be uploaded. Check your connection and retry.",
       );
-    const { storageId } = (await response.json()) as {
-      storageId: Id<"_storage">;
+    const { jobId } = (await response.json()) as {
+      jobId: Id<"importJobs">;
     };
-    return storageId;
+    return jobId;
   }
   async function saveTransactions() {
     if (!preview?.valid.length || busy || result || running) return;
@@ -357,10 +373,7 @@ export function ImportTransactions({
           reviewed: row.reviewed,
         })),
       );
-      const storageId = await uploadRows(rows);
-      setJobId(
-        await startJob({ kind: "transactions", storageId, total: rows.length }),
-      );
+      setJobId(await uploadRows(rows, "transactions"));
       setProgress("");
     } catch (cause) {
       setError(message(cause));
@@ -383,10 +396,7 @@ export function ImportTransactions({
         date: row.date,
         balanceCents: row.balanceCents,
       }));
-      const storageId = await uploadRows(rows);
-      setJobId(
-        await startJob({ kind: "balances", storageId, total: rows.length }),
-      );
+      setJobId(await uploadRows(rows, "balances"));
       setProgress("");
     } catch (cause) {
       setError(message(cause));

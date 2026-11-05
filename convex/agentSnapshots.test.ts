@@ -21,8 +21,9 @@ const DAY = 86_400_000;
 let now: number;
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   now = Date.parse("2026-09-29T14:00:00Z");
+  vi.setSystemTime(now);
   vi.spyOn(Date, "now").mockImplementation(() => now);
   vi.stubEnv("CONVEX_SITE_URL", base);
   vi.stubEnv("AGENT_APP_ORIGIN", "http://localhost:5173");

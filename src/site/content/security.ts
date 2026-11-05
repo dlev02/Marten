@@ -5,7 +5,7 @@ export const securityOverview: SiteDocument = {
   title: "Security Overview",
   summary:
     "How sign-in, bank connections, encryption, and access control work in Marten today, what is not offered yet, and how to report a problem.",
-  effective: "September 12, 2026",
+  effective: "November 5, 2026",
   sections: [
     {
       id: "sign-in",
@@ -13,7 +13,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Marten uses email and password sign-in through the Convex Auth library. Passwords must be at least 12 characters and are stored only as a hash. Email addresses are trimmed and lowercased so one address maps to one account. Session tokens are kept in your browser's local storage and cleared when you sign out. Every request also checks that its session still exists on the server, so a password reset or an account deletion ends other sessions immediately rather than when their tokens expire.",
+          text: "Marten uses email and password sign-in through the Convex Auth library. Passwords must be between 12 and 1,024 characters and are stored only as a hash. Email addresses are trimmed and lowercased so one address maps to one account. Session tokens are kept in your browser's local storage and cleared when you sign out. Signing out or switching accounts recreates the page and its query caches before another workspace is shown. Every request also checks that its session still exists on the server, so a password reset or an account deletion ends other sessions immediately rather than when their tokens expire.",
         },
         {
           type: "p",
@@ -31,7 +31,7 @@ export const securityOverview: SiteDocument = {
         },
         {
           type: "p",
-          text: "Receipts, merchant logos, and profile photos are kept in Convex file storage. The app hands out their unguessable file URLs only to the signed-in owner.",
+          text: "Receipts, merchant logos, and profile photos are kept in Convex file storage. Receipt downloads require a live signed-in session and an ownership check on every request; their file IDs and reusable download URLs are not returned to the browser. Profile photos and merchant logos use unguessable bearer URLs: anyone you share one with can view that image until it is deleted or replaced.",
         },
       ],
     },
@@ -47,7 +47,7 @@ export const securityOverview: SiteDocument = {
           type: "ul",
           items: [
             "**Plaid.** You sign in to your bank inside Plaid Link, a component Plaid controls. Depending on the institution, that is either your bank's own OAuth page or Plaid's credential form; either way Marten sees only the result. The browser holds a short-lived Link token and a bit of flow context in session storage so an OAuth redirect can resume, and never a Plaid access token or secret.",
-            "**SimpleFIN Bridge.** You link banks inside your own SimpleFIN account. Marten receives a one-time setup token, exchanges it once, and keeps only the resulting access URL. The token must be an HTTPS claim URL; Marten refuses embedded credentials, query strings, IP addresses, and local hostnames.",
+            "**SimpleFIN Bridge.** You link banks inside your own SimpleFIN account. Marten receives a one-time setup token, exchanges it once, and keeps only the resulting access URL. The token must be an HTTPS claim URL; Marten refuses embedded credentials, query strings, IP addresses, and local hostnames. Only the standard SimpleFIN Bridge hosts, or additional hosts explicitly trusted by a self-hosted server operator, are accepted.",
           ],
         },
       ],
@@ -59,8 +59,8 @@ export const securityOverview: SiteDocument = {
         {
           type: "ul",
           items: [
-            "Plaid access tokens and sync cursors are stored on the server in a private table. Public API responses build a redacted view and never include them. Disconnecting revokes the token with Plaid and clears it from the database.",
-            "The SimpleFIN access URL is sealed with **AES-256-GCM** when the operator has set a `CREDENTIALS_KEY`, so it does not appear in plain form in the database, dashboard, or backups. Status responses report only the host and whether the URL is sealed.",
+            "Plaid access tokens are sealed with AES-256-GCM on the server; sync cursors stay in a private table. Public API responses build a redacted view and never include them. Disconnecting revokes the token with Plaid and clears it from the database.",
+            "SimpleFIN access URLs and Lunch Flow API keys are sealed with **AES-256-GCM**. New bank connections require a valid server sealing key; a missing or malformed key cannot silently store a new credential in plain text. Status responses report only the host and whether the credential is sealed.",
             "Plaid client credentials, Convex Auth signing keys, the sealing key, and the email provider key live only in Convex deployment configuration, never in the browser build or the repository.",
           ],
         },
@@ -92,7 +92,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Sensitive actions are throttled so a mistake or a script cannot hammer them: failed password sign-ins (ten per hour per account, then one more try every six minutes), password-reset and reminder-verification codes (one per minute, five per hour), SimpleFIN connection attempts (a small per-user hourly budget), and AI-connection OAuth and tool calls. Uploads are bounded by size and type on the server.",
+          text: "Sensitive actions are throttled so a mistake or a script cannot hammer them: failed password sign-ins (ten per hour per account, then one more try every six minutes), password-reset and reminder-verification codes (one per minute, five per hour), bank connection attempts, previews and manual syncs (per-user hourly budgets), Plaid webhooks, demo account creation, and AI-connection OAuth and tool calls. Uploads are bounded by size and type on the server.",
         },
       ],
     },
@@ -102,7 +102,7 @@ export const securityOverview: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Assistant connections are off until you turn them on in Settings → AI connections. Reading and editing are separate consents; an assistant with read access gets HTTP 403 if it tries to write. Remote connections use OAuth with PKCE, single-use authorization codes, one-hour access tokens, and rotating refresh tokens. You choose whether a connection lasts while it is in use (ending after 90 days without use), for 30 days, or until you disconnect it. Replaying a code, or a refresh token outside a two-minute retry window, revokes the connection. Apps that register themselves are labeled as unverified on the approval screen. Personal access keys for assistants that cannot sign in are shown once and can be revoked. Only hashes of codes, tokens and keys are stored. Each assistant has its own connection you can revoke individually. Provider identifiers, credentials, storage IDs, and download URLs are stripped from every tool result, and the tool surface has no bank linking, token retrieval, transfer, trade, or deletion actions.",
+          text: "Assistant connections are off until you turn them on in Settings → AI connections. Reading and editing are separate consents; an assistant with read access gets HTTP 403 if it tries to write. Remote connections use OAuth with PKCE, single-use authorization codes, one-hour access tokens, and rotating refresh tokens. You choose whether a connection lasts while it is in use (ending after 90 days without use), for 30 days, or until you disconnect it. Replaying a code, or a refresh token outside a two-minute retry window, revokes the connection. Apps that register themselves are labeled as unverified on the approval screen. Personal access keys for assistants that cannot sign in are shown once and can be revoked. Only hashes of codes, tokens and keys are stored. Each assistant has its own connection you can revoke individually. Provider identifiers, credentials, storage IDs, and download URLs are stripped from every tool result, and the tool surface has no bank linking, token retrieval, transfer, trade, or account-deletion actions. Explicit merchant and category merges can remove the duplicate record while preserving its financial history.",
         },
       ],
     },

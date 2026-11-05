@@ -44,7 +44,14 @@ export async function requirePersonalWorkspace(
     .query("profiles")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
-  if (!user || user.isAnonymous || !profile || profile.demo)
+  if (
+    !user ||
+    user.isAnonymous ||
+    !profile ||
+    profile.demo ||
+    profile.deletionRequestedAt ||
+    profile.clearingAt
+  )
     throw new ConvexError(
       "Create a personal workspace before connecting a bank. The public demo cannot access real bank data.",
     );

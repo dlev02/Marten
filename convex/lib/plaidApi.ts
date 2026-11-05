@@ -2,6 +2,7 @@ import { env } from "../_generated/server";
 import { merchantDisplayName, preferredAccountName } from "./merchantNames";
 import { ConvexError, v, type Infer } from "convex/values";
 import { decodeProtectedHeader, importJWK, jwtVerify, type JWK } from "jose";
+import { openCredential } from "./credentialCrypto";
 
 export const environment = v.union(
   v.literal("sandbox"),
@@ -106,6 +107,16 @@ export async function plaidRequest<T>(
       "This connection belongs to a different Plaid environment. Switch the server configuration or disconnect it.",
     );
   let response: Response;
+  const requestBody =
+    typeof body.access_token === "string"
+      ? {
+          ...body,
+          access_token: await openCredential(
+            body.access_token,
+            env.CREDENTIALS_KEY,
+          ),
+        }
+      : body;
   try {
     response = await fetch(`https://${config.environment}.plaid.com${path}`, {
       method: "POST",
@@ -116,7 +127,7 @@ export async function plaidRequest<T>(
       body: JSON.stringify({
         client_id: env.PLAID_CLIENT_ID,
         secret: env.PLAID_SECRET,
-        ...body,
+        ...requestBody,
       }),
       signal: AbortSignal.timeout(30000),
     });
@@ -342,6 +353,28 @@ export function defaultBankCategory(
   };
 }
 
+// Bounded, short-lived cache. A promise also coalesces concurrent key lookups.
+const webhookKeys = new Map<
+  string,
+  { expiresAt: number; key: Promise<JWK & { expired_at: number | null }> }
+>();
+async function verificationKey(kid: string) {
+  const cached = webhookKeys.get(kid);
+  if (cached && cached.expiresAt > Date.now()) return cached.key;
+  if (webhookKeys.size >= 16)
+    webhookKeys.delete(webhookKeys.keys().next().value!);
+  const key = plaidRequest<{ key: JWK & { expired_at: number | null } }>(
+    "/webhook_verification_key/get",
+    { key_id: kid },
+  ).then((result) => result.key);
+  webhookKeys.set(kid, { expiresAt: Date.now() + 60_000, key });
+  try {
+    return await key;
+  } catch (error) {
+    webhookKeys.delete(kid);
+    throw error;
+  }
+}
 // Verify the signature and hash of the *original bytes*, before parsing the JSON.
 export async function verifyWebhook(
   jwt: string,
@@ -352,12 +385,10 @@ export async function verifyWebhook(
     if (
       header.alg !== "ES256" ||
       typeof header.kid !== "string" ||
-      header.kid.length > 200
+      !/^[A-Za-z0-9_-]{1,200}$/.test(header.kid)
     )
       return false;
-    const { key } = await plaidRequest<{
-      key: JWK & { expired_at: number | null };
-    }>("/webhook_verification_key/get", { key_id: header.kid });
+    const key = await verificationKey(header.kid);
     if (
       key.alg !== "ES256" ||
       key.kid !== header.kid ||

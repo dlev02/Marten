@@ -9,12 +9,14 @@ import {
 const key = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => i)));
 
 describe("credential sealing", () => {
-  test("stores plaintext without a key and sealed ciphertext with one", async () => {
+  test("requires a valid key for new writes and opens legacy plaintext during migration", async () => {
     expect(credentialKeyBytes(undefined)).toBeNull();
     expect(credentialKeyBytes("too-short")).toBeNull();
     expect(credentialKeyBytes(key)?.length).toBe(32);
     const secret = "ZmljdGlvbmFsLWFjY2Vzcy1rZXk=";
-    expect(await sealCredential(secret, undefined)).toBe(secret);
+    await expect(sealCredential(secret, undefined)).rejects.toThrow(
+      "CREDENTIALS_KEY",
+    );
     const sealed = await sealCredential(secret, key);
     expect(isSealed(sealed)).toBe(true);
     expect(sealed).not.toContain(secret);

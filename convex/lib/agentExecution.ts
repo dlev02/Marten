@@ -74,6 +74,13 @@ export function agentData(value: unknown): unknown {
     const omit = new Set([
       "userId",
       "itemId",
+      "providerAccountId",
+      "providerSecurityId",
+      "providerTransactionId",
+      "cusip",
+      "isin",
+      "accessUrl",
+      "apiKey",
       "plaidAccountId",
       "plaidTransactionId",
       "pendingTransactionId",

@@ -1,6 +1,7 @@
 import { ConvexError, v, type Infer } from "convex/values";
 import { accountKind } from "../validators";
 import { merchantDisplayName } from "./merchantNames";
+import { env } from "../_generated/server";
 
 /**
  * SimpleFIN protocol client (https://www.simplefin.org/protocol.html).
@@ -92,6 +93,18 @@ function blockedHost(host: string) {
     )
   );
 }
+/** Only operator-trusted bridges may receive a POST or saved Basic credentials. */
+function trustedBridge(url: URL) {
+  const hosts = [
+    "bridge.simplefin.org",
+    "beta-bridge.simplefin.org",
+    ...(env.SIMPLEFIN_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  ];
+  return !url.port && hosts.includes(url.hostname);
+}
 /** Decodes a pasted setup token into its claim URL without following it. */
 export function decodeSetupToken(token: string): string {
   const clean = token.trim();
@@ -115,7 +128,8 @@ export function decodeSetupToken(token: string): string {
     url.password ||
     url.search ||
     url.hash ||
-    blockedHost(url.hostname)
+    blockedHost(url.hostname) ||
+    !trustedBridge(url)
   )
     throw new SimplefinFailure("SETUP_TOKEN");
   return url.href;
@@ -140,7 +154,8 @@ export function parseAccessUrl(accessUrl: string): AccessCredentials {
     !url.password ||
     url.search ||
     url.hash ||
-    blockedHost(url.hostname)
+    blockedHost(url.hostname) ||
+    !trustedBridge(url)
   )
     throw new SimplefinFailure("INVALID_RESPONSE");
   const user = decodeURIComponent(url.username);

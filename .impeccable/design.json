@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-12T13:52:17.331832+00:00",
+  "generatedAt": "2026-11-05T23:01:28.266977+00:00",
   "title": "Design System: Marten",
   "extensions": {
     "shadows": [
@@ -141,7 +141,8 @@
       "**Do** keep one clear primary action and retain full, useful labels.",
       "**Do** preserve focus, wheel scrolling, touch access, and reduced motion.",
       "**Do** inspect both themes at laptop, iPad, and narrow-phone sizes.",
-      "**Do** distinguish implementation rules from historical references and actual QA evidence."
+      "**Do** distinguish implementation rules from historical references and actual QA evidence.",
+      "**Do** make receipt names authenticated download controls and require explicit initiation acknowledgement on unverified assistant consent, using the shared controls."
     ],
     "donts": [
       "**Don't** create a second calendar, dialog, picker, button family, or icon vocabulary.",

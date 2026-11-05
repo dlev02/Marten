@@ -5,6 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { userAction, userQuery } from "./lib/access";
 import { date as validateDate } from "./lib/access";
 import { syncInvestments } from "./lib/investmentSync";
+import { credentialKeyBytes } from "./lib/credentialCrypto";
 import {
   configuration,
   environment,
@@ -87,6 +88,14 @@ export const createLinkToken = userAction({
     ctx,
     args,
   ): Promise<{ linkToken: string; expiration: string }> => {
+    if (!credentialKeyBytes(env.CREDENTIALS_KEY))
+      throw new ConvexError(
+        "Bank connections need a valid server sealing key. Contact the server operator.",
+      );
+    await ctx.runMutation(internal.providerSecurity.reserve, {
+      userId: ctx.userId,
+      operation: "plaidLink",
+    });
     const item: Doc<"plaidItems"> | null = await ctx.runQuery(
       internal.plaidInternal.context,
       {
@@ -150,6 +159,14 @@ export const exchangePublicToken = userAction({
   },
   returns: v.object({ itemId: v.id("plaidItems") }),
   handler: async (ctx, args) => {
+    if (!credentialKeyBytes(env.CREDENTIALS_KEY))
+      throw new ConvexError(
+        "Bank connections need a valid server sealing key. Contact the server operator.",
+      );
+    await ctx.runMutation(internal.providerSecurity.reserve, {
+      userId: ctx.userId,
+      operation: "plaidExchange",
+    });
     if (args.importFromDate !== undefined) {
       validateDate(args.importFromDate);
       if (
@@ -233,6 +250,10 @@ export const sync = userAction({
   args: { itemId: v.id("plaidItems") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await ctx.runMutation(internal.providerSecurity.reserve, {
+      userId: ctx.userId,
+      operation: "bankSync",
+    });
     const item: Doc<"plaidItems"> | null = await ctx.runQuery(
       internal.plaidInternal.context,
       { userId: ctx.userId, itemId: args.itemId },

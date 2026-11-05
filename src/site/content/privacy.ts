@@ -5,7 +5,7 @@ export const privacyPolicy: SiteDocument = {
   title: "Privacy Policy",
   summary:
     "What Marten stores, where it lives, who processes it, and what never happens to it. Written in plain English by the person who runs the site.",
-  effective: "September 13, 2026",
+  effective: "November 5, 2026",
   sections: [
     {
       id: "what-marten-is",
@@ -70,7 +70,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "**Lunch Flow.** You link banks in your own Lunch Flow account, create an API destination and choose which accounts it can expose. Marten stores the key on the server, sealed with AES-256-GCM when the operator has configured a sealing key, to read balances, posted transactions and available holdings. Marten also receives institution names and logos, account names, currency and the reported underlying provider. No raw API key is returned in a query or stored in browser preferences. Marten reads daily and when you request an import. Lunch Flow and its banking providers process the connected data under [Lunch Flow’s privacy policy](https://lunchflow.app/privacy).",
+          text: "**Lunch Flow.** You link banks in your own Lunch Flow account, create an API destination and choose which accounts it can expose. Marten stores the key on the server, sealed with AES-256-GCM using the server sealing key, to read balances, posted transactions and available holdings. Marten also receives institution names and logos, account names, currency and the reported underlying provider. No raw API key is returned in a query or stored in browser preferences. Marten reads daily and when you request an import. Lunch Flow and its banking providers process the connected data under [Lunch Flow’s privacy policy](https://lunchflow.app/privacy).",
         },
         {
           type: "p",
@@ -221,7 +221,7 @@ export const privacyPolicy: SiteDocument = {
       blocks: [
         {
           type: "p",
-          text: "Opening `/demo` creates an anonymous guest session with a fictional household. The demo uses invented data, cannot connect banks, and cannot send reminders. Its session is kept in the tab's session storage, separate from any real account. Guest records created while exploring are not automatically removed from the database when you exit; they contain no real financial information.",
+          text: "Opening `/demo` creates an anonymous guest session with a fictional household. The demo uses invented data, cannot connect banks, and cannot send reminders. Its session is kept in the tab's session storage, separate from any real account. Guest accounts and their fictional records are eligible for automatic deletion after 24 hours, with cleanup running hourly. Exiting clears the tab’s guest session.",
         },
       ],
     },
@@ -239,7 +239,7 @@ export const privacyPolicy: SiteDocument = {
         },
         {
           type: "p",
-          text: "A few housekeeping records expire on their own: password-reset and reminder verification codes after 15 minutes, expired AI OAuth requests and tokens shortly after they lapse, app registrations with no active connection after a day, and reminder delivery records 32 days after their due date.",
+          text: "A few housekeeping records expire on their own: password-reset and reminder verification codes after 15 minutes, expired AI OAuth requests and tokens shortly after they lapse, app registrations with no active connection after a day, import jobs and any remaining row-upload files seven days after their last progress, and reminder delivery records 32 days after their due date.",
         },
         {
           type: "p",

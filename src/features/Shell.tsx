@@ -493,7 +493,9 @@ function SidebarContent({
                 type="button"
                 onClick={() =>
                   void task.run(() =>
-                    isDemoSession() ? exitDemo(signOut) : signOut(),
+                    isDemoSession()
+                      ? exitDemo(signOut)
+                      : signOut().then(() => window.location.assign("/")),
                   )
                 }
               >

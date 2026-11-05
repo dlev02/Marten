@@ -13,8 +13,9 @@ const app = defineApp({
     AUTH_BREVO_KEY: v.optional(v.string()),
     AUTH_EMAIL_FROM: v.optional(v.string()),
     AGENT_APP_ORIGIN: v.optional(v.string()),
-    // Optional 32-byte base64 key that seals user-entered provider secrets at rest.
+    // Required for new bank connections; 32 bytes, base64, seals every provider secret.
     CREDENTIALS_KEY: v.optional(v.string()),
+    SIMPLEFIN_ALLOWED_HOSTS: v.optional(v.string()),
   },
 });
 app.use(rateLimiter);

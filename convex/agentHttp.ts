@@ -210,6 +210,7 @@ const authorize = httpAction(async (ctx, request) => {
   }
   const secret = randomSecret("request");
   const created = await ctx.runMutation(internal.agentAccess.createRequest, {
+    addressKey: addressKey(request),
     requestHash: hashSecret(secret),
     clientId,
     clientName: client.clientName,
@@ -283,6 +284,7 @@ const token = httpAction(async (ctx, request) => {
   const accessToken = randomSecret("marten_access"),
     refreshToken = randomSecret("marten_refresh");
   const result = await ctx.runMutation(internal.agentAccess.exchange, {
+    addressKey: addressKey(request),
     grantType,
     credentialHash: hashSecret(credential),
     clientId,
@@ -314,7 +316,7 @@ const token = httpAction(async (ctx, request) => {
 
 /** The caller's address, hashed, keys the registration rate limit. */
 function addressKey(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0];
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",").at(-1);
   const address =
     forwarded?.trim() || request.headers.get("x-real-ip")?.trim() || "unknown";
   return hashSecret(`register:${address.slice(0, 100)}`);

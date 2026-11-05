@@ -2438,13 +2438,19 @@ label select {
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
 }
-.attachment-list a {
+.attachment-list .attachment-download {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
 }
-.attachment-list a:hover {
+.attachment-list .attachment-download:hover {
   color: var(--blue);
 }
 .attachment-list small {

@@ -97,19 +97,21 @@ describe("profile pictures", () => {
     const firstAlice = (await alice.query(api.workspace.metadata, {})).profile!;
     const bobProfile = (await bob.query(api.workspace.metadata, {})).profile!;
     expect(firstAlice.avatarUrl).toEqual(expect.any(String));
-    expect(firstAlice.photoStorageId).toBeDefined();
+    expect(firstAlice).not.toHaveProperty("photoStorageId");
+    const firstStorage = (await t.run((ctx) => ctx.db.get(firstAlice._id)))!
+      .photoStorageId;
+    const bobStorage = (await t.run((ctx) => ctx.db.get(bobProfile._id)))!
+      .photoStorageId;
     await alice.action(api.workspace.uploadProfilePhoto, photo());
     const replacement = (await alice.query(api.workspace.metadata, {}))
       .profile!;
-    expect(replacement.photoStorageId).not.toBe(firstAlice.photoStorageId);
+    const replacementStorage = (await t.run((ctx) =>
+      ctx.db.get(replacement._id),
+    ))!.photoStorageId;
+    expect(replacementStorage).not.toBe(firstStorage);
+    expect(await t.run((ctx) => ctx.storage.get(firstStorage!))).toBeNull();
     expect(
-      await t.run((ctx) => ctx.storage.get(firstAlice.photoStorageId!)),
-    ).toBeNull();
-    expect(
-      await t.run(
-        async (ctx) =>
-          (await ctx.storage.get(bobProfile.photoStorageId!)) !== null,
-      ),
+      await t.run(async (ctx) => (await ctx.storage.get(bobStorage!)) !== null),
     ).toBe(true);
     await alice.mutation(api.workspace.saveProfileAvatar, { preset: "ocean" });
     const preset = (await alice.query(api.workspace.metadata, {})).profile!;
@@ -118,9 +120,9 @@ describe("profile pictures", () => {
       avatarPreset: "ocean",
       avatarUrl: null,
     });
-    expect(preset.photoStorageId).toBeUndefined();
+    expect(preset).not.toHaveProperty("photoStorageId");
     expect(
-      await t.run((ctx) => ctx.storage.get(replacement.photoStorageId!)),
+      await t.run((ctx) => ctx.storage.get(replacementStorage!)),
     ).toBeNull();
     expect((await bob.query(api.workspace.metadata, {})).profile).toMatchObject(
       bobProfile,
@@ -137,13 +139,13 @@ describe("profile pictures", () => {
     await alice.action(api.workspace.uploadProfilePhoto, photo());
     const saved = (await alice.query(api.workspace.metadata, {})).profile!;
     expect(saved.avatarPreset).toBeUndefined();
+    const savedStorage = (await t.run((ctx) => ctx.db.get(saved._id)))!
+      .photoStorageId;
     await t.run((ctx) => ctx.db.patch(saved._id, { demo: true }));
     let done = false;
     while (!done)
       done = (await alice.mutation(api.workspace.clearSample, {})).done;
-    expect(
-      await t.run((ctx) => ctx.storage.get(saved.photoStorageId!)),
-    ).toBeNull();
+    expect(await t.run((ctx) => ctx.storage.get(savedStorage!))).toBeNull();
     expect((await alice.query(api.workspace.metadata, {})).profile).toBeNull();
   });
 });

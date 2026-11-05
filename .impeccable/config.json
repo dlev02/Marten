@@ -1,0 +1,43 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#648981",
+        "files": [
+          "convex/transactions.ts",
+          "src/features/transactions/TransactionDrawer.tsx"
+        ],
+        "createdAt": "2026-11-05T22:43:35.266Z",
+        "reason": "Security review: existing persisted merchant and tag fallback color, not a new theme choice"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#64748b",
+        "files": [
+          "convex/lib/agentExecution.ts",
+          "convex/plaidInternal.ts",
+          "convex/simplefinInternal.ts"
+        ],
+        "createdAt": "2026-11-05T22:43:35.375Z",
+        "reason": "Security review: existing persisted financial entity fallback colors, outside interface theme tokens"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "12px",
+        "files": ["src/features/transactions/import.css", "src/index.css"],
+        "createdAt": "2026-11-05T22:43:35.486Z",
+        "reason": "DESIGN.md Typography Caption specifies 12px"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "15px",
+        "files": ["src/features/transactions/import.css", "src/index.css"],
+        "createdAt": "2026-11-05T22:43:35.594Z",
+        "reason": "DESIGN.md Typography Small heading and Navigation specify 15px"
+      }
+    ]
+  }
+}

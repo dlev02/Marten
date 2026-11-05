@@ -97,7 +97,7 @@ Credit-score observations are separate from bank data. The lazy PDF.js helper re
 
 ## Guest demo
 
-[Demo context](../src/lib/demo.ts) chooses sessionStorage and a separate Convex Auth namespace before React mounts. Normal account tokens remain in their existing storage. Anonymous users receive only their fictional workspace; server guards prevent bank actions and conversion into a real workspace. Exit signs out the guest and returns to normal authentication. Appearance preferences remain device-wide, and guest records currently remain in the development database after exit.
+[Demo context](../src/lib/demo.ts) chooses sessionStorage and a separate Convex Auth namespace before React mounts. Normal account tokens remain in their existing storage. Anonymous users receive only their fictional workspace; server guards prevent bank actions and conversion into a real workspace. Exit signs out the guest and returns to normal authentication. Appearance preferences remain device-wide, and guest accounts become eligible for the hourly deletion sweep after 24 hours.
 
 ## Money and dates
 
@@ -201,3 +201,11 @@ scope and the FAQ/search entry for the direct link.
 ## Lunch Flow and shared bank imports
 
 [The Lunch Flow guide](lunchflow.md) covers user-owned API keys, account review, USD-only imports, underlying-provider display, supported holdings, limits and revocation. SimpleFIN and Lunch Flow coexist, one connection per service per user. The shared import engine preserves existing records and fences concurrent writes; legacy `simplefin*` storage names remain for compatibility, with explicit provider and transaction provenance. Plaid retains its existing allow-list and product-specific connection flow.
+
+## File and credential security
+
+Import rows are uploaded through the authenticated `/imports/upload` HTTP action with a streaming 20 MB cap and a 50,000-row limit. Only the server-created blob can enter its internal job; clients cannot nominate storage IDs. Import batches check that the workspace still exists and is not being cleared or deleted. Reset/deletion sweeps remove jobs, uploaded rows and merchant aliases. Old jobs expire after seven days.
+
+Receipt downloads use `/receipts?id=<attachment-id>` with a live session and an ownership check on every request, with private/no-store responses. Profile and merchant query results omit raw storage IDs; their display images still use bearer URLs. Merchant website fetching runs in Node, rejects special-use IPv4 DNS answers and pins a checked address for each TLS request, including redirects. IPv6-only websites fall back to the catalog or image upload.
+
+All new provider credentials require AES-256-GCM sealing with `CREDENTIALS_KEY`. The [bounded upgrade migrations](security-hardening.md) seal old records and rotate receipt files to revoke previously issued bearer URLs.

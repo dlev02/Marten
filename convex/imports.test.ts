@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test, vi } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
 async function fixture() {
@@ -9,6 +9,9 @@ async function fixture() {
   const a = await t.run((ctx) =>
     ctx.db.insert("users", { email: "import-qa@example.test" }),
   );
+  await t
+    .withIdentity({ subject: a })
+    .mutation(api.workspace.initialize, { sample: false });
   const b = await t.run((ctx) =>
     ctx.db.insert("users", { email: "other-import-qa@example.test" }),
   );
@@ -125,7 +128,7 @@ test("new workspaces start with complete illustrated groups and keep user change
 });
 
 test("a background job saves uploaded rows in batches, reports progress, and cleans up", async () => {
-  const { t, alice, bob } = await fixture();
+  const { t, a, alice, bob } = await fixture();
   await alice.mutation(api.workspace.initialize, { name: "QA", sample: false });
   const { accounts, categories } = await alice.mutation(
     api.imports.prepareDestinations,
@@ -150,13 +153,15 @@ test("a background job saves uploaded rows in batches, reports progress, and cle
     ctx.storage.store(new Blob([JSON.stringify(rows)])),
   );
   await expect(
-    bob.mutation(api.imports.start, {
+    t.mutation(internal.imports.start, {
+      userId: a,
       kind: "transactions",
       storageId,
       total: 0,
     }),
   ).rejects.toThrow("between 1 and 50,000");
-  const jobId = await alice.mutation(api.imports.start, {
+  const jobId = await t.mutation(internal.imports.start, {
+    userId: a,
     kind: "transactions",
     storageId,
     total: rows.length,
@@ -167,7 +172,8 @@ test("a background job saves uploaded rows in batches, reports progress, and cle
     processed: 0,
   });
   await expect(
-    alice.mutation(api.imports.start, {
+    t.mutation(internal.imports.start, {
+      userId: a,
       kind: "transactions",
       storageId,
       total: rows.length,
@@ -185,7 +191,7 @@ test("a background job saves uploaded rows in batches, reports progress, and cle
     skipped: 0,
     acknowledged: false,
   });
-  expect(job?.storageId).toBeUndefined();
+  expect(job).not.toHaveProperty("storageId");
   expect(await t.run((ctx) => ctx.storage.getUrl(storageId))).toBeNull();
   expect(
     (await t.run((ctx) => ctx.db.query("transactions").collect())).length,
@@ -198,7 +204,8 @@ test("a background job saves uploaded rows in batches, reports progress, and cle
   const again = await t.run((ctx) =>
     ctx.storage.store(new Blob([JSON.stringify(rows)])),
   );
-  await alice.mutation(api.imports.start, {
+  await t.mutation(internal.imports.start, {
+    userId: a,
     kind: "transactions",
     storageId: again,
     total: rows.length,
@@ -214,7 +221,7 @@ test("a background job saves uploaded rows in batches, reports progress, and cle
 });
 
 test("a balance job groups rows by account and sets manual balances", async () => {
-  const { t, alice } = await fixture();
+  const { t, a, alice } = await fixture();
   await alice.mutation(api.workspace.initialize, { name: "QA", sample: false });
   const { accounts } = await alice.mutation(api.imports.prepareDestinations, {
     accounts: [
@@ -231,7 +238,8 @@ test("a balance job groups rows by account and sets manual balances", async () =
   const storageId = await t.run((ctx) =>
     ctx.storage.store(new Blob([JSON.stringify(rows)])),
   );
-  await alice.mutation(api.imports.start, {
+  await t.mutation(internal.imports.start, {
+    userId: a,
     kind: "balances",
     storageId,
     total: rows.length,
@@ -254,11 +262,12 @@ test("a balance job groups rows by account and sets manual balances", async () =
 });
 
 test("a job whose upload is malformed fails with a readable reason", async () => {
-  const { t, alice } = await fixture();
+  const { t, a, alice } = await fixture();
   const storageId = await t.run((ctx) =>
     ctx.storage.store(new Blob(["not json"])),
   );
-  await alice.mutation(api.imports.start, {
+  await t.mutation(internal.imports.start, {
+    userId: a,
     kind: "transactions",
     storageId,
     total: 3,

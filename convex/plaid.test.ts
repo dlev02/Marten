@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -27,7 +28,9 @@ const incoming: BankTransaction = {
   category: "FOOD_AND_DRINK",
 };
 async function fixture() {
+  vi.stubEnv("CREDENTIALS_KEY", btoa("p".repeat(32)));
   const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
   const seed = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", {
       email: "sample@example.test",
@@ -958,18 +961,18 @@ describe("anonymous bank access boundaries", () => {
     for (const mode of ["transactions", "investments"] as const) {
       await expect(
         asUser.action(api.plaid.createLinkToken, { mode }),
-      ).rejects.toThrow("Create an account");
+      ).rejects.toThrow("personal workspace");
       await expect(
         asUser.action(api.plaid.createLinkToken, { mode, itemId }),
-      ).rejects.toThrow("Create an account");
+      ).rejects.toThrow("personal workspace");
     }
     await expect(
       asUser.action(api.plaid.exchangePublicToken, {
         publicToken: "fictional-public-token",
       }),
-    ).rejects.toThrow("Create an account");
+    ).rejects.toThrow("personal workspace");
     await expect(asUser.action(api.plaid.sync, { itemId })).rejects.toThrow(
-      "Create an account",
+      "personal workspace",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });

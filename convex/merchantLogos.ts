@@ -5,160 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { owned, userAction, userMutation } from "./lib/access";
 import { searchBrandLogos } from "../src/lib/brandLogos";
 
-const MAX_IMAGE = 2 * 1024 * 1024;
-const MAX_HTML = 512 * 1024;
-const hostError = "Enter a public website hostname, such as costco.com.";
-
-/** Normalize pasted website addresses, but never accept credentials, ports or IP hosts. */
-export function validateHostname(input: string): string {
-  const value = input.trim();
-  if (!value || value.length > 2048 || /[\\\s@%]/.test(value))
-    throw new ConvexError(hostError);
-  let url: URL;
-  try {
-    url = new URL(value.includes("://") ? value : `https://${value}`);
-  } catch {
-    throw new ConvexError(hostError);
-  }
-  const host = url.hostname.toLowerCase();
-  if (
-    !["http:", "https:"].includes(url.protocol) ||
-    url.username ||
-    url.password ||
-    url.port ||
-    host.length > 253 ||
-    !/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host) ||
-    host
-      .split(".")
-      .some(
-        (label) =>
-          label.length > 63 || label.startsWith("-") || label.endsWith("-"),
-      ) ||
-    !/\.[a-z]{2,63}$/.test(host) ||
-    /(?:^|\.)(?:localhost|local|internal|lan|home|test|invalid|example|onion)$/.test(
-      host,
-    )
-  )
-    throw new ConvexError(hostError);
-  return host;
-}
-
-/** Content-Type is untrusted. SVGs must also be self-contained passive images. */
-export function sniffImage(bytes: Uint8Array): string | null {
-  const starts = (...signature: number[]) =>
-    signature.every((byte, index) => bytes[index] === byte);
-  if (bytes.length < 12 || bytes.length > MAX_IMAGE) return null;
-  if (starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))
-    return "image/png";
-  if (starts(0xff, 0xd8, 0xff)) return "image/jpeg";
-  const ascii = (start: number, end: number) =>
-    String.fromCharCode(...bytes.slice(start, end));
-  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp";
-  if (starts(0, 0, 1, 0) && (bytes[4] || bytes[5])) return "image/x-icon";
-  const svg = new TextDecoder().decode(bytes).trim();
-  if (
-    /^(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(svg) &&
-    /<\/svg>\s*$/i.test(svg) &&
-    !/<(?:script|foreignObject|iframe|object|embed|image|use|style|animate\w*|set)\b|\bon\w+\s*=|<!ENTITY|<!DOCTYPE|(?:href|src)\s*=|url\s*\(|@import/i.test(
-      svg,
-    )
-  )
-    return "image/svg+xml";
-  return null;
-}
-
-function websiteUrl(value: string, base: string, host: string): URL {
-  const url = new URL(value.replace(/&amp;/g, "&"), base);
-  const target = validateHostname(url.href);
-  // Keep requests on the merchant's own host/subdomains; never query logo services.
-  const root = host.replace(/^www\./, "");
-  if (
-    url.protocol !== "https:" ||
-    (target !== root && !target.endsWith(`.${root}`))
-  )
-    throw new Error("Unsupported logo location");
-  return url;
-}
-
-async function readWebsite(
-  url: URL,
-  host: string,
-  limit: number,
-  signal: AbortSignal,
-) {
-  for (let redirects = 0; redirects <= 3; redirects++) {
-    const response = await fetch(url, {
-      redirect: "manual",
-      signal,
-      headers: { Accept: "text/html,image/*;q=0.9" },
-    });
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      await response.body?.cancel();
-      const location = response.headers.get("location");
-      if (!location || redirects === 3) throw new Error("Too many redirects");
-      url = websiteUrl(location, url.href, host);
-      continue;
-    }
-    if (
-      !response.ok ||
-      !response.body ||
-      Number(response.headers.get("content-length")) > limit
-    ) {
-      await response.body?.cancel();
-      throw new Error("Website response unavailable");
-    }
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > limit) throw new Error("Website response too large");
-        chunks.push(value);
-      }
-    } finally {
-      await reader.cancel();
-    }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return { bytes, url: url.href };
-  }
-  throw new Error("Website unavailable");
-}
-
-function iconLinks(html: string): string[] {
-  const apple: string[] = [],
-    icons: string[] = [],
-    images: string[] = [];
-  // Ignore comments and scripts before reading the bounded document's metadata.
-  const markup = html.replace(
-    /<!--[\s\S]*?-->|<script\b[^>]*>[\s\S]*?<\/script>/gi,
-    "",
-  );
-  for (const tag of markup.match(/<(?:link|meta)\b[^>]*>/gi) ?? []) {
-    const attrs: Record<string, string> = {};
-    for (const match of tag.matchAll(
-      /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g,
-    ))
-      attrs[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4];
-    const rel = (attrs.rel ?? "").toLowerCase().split(/\s+/);
-    if (attrs.href && rel.some((value) => value.startsWith("apple-touch-icon")))
-      apple.push(attrs.href);
-    else if (attrs.href && rel.includes("icon")) icons.push(attrs.href);
-    else if (
-      (attrs.property ?? attrs.name)?.toLowerCase() === "og:image" &&
-      attrs.content
-    )
-      images.push(attrs.content);
-  }
-  return [...apple, ...icons, ...images].slice(0, 8);
-}
+export { validateHostname, sniffImage } from "./lib/merchantImageValidation";
 
 export const registerPreview = internalMutation({
   args: { userId: v.id("users"), storageId: v.id("_storage") },
@@ -189,82 +36,18 @@ export const expirePreview = internalMutation({
   },
 });
 
-/**
- * Reads a logo from the merchant's own website: its declared icons, then the
- * standard touch icon and favicon. Requests never leave that host or its
- * subdomains, follow at most three checked redirects, and stop at 10 seconds.
- */
-export async function fetchWebsiteLogo(
-  hostname: string,
-): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string }> {
-  const host = validateHostname(hostname);
-  const base = `https://${host}/`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    let candidates: string[] = [];
-    let documentUrl = base;
-    try {
-      const page = await readWebsite(
-        new URL(base),
-        host,
-        MAX_HTML,
-        controller.signal,
-      );
-      documentUrl = page.url;
-      candidates = iconLinks(new TextDecoder().decode(page.bytes));
-    } catch {
-      /* Sites without readable HTML may still provide standard icons. */
-    }
-    for (const path of [
-      ...new Set([...candidates, "/apple-touch-icon.png", "/favicon.ico"]),
-    ]) {
-      try {
-        const result = await readWebsite(
-          websiteUrl(path, documentUrl, host),
-          host,
-          MAX_IMAGE,
-          controller.signal,
-        );
-        const type = sniffImage(result.bytes);
-        if (type) return { bytes: result.bytes, type };
-      } catch {
-        /* Try the next first-party candidate. */
-      }
-    }
-  } finally {
-    clearTimeout(timer);
-  }
-  throw new ConvexError(
-    "We couldn’t find a supported logo on that website. Check the domain, choose a catalog logo, or upload an image.",
-  );
-}
-
+/** Network access runs in Node so DNS answers can be checked and pinned. */
 export const findWebsiteLogo = userAction({
   args: { hostname: v.string() },
   returns: v.object({ storageId: v.id("_storage"), url: v.string() }),
   handler: async (
     ctx,
     { hostname },
-  ): Promise<{ storageId: Id<"_storage">; url: string }> => {
-    const image = await fetchWebsiteLogo(hostname);
-    let storageId: Id<"_storage"> | undefined;
-    try {
-      storageId = await ctx.storage.store(
-        new Blob([image.bytes], { type: image.type }),
-      );
-      const url = await ctx.storage.getUrl(storageId);
-      if (!url) throw new Error("Preview unavailable");
-      await ctx.runMutation(internal.merchantLogos.registerPreview, {
-        userId: ctx.userId,
-        storageId,
-      });
-      return { storageId, url };
-    } catch {
-      if (storageId) await ctx.storage.delete(storageId);
-      throw new ConvexError("The logo couldn’t be saved. Please try again.");
-    }
-  },
+  ): Promise<{ storageId: Id<"_storage">; url: string }> =>
+    ctx.runAction(internal.merchantLogoFetch.find, {
+      userId: ctx.userId,
+      hostname,
+    }),
 });
 
 /** Association happens only when the user saves the merchant after reviewing its preview. */

@@ -1,5 +1,17 @@
 # Verification record
 
+## November 5 — Security hardening
+
+- `npm audit`: 0 vulnerabilities (previously 14: five high and nine moderate).
+- `npm test`: 421 tests passed across 57 files. `npm run lint` and `npm run build` passed. The focused file-security regression exercises foreign-owner rejection, authenticated receipt bytes/no-store headers, blocked arbitrary-storage-ID imports, size/origin limits, receipt-file rotation, revoked sessions and clearing with an active import.
+- Deployed to development `stoic-narwhal-224`. The real Convex runtime successfully sealed one existing Plaid credential and one existing SimpleFIN/Lunch Flow credential. A DNS-pinned public website logo request succeeded; its temporary file was removed.
+- Production preflight: existing sealing key is valid; two unsealed Plaid tokens need migration and no receipts currently need rotation. No credential values or financial records were printed. Netlify is linked to `dlev02/Marten` on `main`.
+- Final sign-out returns to the home page. Demo startup and exit clear the isolated demo flag and return to normal sign-in.
+- Shared-browser A→B QA observed DOM changes during B signup/onboarding: no A profile name or private fictional merchant appeared; B’s workspace was empty. Browser QA uses two fictional development accounts in a clean browser and the built app's production CSP. A reviewed one-row CSV created its account and completed its server-side import through the authenticated upload action.
+- Receipt upload and download succeeded in the browser; downloaded bytes matched the upload, and no attachment anchor exposed a reusable storage URL. The unverified-consent Allow button stayed disabled until the initiation toggle was checked with the keyboard. The full callback was visible. Screenshots inspected at 1440×1000, 1024×1366 and 390×844 in both themes; no horizontal overflow. Publishable fictional-data frames are archived at `~/Developer/release-shots/marten/2026-11-05-security-hardening/`.
+- A rebuild during the first browser run deliberately invalidated earlier chunk URLs, causing stale-chunk errors and the existing automatic reload. Subsequent validation uses the settled build; this was not a CSP failure.
+- Remaining proof boundaries: no real bank consent, reconnect, or transfer was attempted. Full password/OTP step-up and mandatory signup email verification remain separate authentication work; unverified consent has an explicit initiation acknowledgement.
+
 ## September 13 — Family imports, bank cutover and resilient connection UI
 
 - Inspected the supplied Expense spreadsheet template directly: row 2 contains Month, Date, Amount, Category and Notes; no expenses are filled in. Browser upload detects row 2 and reports the empty sheet without phantom transactions. The original workbook was not edited.
@@ -442,7 +454,7 @@ The tests cover money conservation, signed cents, refunds, splits, complete-peri
 - Profile name, preset avatar, and initials persisted after reload. The actual photo cropper was exercised with zoom/pan; a saved 512px image persisted and was then restored to initials.
 - **Explore demo**, `/demo`, and **Profile → Open demo** opened a fictional Taylor household in a separate tab. Guest changes survived refresh, and **Exit demo** returned to the normal account or sign-in page. An existing signed-in workspace retained its saved forecast while a separate guest demo ran.
 - Guest authentication uses a separate tab-storage namespace. Backend tests reject guest bank access, sample clearing, and conversion to a personal workspace even if the profile is tampered with. The UI disables Plaid and explains how to sign in.
-- Guest records are retained in the development database after exit; the app does not promise immediate deletion. Appearance preferences remain device-level preferences.
+- At that check, guest records were retained in development after exit. Superseded by the November 5 retention sweep: anonymous accounts become eligible after 24 hours. Appearance preferences remain device-level preferences.
 
 See [authentication](authentication.md) for delivery configuration and recovery limits.
 
@@ -868,7 +880,6 @@ Consent copy in Settings and on `/agent-authorize` names the new edit scope.
   rule and QA categories removed, preferences unchanged, grant disconnected.
 - Not covered: hosted ChatGPT/Claude connection flows and the WebMCP browser
   path (it shares these schemas and gained the same tools without a live check).
-
 
 ## September 13, 2026 · Lunch Flow, chart preferences and interface review
 

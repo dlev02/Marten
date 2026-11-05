@@ -40,6 +40,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 async function fixture() {
+  vi.stubEnv("CREDENTIALS_KEY", btoa("l".repeat(32)));
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t);
   const [userId, otherId] = await t.run(async (ctx) => [

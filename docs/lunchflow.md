@@ -16,16 +16,16 @@ When switching from another service, stop and remove that connection first to fr
 
 Lunch Flow documents MX, Finicity, GoCardless, Finverse, Pluggy, Akahu and SnapTrade coverage. The accounts endpoint reports the provider behind an account, which Marten shows beside the account. Its Personal API has no institution search, connector-selection operation or success/longevity metrics. Marten therefore delegates connection choice and repair to Lunch Flow and does not invent rankings or copy Monarch's success ratings. The reviewed documentation does not establish how Lunch Flow ranks competing connectors for Fidelity or any other particular bank.
 
-| Data | Marten behavior |
-| --- | --- |
-| Accounts | Names, institution name/logo, provider and currency; user reviews the suggested type |
-| Balances | Signed amounts converted to integer cents; debt becomes amount owed; no fabricated update timestamp |
-| Transactions | Stable account-scoped IDs, dates, description and merchant; deposits become negative and outflows positive in Marten |
-| Pending / removed | Pending rows are excluded; absent rows are not deleted because this API does not supply a deletion stream |
-| Categories / merchant logos | Not present in the documented transaction schema; Marten's rules, merchant catalog and user edits apply |
-| Credit-card details | No statement balance, minimum payment, statement date or payment due date in this API; use statement reminders |
-| Holdings | Quantities, value, symbol and price where available; failed or unsupported snapshots retain prior positions |
-| Cost basis / price history | No gains or historical security prices inferred; the documented costBasis field lacks sufficient unit semantics for use here |
+| Data                        | Marten behavior                                                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Accounts                    | Names, institution name/logo, provider and currency; user reviews the suggested type                                         |
+| Balances                    | Signed amounts converted to integer cents; debt becomes amount owed; no fabricated update timestamp                          |
+| Transactions                | Stable account-scoped IDs, dates, description and merchant; deposits become negative and outflows positive in Marten         |
+| Pending / removed           | Pending rows are excluded; absent rows are not deleted because this API does not supply a deletion stream                    |
+| Categories / merchant logos | Not present in the documented transaction schema; Marten's rules, merchant catalog and user edits apply                      |
+| Credit-card details         | No statement balance, minimum payment, statement date or payment due date in this API; use statement reminders               |
+| Holdings                    | Quantities, value, symbol and price where available; failed or unsupported snapshots retain prior positions                  |
+| Cost basis / price history  | No gains or historical security prices inferred; the documented costBasis field lacks sufficient unit semantics for use here |
 
 Broader provider coverage does not establish better data for a particular account. A real account-holder connection remains necessary to verify completeness, signs and availability at each institution.
 
@@ -35,7 +35,7 @@ Broader provider coverage does not establish better data for a particular accoun
 
 The existing `simplefinConnections` table and `simplefin*` foreign-key fields are retained for stored-ID compatibility. They now form the shared import storage: an optional `provider` distinguishes connections (absent means legacy SimpleFIN), one per provider per user. Lunch Flow external IDs are namespaced, account rows record `bankProvider`, and transactions use source `lunchflow`. The shared engine checks ownership, mapping cutovers, version leases, idempotency, split preservation and annotations. These fields are not exposed by assistant business operations.
 
-Set `CREDENTIALS_KEY` to a base64-encoded 32-byte key to seal credentials with AES-256-GCM. Without a valid key, credentials remain server-side but are stored unsealed, as with the existing SimpleFIN integration. Never put a Lunch Flow key into a `VITE_*` variable.
+Set `CREDENTIALS_KEY` to a base64-encoded 32-byte key to seal credentials with AES-256-GCM. A missing or invalid key blocks new connections before a provider request; credentials are never silently saved unsealed. Never put a Lunch Flow key into a `VITE_*` variable.
 
 **Stop imports** pauses Marten reads. **Remove** forgets the saved credential and makes imported accounts manual while preserving history. Revoke the API destination or bank consent in Lunch Flow separately. Workspace/account deletion includes these connections in the existing cleanup path.
 

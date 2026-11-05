@@ -7,6 +7,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { sealCredential } from "./lib/credentialCrypto";
+import { env } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import {
@@ -39,7 +41,12 @@ async function liveProfile(ctx: Pick<QueryCtx, "db">, userId: Id<"users">) {
     .query("profiles")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
-  if (!profile || profile.demo)
+  if (
+    !profile ||
+    profile.demo ||
+    profile.deletionRequestedAt ||
+    profile.clearingAt
+  )
     throw new ConvexError(
       "Create a personal workspace before connecting a bank. Sample data cannot be mixed with live accounts.",
     );
@@ -111,6 +118,13 @@ export const saveItem = internalMutation({
     if (exact) {
       if (exact.userId !== args.userId)
         throw new ConvexError("This bank connection is already in use.");
+      // /item/remove would revoke this existing Item too. Keep the fresh token.
+      await ctx.db.patch(exact._id, {
+        accessToken: await sealCredential(
+          args.accessToken,
+          env.CREDENTIALS_KEY,
+        ),
+      });
       return { itemId: exact._id, duplicate: false, sameItem: true };
     }
     const same = await ctx.db
@@ -135,6 +149,7 @@ export const saveItem = internalMutation({
     }
     const itemId = await ctx.db.insert("plaidItems", {
       ...args,
+      accessToken: await sealCredential(args.accessToken, env.CREDENTIALS_KEY),
       status: "connected",
       syncVersion: 0,
     });
